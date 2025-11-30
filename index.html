@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nakış Vektörleştirici - Botlab Teknoloji</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .support-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .support-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .support-btn {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin: 10px auto;
+                display: block;
+                width: fit-content;
+            }
+        }
+
+        .upload-section, .preview-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-area:hover {
+            background: #eef2ff;
+            border-color: #764ba2;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+        }
+
+        .style-select, .format-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .style-select:focus, .format-select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .preview-box {
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            margin-bottom: 15px;
+        }
+
+        .preview-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 250px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-placeholder {
+            text-align: center;
+            color: #6c757d;
+        }
+
+        #resultImage, #originalImage {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 15px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .success-message {
+            color: #28a745;
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .style-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #0066cc;
+        }
+
+        .style-info h4 {
+            margin: 0 0 5px 0;
+            color: #004d99;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Nakış Vektörleştirici</h1>
+            <p>Otomatik Nakış Dönüştürücü - Botlab Teknoloji</p>
+            <a href="https://wa.me/905335620807?text=Hata%20bildiriminde%20bulunmak%20istiyorum%20-%20Nakış%20Vektörleştirici" 
+               class="support-btn" 
+               target="_blank">
+               📞 Destek Talebi Oluştur
+            </a>
+        </header>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <!-- DOSYA YÜKLEME ALANI -->
+                <div class="upload-area" id="uploadArea">
+                    <h3>📁 Görselinizi yükleyin</h3>
+                    <p>PNG, JPG, JPEG formatları</p>
+                    <p style="color: #667eea; font-size: 14px; margin-top: 10px;">
+                        ↪️ Bu kutuya tıklayın ve resim seçin
+                    </p>
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                </div>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="colorRange">Renk Sayısı: <span id="colorValue">8</span></label>
+                        <input type="range" id="colorRange" min="2" max="16" value="8">
+                        <small>Nakış makinesi için uygun renk sayısı: 4-8</small>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="formatSelect">Çıktı Formatı:</label>
+                        <select id="formatSelect" class="format-select">
+                            <option value="png">🖼️ PNG (Tavsiye Edilen)</option>
+                            <option value="svg">📐 SVG (Vektörel)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="styleSelect">İşleme Stili:</label>
+                        <select id="styleSelect" class="style-select">
+                            <option value="sharp">🔷 Keskin Hatlar (Nakış için)</option>
+                            <option value="line_art">⚫ Çizgi Sanatı (Siyah-Beyaz)</option>
+                            <option value="cartoon">🎨 Cartoon Vektör (2-3 Renk)</option>
+                        </select>
+                        <div class="style-info">
+                            <h4>🎯 Stil Açıklamaları:</h4>
+                            <p><strong>Keskin Hatlar:</strong> Nakış makinesi için ideal - temiz ve net kenarlar</p>
+                            <p><strong>Çizgi Sanatı:</strong> Siyah-beyaz kontür çizgileri - çizim için</p>
+                            <p><strong>Cartoon Vektör:</strong> 2-3 renkli cartoon efekti - vektörel çizim</p>
+                            <p><strong>PNG Formatı:</strong> En iyi sonuç için PNG kullanın</p>
+                        </div>
+                    </div>
+
+                    <button id="processBtn" class="btn" disabled>
+                        🪄 Vektörleştir
+                    </button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>İşleniyor... Görsel optimize ediliyor</p>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-box">
+                    <div class="preview-title">Orijinal Görsel</div>
+                    <div class="image-container" id="originalPreview">
+                        <div class="image-placeholder">Görsel yüklenmedi</div>
+                    </div>
+                </div>
+
+                <div class="preview-box">
+                    <div class="preview-title">İşlem Sonucu</div>
+                    <div class="image-container" id="resultPreview">
+                        <div class="image-placeholder">Sonuç burada görünecek</div>
+                    </div>
+                </div>
+
+                <button id="downloadBtn" class="btn download-btn" disabled>
+                    💾 İndir
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Copyright © 2025 Botlab Teknoloji | <a href="https://lisansarsivi.com" target="_blank">Lisansarsivi.com</a></p>
+            <p style="margin-top: 5px; font-size: 12px; opacity: 0.8;">
+                Gelişmiş görsel vektörleştirme sistemi
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Global değişkenler
+        let currentImageData = null;
+        let currentFormat = 'png';
+
+        // Elementleri seç
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const colorRange = document.getElementById('colorRange');
+        const colorValue = document.getElementById('colorValue');
+        const styleSelect = document.getElementById('styleSelect');
+        const formatSelect = document.getElementById('formatSelect');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const loading = document.getElementById('loading');
+        const originalPreview = document.getElementById('originalPreview');
+        const resultPreview = document.getElementById('resultPreview');
+
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Nakış Vektörleştirici hazır!');
+            updateDownloadButtonText();
+            initializeEventListeners();
+        });
+
+        // Event listener'ları başlat
+        function initializeEventListeners() {
+            // Renk değerini güncelle
+            colorRange.addEventListener('input', function() {
+                colorValue.textContent = this.value;
+            });
+
+            // Format değişince download buton metnini güncelle
+            formatSelect.addEventListener('change', function() {
+                updateDownloadButtonText();
+            });
+
+            // Dosya seçildiğinde
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Upload alanına tıklama
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // Vektörleştir butonu
+            processBtn.addEventListener('click', handleVectorize);
+
+            // İndirme butonu
+            downloadBtn.addEventListener('click', handleDownload);
+
+            // Sürükle-bırak desteği
+            setupDragAndDrop();
+        }
+
+        // Dosya seçimi işleyicisi
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                console.log('Yeni dosya seçildi:', file.name);
+                
+                // Önceki görseli temizle
+                currentImageData = null;
+                downloadBtn.disabled = true;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    console.log('Dosya okundu, önizleme oluşturuluyor...');
+                    
+                    // Önizleme oluştur (taşma olmadan)
+                    originalPreview.innerHTML = `<img id="originalImage" src="${e.target.result}" alt="Orijinal Görsel">`;
+                    
+                    // Butonu aktif et
+                    processBtn.disabled = false;
+                    resultPreview.innerHTML = '<div class="image-placeholder">🔄 "Vektörleştir" butonuna tıklayın</div>';
+                    
+                    // Upload alanını güncelle
+                    updateUploadArea(file.name);
+                };
+                
+                reader.onerror = function() {
+                    console.error('Dosya okuma hatası');
+                    alert('Dosya okunamadı! Lütfen başka bir resim deneyin.');
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Upload alanını güncelle
+        function updateUploadArea(fileName) {
+            uploadArea.innerHTML = `
+                <h3>✅ ${fileName}</h3>
+                <p>Dosya başarıyla yüklendi!</p>
+                <p style="color: #667eea; font-size: 12px; margin-top: 10px;">
+                    ↪️ Başka resim için tekrar tıklayın
+                </p>
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+            `;
+            
+            // Yeni file input için event listener ekle
+            const newFileInput = document.getElementById('fileInput');
+            newFileInput.addEventListener('change', handleFileSelect);
+            
+            // Yeni upload alanına tıklama event'i ekle
+            uploadArea.addEventListener('click', function() {
+                newFileInput.click();
+            });
+        }
+
+        // Vektörleştirme işleyicisi
+        async function handleVectorize() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Lütfen önce bir resim yükleyin!');
+                return;
+            }
+
+            const colors = colorRange.value;
+            const style = styleSelect.value;
+            const format = formatSelect.value;
+
+            loading.style.display = 'block';
+            processBtn.disabled = true;
+            resultPreview.innerHTML = '<div class="loading"><div class="spinner"></div><p>Görsel işleniyor...</p></div>';
+
+            try {
+                console.log('Backend\'e istek gönderiliyor...');
+                console.log('Stil:', style);
+                console.log('Format:', format);
+                
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('colors', colors);
+                formData.append('style', style);
+                formData.append('format', format);
+
+                const endpoint = '/vectorize_style';
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                console.log('Backend yanıtı alındı:', response.status);
+
+                const result = await response.json();
+                console.log('Sonuç:', result);
+
+                if (result.success) {
+                    currentFormat = result.format;
+                    
+                    if (result.format === 'png') {
+                        currentImageData = result.image_data;
+                        resultPreview.innerHTML = `
+                            <img id="resultImage" src="${result.image_data}" alt="İşlem Sonucu">
+                            <div class="success-message">✅ İşlem tamamlandı! ${getStyleName(style)} stilde</div>
+                        `;
+                    } else {
+                        currentImageData = result.svg;
+                        const svgBlob = new Blob([result.svg], { type: 'image/svg+xml' });
+                        const svgUrl = URL.createObjectURL(svgBlob);
+                        resultPreview.innerHTML = `
+                            <img id="resultImage" src="${svgUrl}" alt="İşlem Sonucu">
+                            <div class="success-message">✅ İşlem tamamlandı! ${getStyleName(style)} stilde</div>
+                        `;
+                    }
+                    
+                    downloadBtn.disabled = false;
+                    updateDownloadButtonText();
+                    
+                } else {
+                    alert('Hata: ' + result.error);
+                    resultPreview.innerHTML = '<div class="image-placeholder">❌ Hata oluştu: ' + result.error + '</div>';
+                }
+            } catch (error) {
+                console.error('İstek hatası:', error);
+                alert('İşlem sırasında hata oluştu: ' + error.message);
+                resultPreview.innerHTML = '<div class="image-placeholder">❌ İstek hatası: ' + error.message + '</div>';
+            } finally {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+            }
+        }
+
+        // Stil isimlerini döndür
+        function getStyleName(style) {
+            const styles = {
+                'sharp': 'Keskin Hatlar',
+                'line_art': 'Çizgi Sanatı',
+                'cartoon': 'Cartoon Vektör'
+            };
+            return styles[style] || style;
+        }
+
+        // İndirme işleyicisi
+        function handleDownload() {
+            if (!currentImageData) return;
+
+            if (currentFormat === 'png') {
+                // PNG indirme
+                const a = document.createElement('a');
+                a.href = currentImageData;
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                a.download = `vektor-${timestamp}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                // SVG indirme
+                const blob = new Blob([currentImageData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                a.download = `vektor-${timestamp}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            // İndirme bildirimi
+            alert('Dosya indiriliyor!');
+        }
+
+        // Download buton metnini güncelle
+        function updateDownloadButtonText() {
+            const format = formatSelect.value;
+            downloadBtn.textContent = format === 'png' ? '💾 PNG İndir' : '💾 SVG İndir';
+        }
+
+        // Sürükle-bırak desteği
+        function setupDragAndDrop() {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.style.background = '#eef2ff');
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.style.background = '#f8f9ff');
+            });
+
+            uploadArea.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect({ target: fileInput });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
