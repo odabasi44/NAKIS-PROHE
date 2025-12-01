@@ -23,6 +23,9 @@ CORS(app)
 
 DB_PATH = "database.db"
 
+# Progress store for vectorization
+PROGRESS = {}
+
 # ============================================================
 # SETTINGS.JSON OKU (Admin Bilgileri ve parametreler)
 # ============================================================
@@ -59,6 +62,56 @@ def init_db():
             usage_count INTEGER DEFAULT 0
         )
     """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS packages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT UNIQUE,
+            display_name TEXT,
+            description TEXT,
+            price_monthly TEXT,
+            price_quarterly TEXT,
+            price_yearly TEXT
+        )
+    """)
+
+    # Varsayılan paketleri ekle (tablo boşsa)
+    cur.execute("SELECT COUNT(*) FROM packages")
+    count = cur.fetchone()[0]
+    if count == 0:
+        default_pkgs = [
+            (
+                "basic",
+                "Temel Paket",
+                "Yeni başlayanlar için temel vektör paketi.",
+                "199₺",
+                "499₺",
+                "1499₺",
+            ),
+            (
+                "standard",
+                "Orta Paket",
+                "Düzenli tasarım ihtiyacı olanlar için.",
+                "299₺",
+                "799₺",
+                "1999₺",
+            ),
+            (
+                "premium",
+                "Premium Paket",
+                "Ajanslar ve yoğun kullanıcılar için gelişmiş paket.",
+                "399₺",
+                "999₺",
+                "2499₺",
+            ),
+        ]
+        cur.executemany(
+            """
+            INSERT INTO packages (slug, display_name, description, price_monthly, price_quarterly, price_yearly)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            default_pkgs,
+        )
 
     conn.commit()
     conn.close()
@@ -127,6 +180,27 @@ def is_user_premium(email):
     return end_date > datetime.now()
 
 # ============================================================
+# PROGRESS HELPER
+# ============================================================
+
+def _progress_key():
+    return session.get("email") or get_client_id()
+
+def set_progress(value: int):
+    try:
+        key = _progress_key()
+        PROGRESS[key] = int(value)
+    except Exception:
+        pass
+
+def get_progress_value() -> int:
+    try:
+        key = _progress_key()
+        return int(PROGRESS.get(key, 0))
+    except Exception:
+        return 0
+
+# ============================================================
 # GİRİŞ / ÇIKIŞ / STATUS API
 # ============================================================
 
@@ -141,7 +215,8 @@ def login():
         return jsonify({
             "success": True,
             "premium": True,
-            "end_date": user[2]
+            "end_date": user[2],
+            "total_usage": user[3] or 0
         })
 
     return jsonify({"success": False, "message": "Bu mail için premium üyelik yok."})
@@ -162,7 +237,8 @@ def user_status():
             "logged_in": True,
             "email": email,
             "premium": premium,
-            "end_date": user[2]
+            "end_date": user[2],
+            "total_usage": user[3] or 0
         })
 
     client_id = get_client_id()
@@ -173,6 +249,29 @@ def user_status():
         "guest_usage": usage,
         "remaining": max(0, FREE_LIMIT - usage)
     })
+
+@app.route("/packages")
+def get_packages():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT slug, display_name, description, price_monthly, price_quarterly, price_yearly FROM packages")
+    rows = cur.fetchall()
+    conn.close()
+    packages = []
+    for r in rows:
+        packages.append({
+            "slug": r[0],
+            "display_name": r[1],
+            "description": r[2],
+            "price_monthly": r[3],
+            "price_quarterly": r[4],
+            "price_yearly": r[5],
+        })
+    return jsonify({"success": True, "packages": packages, "whatsapp": WHATSAPP})
+
+@app.route("/vectorize_progress")
+def vectorize_progress_status():
+    return jsonify({"progress": get_progress_value()})
 
 # ============================================================
 # KULLANIM İZNİ VE KULLANIM KAYDI
@@ -390,13 +489,89 @@ def admin_extend_user():
         print("admin_extend_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ============================================================
-# VEKTÖRLEŞTİRME FONKSİYONLARI
-# ============================================================
+@app.route("/admin_packages")
+@admin_required
+def admin_get_packages():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id, slug, display_name, description, price_monthly, price_quarterly, price_yearly FROM packages")
+    rows = cur.fetchall()
+    conn.close()
+    packages = []
+    for r in rows:
+        packages.append({
+            "id": r[0],
+            "slug": r[1],
+            "display_name": r[2],
+            "description": r[3],
+            "price_monthly": r[4],
+            "price_quarterly": r[5],
+            "price_yearly": r[6],
+        })
+    return jsonify({"success": True, "packages": packages})
+
+@app.route("/admin_packages/save", methods=["POST"])
+@admin_required
+def admin_save_packages():
+    data = request.get_json(silent=True) or {}
+    packages = data.get("packages", [])
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        for pkg in packages:
+            pkg_id = pkg.get("id")
+            if not pkg_id:
+                continue
+            cur.execute(
+                """
+                UPDATE packages
+                SET display_name=?, description=?, price_monthly=?, price_quarterly=?, price_yearly=?
+                WHERE id=?
+                """,
+                (
+                    pkg.get("display_name") or "",
+                    pkg.get("description") or "",
+                    pkg.get("price_monthly") or "",
+                    pkg.get("price_quarterly") or "",
+                    pkg.get("price_yearly") or "",
+                    pkg_id,
+                ),
+            )
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        print("admin_save_packages error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        conn.close()
 
 # ============================================================
 # VEKTÖRLEŞTİRME FONKSİYONLARI
 # ============================================================
+
+def remove_background(image_rgb):
+    """
+    GrabCut ile basit arka plan kaldırma.
+    Ön plan beyaz olmayan kısım, arka plan beyaza boyanır.
+    Ayrıca alpha mask üretir.
+    """
+    h, w, _ = image_rgb.shape
+    mask = np.zeros((h, w), np.uint8)
+    rect = (10, 10, max(1, w - 20), max(1, h - 20))
+    bgdModel = np.zeros((1, 65), np.float64)
+    fgdModel = np.zeros((1, 65), np.float64)
+    try:
+        cv2.grabCut(image_rgb, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
+    except Exception:
+        # hata durumunda tüm resmi ön plan kabul et
+        mask2 = np.ones((h, w), np.uint8)
+
+    fg = image_rgb.copy()
+    fg[mask2 == 0] = [255, 255, 255]
+    alpha = (mask2 * 255).astype("uint8")
+    return fg, alpha
 
 def quantize_colors(image_rgb, k=4):
     """
@@ -415,7 +590,6 @@ def quantize_colors(image_rgb, k=4):
     reduced = centers[labels.flatten()].reshape(img_color.shape)
     return reduced
 
-
 def extract_edge_lines(image_rgb):
     """
     Beyaz arka plan üzerinde siyah çizgileri çıkarır.
@@ -432,7 +606,6 @@ def extract_edge_lines(image_rgb):
     line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
     return line_rgb
 
-
 def vector_normal_style(image_rgb, k=4):
     """
     Normal vektör: sadece renk sadeleştirme.
@@ -440,11 +613,10 @@ def vector_normal_style(image_rgb, k=4):
     """
     return quantize_colors(image_rgb, k)
 
-
 def vector_cartoon_style(image_rgb, k=4):
     """
     Çizgi vektör: sade renk + siyah kontur.
-    (Paylaştığın örnekteki gibi düz renk + kalın siyah çizgiler)
+    (Düz renk + kalın siyah çizgiler)
     """
     base = quantize_colors(image_rgb, k)
 
@@ -460,7 +632,6 @@ def vector_cartoon_style(image_rgb, k=4):
     cartoon = cv2.bitwise_and(base, edges_rgb)
     return cartoon
 
-
 def vector_lines_style(image_rgb):
     """
     Sadece çizgi: renksiz line-art.
@@ -468,13 +639,25 @@ def vector_lines_style(image_rgb):
     """
     return extract_edge_lines(image_rgb)
 
+def png_encode(arr, alpha=None):
+    if alpha is not None:
+        # alpha 2D ise RGBA'ya dönüştür
+        if alpha.ndim == 2:
+            alpha_channel = alpha
+        else:
+            alpha_channel = cv2.cvtColor(alpha, cv2.COLOR_RGB2GRAY)
 
-def png_encode(arr):
-    pil = Image.fromarray(arr)
+        if arr.shape[:2] != alpha_channel.shape[:2]:
+            alpha_channel = cv2.resize(alpha_channel, (arr.shape[1], arr.shape[0]))
+
+        rgba = np.dstack([arr, alpha_channel])
+        pil = Image.fromarray(rgba)
+    else:
+        pil = Image.fromarray(arr)
+
     buffer = io.BytesIO()
     pil.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
-
 
 # ============================================================
 # VEKTÖR API
@@ -483,8 +666,10 @@ def png_encode(arr):
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_style():
     # Kullanım limiti kontrolü
+    set_progress(5)
     permission = check_usage_permission()
     if not permission["allowed"]:
+        set_progress(0)
         return jsonify({
             "success": False,
             "error": "limit_reached",
@@ -497,27 +682,43 @@ def vectorize_style():
     colors = int(request.form.get("colors", 4))
     mode = request.form.get("mode", "color")      # color veya bw
 
-    img = Image.open(io.BytesIO(file.read()))
-    arr = np.array(img.convert("RGB"))
+    try:
+        set_progress(10)
+        img = Image.open(io.BytesIO(file.read()))
+        arr = np.array(img.convert("RGB"))
 
-    style = style.lower()
-    if style == "normal":
-        out = vector_normal_style(arr, colors)
-    elif style == "lines":
-        out = vector_lines_style(arr)
-    else:  # "cartoon" varsayılan
-        out = vector_cartoon_style(arr, colors)
+        # Adım 1: Arka plan kaldır (zorunlu adım)
+        set_progress(25)
+        arr_no_bg, alpha = remove_background(arr)
 
-    # Siyah-beyaz istendiyse, son çıktıyı griye çevir
-    if mode == "bw":
-        gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
-        out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+        # Adım 2: Stil uygula
+        style = style.lower()
+        set_progress(45)
+        if style == "normal":
+            out = vector_normal_style(arr_no_bg, colors)
+        elif style == "lines":
+            out = vector_lines_style(arr_no_bg)
+        else:  # "cartoon" varsayılan
+            out = vector_cartoon_style(arr_no_bg, colors)
 
-    # Kullanım hakkını kaydet
-    register_usage()
+        # Adım 3: Siyah-beyaz isteniyorsa son çıktıyı griye çevir
+        set_progress(75)
+        if mode == "bw":
+            gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
+            out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    return jsonify({"success": True, "image_data": png_encode(out)})
+        # Kullanım hakkını kaydet
+        register_usage()
 
+        set_progress(95)
+        encoded = png_encode(out, alpha)
+        set_progress(100)
+
+        return jsonify({"success": True, "image_data": encoded})
+    except Exception as e:
+        print("vectorize_style error:", e)
+        set_progress(0)
+        return jsonify({"success": False, "message": "Vektörleştirme sırasında hata oluştu."}), 500
 
 # ============================================================
 # ANA SAYFA
@@ -533,4 +734,3 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
