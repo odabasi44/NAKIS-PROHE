@@ -35,7 +35,6 @@ DEFAULT_SETTINGS = {
     "whatsapp_number": "905000000000",
 }
 
-
 def load_settings():
     try:
         with open("settings.json", "r", encoding="utf-8") as f:
@@ -47,7 +46,6 @@ def load_settings():
     except Exception:
         return DEFAULT_SETTINGS.copy()
 
-
 SETTINGS = load_settings()
 
 FREE_LIMIT = SETTINGS["free_usage_limit"]
@@ -58,7 +56,6 @@ WHATSAPP = SETTINGS["whatsapp_number"]
 # ============================================================
 # DATABASE OLUŞTUR
 # ============================================================
-
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -87,19 +84,16 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 init_db()
 
 # ============================================================
 # DB YARDIMCI FONKSİYONLAR
 # ============================================================
 
-
 def get_client_id():
     ip = request.remote_addr or "0.0.0.0"
     agent = request.headers.get("User-Agent", "")
     return f"{ip}_{hash(agent)}"
-
 
 def get_user(email):
     conn = sqlite3.connect(DB_PATH)
@@ -111,7 +105,6 @@ def get_user(email):
     row = cur.fetchone()
     conn.close()
     return row
-
 
 def add_or_replace_user(email, days):
     now = datetime.now()
@@ -134,7 +127,6 @@ def add_or_replace_user(email, days):
     conn.commit()
     conn.close()
 
-
 def increment_user_usage(email):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -144,7 +136,6 @@ def increment_user_usage(email):
     conn.commit()
     conn.close()
 
-
 def get_guest_usage(client_id):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -152,7 +143,6 @@ def get_guest_usage(client_id):
     row = cur.fetchone()
     conn.close()
     return row[0] if row else 0
-
 
 def increment_guest_usage(client_id):
     conn = sqlite3.connect(DB_PATH)
@@ -169,7 +159,6 @@ def increment_guest_usage(client_id):
     conn.commit()
     conn.close()
 
-
 def is_user_premium(email):
     user = get_user(email)
     if not user:
@@ -177,11 +166,9 @@ def is_user_premium(email):
     end_date = datetime.fromisoformat(user[2])
     return end_date > datetime.now()
 
-
 # ============================================================
 # GİRİŞ / ÇIKIŞ / USER STATUS
 # ============================================================
-
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -204,12 +191,10 @@ def login():
         {"success": False, "message": "Bu mail için aktif premium üyelik bulunamadı."}
     )
 
-
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return jsonify({"success": True})
-
 
 @app.route("/user_status")
 def user_status():
@@ -245,11 +230,9 @@ def user_status():
         }
     )
 
-
 # ============================================================
 # KULLANIM KONTROLÜ
 # ============================================================
-
 
 def check_usage_permission():
     # Premium kullanıcı
@@ -273,7 +256,6 @@ def check_usage_permission():
 
     return {"allowed": False, "premium": False, "remaining": 0}
 
-
 def register_usage():
     if "email" in session and is_user_premium(session["email"]):
         increment_user_usage(session["email"])
@@ -281,11 +263,9 @@ def register_usage():
         client_id = get_client_id()
         increment_guest_usage(client_id)
 
-
 # ============================================================
 # ADMIN DECORATOR & GİRİŞ
 # ============================================================
-
 
 def admin_required(f):
     @wraps(f)
@@ -295,7 +275,6 @@ def admin_required(f):
         return f(*args, **kwargs)
 
     return wrapper
-
 
 @app.route("/admin_login", methods=["POST"])
 def admin_login():
@@ -309,18 +288,15 @@ def admin_login():
 
     return jsonify({"success": False, "message": "Yanlış email veya şifre."})
 
-
 @app.route("/admin_logout", methods=["POST"])
 @admin_required
 def admin_logout():
     session.pop("admin_logged_in", None)
     return jsonify({"success": True})
 
-
 # ============================================================
 # ADMIN PANEL SAYFASI
 # ============================================================
-
 
 @app.route("/control_panel")
 def control_panel():
@@ -330,11 +306,9 @@ def control_panel():
     # Admin paneli
     return send_from_directory("templates", "admin.html")
 
-
 # ============================================================
 # ADMIN API'LERİ
 # ============================================================
-
 
 @app.route("/admin_users")
 @admin_required
@@ -366,7 +340,6 @@ def admin_users():
         )
 
     return jsonify({"success": True, "users": users})
-
 
 @app.route("/admin_add_user", methods=["POST"])
 @admin_required
@@ -409,7 +382,6 @@ def admin_add_user():
         print("admin_add_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 @app.route("/admin_delete_user", methods=["POST"])
 @admin_required
 def admin_delete_user():
@@ -430,7 +402,6 @@ def admin_delete_user():
         print("admin_delete_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 @app.route("/admin_reset_usage", methods=["POST"])
 @admin_required
 def admin_reset_usage():
@@ -450,7 +421,6 @@ def admin_reset_usage():
     except Exception as e:
         print("admin_reset_usage error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
-
 
 @app.route("/admin_extend_user", methods=["POST"])
 @admin_required
@@ -489,95 +459,14 @@ def admin_extend_user():
         print("admin_extend_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-
 # ============================================================
-# VEKTÖRLEŞTİRME FONKSİYONLARI (DETAY TEMİZLEME + BİRLEŞTİRME)
+# VEKTÖRLEŞTİRME FONKSİYONLARI (ARKA PLAN KALDIRMA YOK)
 # ============================================================
 
-
-def clean_and_merge_quantized(
-    quantized_rgb,
-    min_area_ratio=0.0005,
-    close_kernel=5,
-    open_kernel=3,
-):
+def quantize_colors(image_rgb, k=4):
     """
-    1) Küçük alanları temizler (min_area_ratio ile),
-    2) Aynı renkteki yakın parçaları, morfolojik closing ile birleştirmeye çalışır.
-    """
-    h, w, _ = quantized_rgb.shape
-    total_pixels = h * w
-    min_pixels = max(1, int(total_pixels * float(min_area_ratio)))
-
-    # Tüm benzersiz renkleri ve label haritasını çıkar
-    colors, inv = np.unique(
-        quantized_rgb.reshape(-1, 3), axis=0, return_inverse=True
-    )
-    label_map = inv.reshape(h, w)
-    num_colors = len(colors)
-
-    processed_masks = []
-    color_areas = []
-
-    for idx in range(num_colors):
-        # Bu renge ait piksel maskesi
-        mask = (label_map == idx).astype(np.uint8) * 255
-        area = int(cv2.countNonZero(mask))
-        color_areas.append(area)
-
-        # Çok küçük toplam alanı olan renkleri tamamen at
-        if area < min_pixels:
-            processed_masks.append(np.zeros_like(mask, dtype=np.uint8))
-            continue
-
-        # Aynı renkteki parçaları birleştirmek için closing
-        if close_kernel and close_kernel > 1:
-            k_close = cv2.getStructuringElement(
-                cv2.MORPH_ELLIPSE, (close_kernel, close_kernel)
-            )
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k_close, iterations=1)
-
-        # Ufak gürültüleri atmak için opening
-        if open_kernel and open_kernel > 1:
-            k_open = cv2.getStructuringElement(
-                cv2.MORPH_ELLIPSE, (open_kernel, open_kernel)
-            )
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, k_open, iterations=1)
-
-        processed_masks.append(mask)
-
-    # Büyük renk alanlarına öncelik ver (daha stabil dağılım için)
-    order = sorted(range(num_colors), key=lambda i: color_areas[i], reverse=True)
-
-    new_img = np.zeros_like(quantized_rgb)
-    occupied = np.zeros((h, w), dtype=np.uint8)
-
-    for idx in order:
-        mask = processed_masks[idx]
-        if mask is None:
-            continue
-        place = (mask > 0) & (occupied == 0)
-        if not np.any(place):
-            continue
-        new_img[place] = colors[idx]
-        occupied[place] = 1
-
-    # Hâlâ atanmamış pikseller varsa, orijinal quantized_rgb'den doldur
-    new_img[occupied == 0] = quantized_rgb[occupied == 0]
-    return new_img
-
-
-def quantize_colors(
-    image_rgb,
-    k=4,
-    min_area_ratio=0.0005,
-    close_kernel=5,
-    open_kernel=3,
-):
-    """
-    Renk sayısını k'ya indir, ardından
-    - küçük parçaları temizle
-    - aynı renkli yakın bölgeleri birleştirmeye çalış.
+    Renk sayısını azaltarak düz, poster tarzı görüntü üretir.
+    'Normal vektör' stilinde kullanıyoruz.
     """
     try:
         k = int(k)
@@ -594,19 +483,12 @@ def quantize_colors(
     )
     centers = np.uint8(centers)
     reduced = centers[labels.flatten()].reshape(img_color.shape)
-
-    cleaned = clean_and_merge_quantized(
-        reduced,
-        min_area_ratio=min_area_ratio,
-        close_kernel=close_kernel,
-        open_kernel=open_kernel,
-    )
-    return cleaned
-
+    return reduced
 
 def extract_edge_lines(image_rgb):
     """
-    Çizgi sanatı için kenarları çıkar.
+    Beyaz arka plan üzerinde siyah çizgileri çıkarır.
+    'Sadece çizgi' stilinde kullanıyoruz.
     """
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)
@@ -619,39 +501,13 @@ def extract_edge_lines(image_rgb):
     line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
     return line_rgb
 
-
-def vector_normal_style(
-    image_rgb,
-    k=4,
-    min_area_ratio=0.0005,
-    close_kernel=5,
-    open_kernel=3,
-):
+def vector_normal_style(image_rgb, k=4):
     """Normal vektör: sadece renk sadeleştirme."""
-    return quantize_colors(
-        image_rgb,
-        k=k,
-        min_area_ratio=min_area_ratio,
-        close_kernel=close_kernel,
-        open_kernel=open_kernel,
-    )
+    return quantize_colors(image_rgb, k)
 
-
-def vector_cartoon_style(
-    image_rgb,
-    k=4,
-    min_area_ratio=0.0005,
-    close_kernel=5,
-    open_kernel=3,
-):
+def vector_cartoon_style(image_rgb, k=4):
     """Çizgi vektör: sade renk + siyah kontur."""
-    base = quantize_colors(
-        image_rgb,
-        k=k,
-        min_area_ratio=min_area_ratio,
-        close_kernel=close_kernel,
-        open_kernel=open_kernel,
-    )
+    base = quantize_colors(image_rgb, k)
 
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)
@@ -664,11 +520,9 @@ def vector_cartoon_style(
     cartoon = cv2.bitwise_and(base, edges_rgb)
     return cartoon
 
-
 def vector_lines_style(image_rgb):
     """Sadece çizgi: renksiz line-art."""
     return extract_edge_lines(image_rgb)
-
 
 def png_encode(arr):
     pil = Image.fromarray(arr)
@@ -676,11 +530,9 @@ def png_encode(arr):
     pil.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
-
 # ============================================================
 # VEKTÖR API
 # ============================================================
-
 
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_style():
@@ -707,48 +559,17 @@ def vectorize_style():
     colors = request.form.get("colors", "4")
     mode = request.form.get("mode", "color")  # "color" veya "bw"
 
-    # Detay seviyesi (1 ve 4. geliştirme için)
-    detail = request.form.get("detail", "medium")  # low / medium / high
-
-    if detail == "low":
-        # Daha az detay, daha büyük alan filtrele, daha güçlü birleştirme
-        min_area_ratio = 0.002   # %0.2
-        close_kernel = 7
-        open_kernel = 5
-    elif detail == "high":
-        # Daha fazla detay, daha küçük alan filtresi
-        min_area_ratio = 0.0002  # %0.02
-        close_kernel = 3
-        open_kernel = 1
-    else:
-        # Orta seviye
-        min_area_ratio = 0.0005  # %0.05
-        close_kernel = 5
-        open_kernel = 3
-
     # Görseli oku
     img = Image.open(io.BytesIO(file.read()))
     arr = np.array(img.convert("RGB"))
 
     # Arkaplan kaldırma YOK, direkt çalış
     if style == "normal":
-        out = vector_normal_style(
-            arr,
-            colors,
-            min_area_ratio=min_area_ratio,
-            close_kernel=close_kernel,
-            open_kernel=open_kernel,
-        )
+        out = vector_normal_style(arr, colors)
     elif style == "lines":
         out = vector_lines_style(arr)
     else:  # "cartoon" varsayılan
-        out = vector_cartoon_style(
-            arr,
-            colors,
-            min_area_ratio=min_area_ratio,
-            close_kernel=close_kernel,
-            open_kernel=open_kernel,
-        )
+        out = vector_cartoon_style(arr, colors)
 
     # Siyah-beyaz isteniyorsa
     if mode == "bw":
@@ -760,16 +581,19 @@ def vectorize_style():
 
     return jsonify({"success": True, "image_data": png_encode(out)})
 
-
 # ============================================================
-# ANA SAYFA
+# SAYFA ROUTE'LARI
 # ============================================================
-
 
 @app.route("/")
 def home():
+    # Yeni ana sayfa (araç hub'ı)
     return render_template("index.html")
 
+@app.route("/vektor")
+def vector_page():
+    # Eski vektör aracı bu sayfada
+    return render_template("vector.html")
 
 # ============================================================
 # MAIN
