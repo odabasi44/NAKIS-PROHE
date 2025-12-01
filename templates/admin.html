@@ -82,6 +82,7 @@
 
 <!-- MAIN -->
 <div id="main">
+
     <div class="mb-2 text-muted">
         Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
     </div>
@@ -91,28 +92,23 @@
         <span>Admin Panel Aktif</span>
     </div>
 
-    <!-- ... tablo kısmı ... -->
+    <table id="userTable" class="table table-striped" style="width:100%;">
+        <thead>
+        <tr>
+            <th>Email</th>
+            <th>Başlangıç</th>
+            <th>Bitiş</th>
+            <th>Süre (gün)</th>
+            <th>Kullanım</th>
+            <th>İşlem</th>
+        </tr>
+        </thead>
+        <tbody id="userBody"></tbody>
+    </table>
 
     <div class="mt-4 text-muted small">
         Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
     </div>
-</div>
-
-
-    <table id="userTable" class="table table-striped" style="width:100%;">
-       <thead>
-<tr>
-    <th>Email</th>
-    <th>Başlangıç</th>
-    <th>Bitiş</th>
-    <th>Süre (gün)</th>
-    <th>Kullanım</th>
-    <th>İşlem</th>
-</tr>
-</thead>
-
-        <tbody id="userBody"></tbody>
-    </table>
 </div>
 
 <!-- MODAL: Kullanıcı Ekle -->
@@ -124,18 +120,17 @@
                 <button class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-           <div class="modal-body">
-    <label class="form-label">Email</label>
-    <input id="newUserEmail" class="form-control" placeholder="Email">
+            <div class="modal-body">
+                <label class="form-label">Email</label>
+                <input id="newUserEmail" class="form-control" placeholder="Email">
 
-    <label class="form-label mt-3">Süre</label>
-    <select id="newUserDuration" class="form-select">
-        <option value="30">1 Ay</option>
-        <option value="180">6 Ay</option>
-        <option value="365" selected>1 Yıl</option>
-    </select>
-</div>
-
+                <label class="form-label mt-3">Süre</label>
+                <select id="newUserDuration" class="form-select">
+                    <option value="30">1 Ay</option>
+                    <option value="180">6 Ay</option>
+                    <option value="365" selected>1 Yıl</option>
+                </select>
+            </div>
 
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="addUser()">Ekle</button>
@@ -153,19 +148,14 @@
 <script>
     let table = null;
 
-    // Sayfa yüklenince çalışsın
-    document.addEventListener('DOMContentLoaded', () => {
-        loadUsers();
-    });
-
     function calcDays(start, end) {
-    if (!start || !end) return "-";
-    const s = new Date(start);
-    const e = new Date(end);
-    const diff = (e - s) / (1000 * 60 * 60 * 24);
-    return Math.round(diff);
-}
-    // Kullanıcıları yükle
+        if (!start || !end) return "-";
+        const s = new Date(start);
+        const e = new Date(end);
+        const diff = (e - s) / (1000 * 60 * 60 * 24);
+        return Math.round(diff);
+    }
+
     async function loadUsers() {
         try {
             const res = await fetch("/admin_users");
@@ -175,24 +165,23 @@
             tbody.innerHTML = "";
 
             (data.users || []).forEach(u => {
-    const days = calcDays(u.start_date, u.end_date);
+                const days = calcDays(u.start_date, u.end_date);
 
-    tbody.innerHTML += `
-        <tr>
-            <td>${u.email}</td>
-            <td>${u.start_date || ''}</td>
-            <td>${u.end_date || ''}</td>
-            <td>${days}</td>
-            <td>${u.total_usage ?? 0}</td>
-            <td>
-                <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
-                <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
-            </td>
-        </tr>
-    `;
-});
-
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.email}</td>
+                        <td>${u.start_date || ''}</td>
+                        <td>${u.end_date || ''}</td>
+                        <td>${days}</td>
+                        <td>${u.total_usage ?? 0}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
+                            <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
+                        </td>
+                    </tr>
+                `;
+            });
 
             if (table) {
                 table.destroy();
@@ -204,80 +193,126 @@
         }
     }
 
-    // Modal aç
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUsers();
+    });
+
     function openAddModal() {
         const modalEl = document.getElementById("addUserModal");
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 
-    // Kullanıcı ekle
     async function addUser() {
-    const email = document.getElementById("newUserEmail").value.trim();
-    if (!email) {
-        alert("Email boş olamaz.");
-        return;
-    }
+        const email = document.getElementById("newUserEmail").value.trim();
+        const days = parseInt(document.getElementById("newUserDuration").value, 10);
 
-    try {
-        const res = await fetch("/admin_add_user", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email})
-        });
-
-        const data = await res.json();
-        if (!data.success) {
-            alert(data.message || "Kullanıcı eklenemedi.");
+        if (!email) {
+            alert("Email boş olamaz.");
             return;
         }
 
-        document.getElementById("newUserEmail").value = "";
-        const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
-        modal.hide();
+        try {
+            const res = await fetch("/admin_add_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, days})
+            });
 
-        // 🔥 En garantili yol: sayfayı yeniden yükle
-        window.location.reload();
-        // İstersen sadece tabloyu da yenileyebilirsin:
-        // await loadUsers();
-    } catch (err) {
-        console.error("addUser error", err);
-        alert("İstek sırasında hata oluştu.");
-    }
-        //Kullanıcı Sil
-        async function deleteUser(email) {
-    if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
-    try {
-        const res = await fetch("/admin_delete_user", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email})
-        });
-        const data = await res.json();
-        if (!data.success) {
-            alert(data.message || "Kullanıcı silinemedi.");
-            return;
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error(txt);
+            }
+
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Kullanıcı eklenemedi.");
+                return;
+            }
+
+            document.getElementById("newUserEmail").value = "";
+            const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
+            modal.hide();
+
+            window.location.reload();
+        } catch (err) {
+            console.error("addUser error", err);
+            alert("İstek sırasında hata oluştu.");
         }
-        // Tam tazele
-        window.location.reload();
-    } catch (err) {
-        console.error("deleteUser error", err);
-        alert("Silme sırasında hata oluştu.");
     }
-}
-        async function logout() {
-    try {
-        await fetch("/admin_logout", {method: "POST"});
-    } catch (err) {
-        console.error("logout error", err);
+
+    async function resetUsage(email) {
+        try {
+            const res = await fetch("/admin_reset_usage", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Sıfırlama yapılamadı.");
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            console.error("resetUsage error", err);
+            alert("Sıfırlama sırasında hata oluştu.");
+        }
     }
-    window.location.href = "/control_panel";
-}
 
+    async function extendUser(email) {
+        try {
+            const res = await fetch("/admin_extend_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, days: 30})
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Süre uzatılamadı.");
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            console.error("extendUser error", err);
+            alert("Süre uzatırken hata oluştu.");
+        }
+    }
 
-}
+    async function deleteUser(email) {
+        if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+        try {
+            const res = await fetch("/admin_delete_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email})
+            });
 
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error(txt);
+            }
 
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Kullanıcı silinemedi.");
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            console.error("deleteUser error", err);
+            alert("Silme sırasında hata oluştu.");
+        }
+    }
+
+    async function logout() {
+        try {
+            await fetch("/admin_logout", {method: "POST"});
+        } catch (err) {
+            console.error("logout error", err);
+        }
+        window.location.href = "/control_panel";
+    }
 </script>
 
 </body>
