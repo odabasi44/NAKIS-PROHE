@@ -614,10 +614,8 @@ def remove_background(image_rgb: np.ndarray):
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_style():
     # Kullanım limiti kontrolü
-    set_progress(5)
     permission = check_usage_permission()
     if not permission["allowed"]:
-        set_progress(0)
         return jsonify({
             "success": False,
             "error": "limit_reached",
@@ -626,46 +624,41 @@ def vectorize_style():
         }), 403
 
     file = request.files["image"]
-    style = request.form.get("style", "cartoon")  # normal / cartoon / lines
-    colors = int(request.form.get("colors", 4))
-    mode = request.form.get("mode", "color")      # color veya bw
 
-    try:
-        set_progress(10)
-        img = Image.open(io.BytesIO(file.read()))
-        arr = np.array(img.convert("RGB"))
+    # Frontend'den gelen parametreler
+    style = request.form.get("style", "normal")   # "normal", "cartoon", "lines"
+    colors = int(request.form.get("colors", 4) or 4)
+    mode = request.form.get("mode", "color")      # "color" veya "bw"
 
-    # --- ÖNCE ARKA PLANI KALDIR ---
-    arr, alpha = remove_background(arr)
+    # Görseli oku
+    img = Image.open(io.BytesIO(file.read()))
+    arr = np.array(img.convert("RGB"))
 
+    # 1) Önce arka planı kaldır
+    arr_nb, alpha = remove_background(arr)
 
-        # Adım 2: Stil uygula
-        style = style.lower()
-        set_progress(45)
-        if style == "normal":
-            out = vector_normal_style(arr_no_bg, colors)
-        elif style == "lines":
-            out = vector_lines_style(arr_no_bg)
-        else:  # "cartoon" varsayılan
-            out = vector_cartoon_style(arr_no_bg, colors)
+    # 2) Seçilen stile göre vektörleştir
+    if style == "cartoon":            # Çizgi Vektör
+        out = vector_cartoon_style(arr_nb, colors)
+    elif style == "lines":            # Sadece Çizgi
+        out = vector_lines_style(arr_nb)
+    else:                             # Normal Vektör (varsayılan)
+        out = vector_normal_style(arr_nb, colors)
 
-        # Adım 3: Siyah-beyaz isteniyorsa son çıktıyı griye çevir
-        set_progress(75)
-        if mode == "bw":
-            gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
-            out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+    # 3) Siyah-beyaz isteniyorsa
+    if mode == "bw":
+        gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
+        out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-          # Kullanımı kaydet
+    # 4) Kullanım kaydı
     register_usage()
 
-    # Arka planı transparan yapmak için alpha maskeyi ekle
-    out_rgba = np.dstack([out, alpha])
+    # 5) PNG + alpha (şeffaf arka plan)
+    return jsonify({
+        "success": True,
+        "image_data": png_encode(out, alpha)
+    })
 
-    return jsonify({"success": True, "image_data": png_encode(out_rgba)})
-    except Exception as e:
-        print("vectorize_style error:", e)
-        set_progress(0)
-        return jsonify({"success": False, "message": "Vektörleştirme sırasında hata oluştu."}), 500
 
 # ============================================================
 # ANA SAYFA
@@ -681,5 +674,6 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
