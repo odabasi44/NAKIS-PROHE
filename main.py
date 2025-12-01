@@ -211,10 +211,6 @@ def register_usage():
 # ADMIN DECORATOR + ADMIN GİRİŞ
 # ============================================================
 
-# ============================================================
-# ADMIN DECORATOR + ADMIN GİRİŞ
-# ============================================================
-
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -255,7 +251,25 @@ def control_panel():
 # ADMIN API'LERİ
 # ============================================================
 
+@app.route("/admin_users")
+@admin_required
+def admin_users():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT email, start_date, end_date, total_usage FROM users")
+    rows = cur.fetchall()
+    conn.close()
 
+    users = []
+    for r in rows:
+        users.append({
+            "email": r[0],
+            "start_date": r[1],
+            "end_date": r[2],
+            "total_usage": r[3]
+        })
+
+    return jsonify({"success": True, "users": users})
 
 @app.route("/admin_add_user", methods=["POST"])
 @admin_required
@@ -288,6 +302,7 @@ def admin_add_user():
                     "message": "Bu kullanıcının zaten aktif bir premium üyeliği var."
                 }), 400
 
+        # Yeni süreyi ayarla
         new_end = now + timedelta(days=days)
 
         cur.execute("""
@@ -376,123 +391,6 @@ def admin_extend_user():
         return jsonify({"success": False, "message": str(e)}), 500
 
 # ============================================================
-# ADMIN PANEL SERVE
-# ============================================================
-
-
-# ============================================================
-# ADMIN API'LERİ
-# ============================================================
-
-@app.route("/admin_users")
-@admin_required
-def admin_users():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT email,start_date,end_date,total_usage FROM users")
-    rows = cur.fetchall()
-    conn.close()
-
-    users = []
-    for r in rows:
-        users.append({
-            "email": r[0],
-            "start_date": r[1],
-            "end_date": r[2],
-            "total_usage": r[3]
-        })
-
-    return jsonify({"success": True, "users": users})
-
-@app.route("/admin_add_user", methods=["POST"])
-@admin_required
-def admin_add_user():
-    try:
-        data = request.get_json(silent=True) or {}
-        email = (data.get("email") or "").strip().lower()
-        days = int(data.get("days") or SETTINGS["premium_duration_days"])
-
-        if not email:
-            return jsonify({"success": False, "message": "Email alanı boş olamaz."}), 400
-
-        now = datetime.now()
-
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-
-        # Mevcut kullanıcıyı kontrol et
-        cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
-        row = cur.fetchone()
-
-        if row:
-            end_date = datetime.fromisoformat(row[0])
-            if end_date > now:
-                conn.close()
-                return jsonify({
-                    "success": False,
-                    "message": "Bu kullanıcının zaten aktif bir premium üyeliği var."
-                }), 400
-
-        # Aktif değilse (yoksa veya süresi bitmişse) yeni süre tanımla
-        new_end = now + timedelta(days=days)
-
-        cur.execute("""
-            INSERT OR REPLACE INTO users (email, start_date, end_date, total_usage)
-            VALUES (?, ?, ?, COALESCE((SELECT total_usage FROM users WHERE email=?), 0))
-        """, (email, now.isoformat(), new_end.isoformat(), email))
-        conn.commit()
-        conn.close()
-
-        return jsonify({"success": True})
-    except Exception as e:
-        print("admin_add_user error:", e)
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-
-@app.route("/admin_delete_user", methods=["POST"])
-@admin_required
-def admin_delete_user():
-    email = request.json.get("email")
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM users WHERE email=?", (email,))
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True})
-
-@app.route("/admin_reset_usage", methods=["POST"])
-@admin_required
-def admin_reset_usage():
-    email = request.json.get("email")
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET total_usage=0 WHERE email=?", (email,))
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True})
-
-@app.route("/admin_extend_user", methods=["POST"])
-@admin_required
-def admin_extend_user():
-    email = request.json.get("email")
-    days = int(request.json.get("days", 30))
-
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
-    row = cur.fetchone()
-
-    current_end = datetime.fromisoformat(row[0])
-    new_end = current_end + timedelta(days=days)
-
-    cur.execute("UPDATE users SET end_date=? WHERE email=?", (new_end.isoformat(), email))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True})
-
-# ============================================================
 # VEKTÖRLEŞTİRME FONKSİYONLARI
 # ============================================================
 
@@ -577,9 +475,3 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
-
-
-
-
