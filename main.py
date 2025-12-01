@@ -4,7 +4,15 @@ import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Flask, request, jsonify, render_template, session, send_from_directory
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    session,
+    send_from_directory,
+    send_file,
+)
 from flask_cors import CORS
 
 import cv2
@@ -12,6 +20,7 @@ import numpy as np
 from PIL import Image
 import io
 import base64
+from PyPDF2 import PdfMerger  # <--- PDF birleştirme için
 
 # ============================================================
 # FLASK APP
@@ -35,6 +44,7 @@ DEFAULT_SETTINGS = {
     "whatsapp_number": "905000000000",
 }
 
+
 def load_settings():
     try:
         with open("settings.json", "r", encoding="utf-8") as f:
@@ -46,6 +56,7 @@ def load_settings():
     except Exception:
         return DEFAULT_SETTINGS.copy()
 
+
 SETTINGS = load_settings()
 
 FREE_LIMIT = SETTINGS["free_usage_limit"]
@@ -56,6 +67,7 @@ WHATSAPP = SETTINGS["whatsapp_number"]
 # ============================================================
 # DATABASE OLUŞTUR
 # ============================================================
+
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -84,16 +96,19 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 init_db()
 
 # ============================================================
 # DB YARDIMCI FONKSİYONLAR
 # ============================================================
 
+
 def get_client_id():
     ip = request.remote_addr or "0.0.0.0"
     agent = request.headers.get("User-Agent", "")
     return f"{ip}_{hash(agent)}"
+
 
 def get_user(email):
     conn = sqlite3.connect(DB_PATH)
@@ -105,6 +120,7 @@ def get_user(email):
     row = cur.fetchone()
     conn.close()
     return row
+
 
 def add_or_replace_user(email, days):
     now = datetime.now()
@@ -127,6 +143,7 @@ def add_or_replace_user(email, days):
     conn.commit()
     conn.close()
 
+
 def increment_user_usage(email):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -136,6 +153,7 @@ def increment_user_usage(email):
     conn.commit()
     conn.close()
 
+
 def get_guest_usage(client_id):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -143,6 +161,7 @@ def get_guest_usage(client_id):
     row = cur.fetchone()
     conn.close()
     return row[0] if row else 0
+
 
 def increment_guest_usage(client_id):
     conn = sqlite3.connect(DB_PATH)
@@ -159,6 +178,7 @@ def increment_guest_usage(client_id):
     conn.commit()
     conn.close()
 
+
 def is_user_premium(email):
     user = get_user(email)
     if not user:
@@ -166,9 +186,11 @@ def is_user_premium(email):
     end_date = datetime.fromisoformat(user[2])
     return end_date > datetime.now()
 
+
 # ============================================================
 # GİRİŞ / ÇIKIŞ / USER STATUS
 # ============================================================
+
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -191,10 +213,12 @@ def login():
         {"success": False, "message": "Bu mail için aktif premium üyelik bulunamadı."}
     )
 
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return jsonify({"success": True})
+
 
 @app.route("/user_status")
 def user_status():
@@ -230,9 +254,11 @@ def user_status():
         }
     )
 
+
 # ============================================================
 # KULLANIM KONTROLÜ
 # ============================================================
+
 
 def check_usage_permission():
     # Premium kullanıcı
@@ -256,6 +282,7 @@ def check_usage_permission():
 
     return {"allowed": False, "premium": False, "remaining": 0}
 
+
 def register_usage():
     if "email" in session and is_user_premium(session["email"]):
         increment_user_usage(session["email"])
@@ -263,9 +290,11 @@ def register_usage():
         client_id = get_client_id()
         increment_guest_usage(client_id)
 
+
 # ============================================================
 # ADMIN DECORATOR & GİRİŞ
 # ============================================================
+
 
 def admin_required(f):
     @wraps(f)
@@ -275,6 +304,7 @@ def admin_required(f):
         return f(*args, **kwargs)
 
     return wrapper
+
 
 @app.route("/admin_login", methods=["POST"])
 def admin_login():
@@ -288,15 +318,18 @@ def admin_login():
 
     return jsonify({"success": False, "message": "Yanlış email veya şifre."})
 
+
 @app.route("/admin_logout", methods=["POST"])
 @admin_required
 def admin_logout():
     session.pop("admin_logged_in", None)
     return jsonify({"success": True})
 
+
 # ============================================================
 # ADMIN PANEL SAYFASI
 # ============================================================
+
 
 @app.route("/control_panel")
 def control_panel():
@@ -306,9 +339,11 @@ def control_panel():
     # Admin paneli
     return send_from_directory("templates", "admin.html")
 
+
 # ============================================================
 # ADMIN API'LERİ
 # ============================================================
+
 
 @app.route("/admin_users")
 @admin_required
@@ -340,6 +375,7 @@ def admin_users():
         )
 
     return jsonify({"success": True, "users": users})
+
 
 @app.route("/admin_add_user", methods=["POST"])
 @admin_required
@@ -382,6 +418,7 @@ def admin_add_user():
         print("admin_add_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @app.route("/admin_delete_user", methods=["POST"])
 @admin_required
 def admin_delete_user():
@@ -402,6 +439,7 @@ def admin_delete_user():
         print("admin_delete_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @app.route("/admin_reset_usage", methods=["POST"])
 @admin_required
 def admin_reset_usage():
@@ -421,6 +459,7 @@ def admin_reset_usage():
     except Exception as e:
         print("admin_reset_usage error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route("/admin_extend_user", methods=["POST"])
 @admin_required
@@ -450,7 +489,10 @@ def admin_extend_user():
         base = current_end if current_end > now else now
         new_end = base + timedelta(days=extra_days)
 
-        cur.execute("UPDATE users SET end_date=? WHERE email=?", (new_end.isoformat(), email))
+        cur.execute(
+            "UPDATE users SET end_date=? WHERE email=?",
+            (new_end.isoformat(), email),
+        )
         conn.commit()
         conn.close()
 
@@ -459,9 +501,11 @@ def admin_extend_user():
         print("admin_extend_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 # ============================================================
 # VEKTÖRLEŞTİRME FONKSİYONLARI (ARKA PLAN KALDIRMA YOK)
 # ============================================================
+
 
 def quantize_colors(image_rgb, k=4):
     """
@@ -485,6 +529,7 @@ def quantize_colors(image_rgb, k=4):
     reduced = centers[labels.flatten()].reshape(img_color.shape)
     return reduced
 
+
 def extract_edge_lines(image_rgb):
     """
     Beyaz arka plan üzerinde siyah çizgileri çıkarır.
@@ -497,13 +542,15 @@ def extract_edge_lines(image_rgb):
 
     h, w = gray.shape
     line_img = np.full((h, w), 255, dtype=np.uint8)  # beyaz zemin
-    line_img[edges > 0] = 0                          # kenarlar siyah
+    line_img[edges > 0] = 0  # kenarlar siyah
     line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
     return line_rgb
+
 
 def vector_normal_style(image_rgb, k=4):
     """Normal vektör: sadece renk sadeleştirme."""
     return quantize_colors(image_rgb, k)
+
 
 def vector_cartoon_style(image_rgb, k=4):
     """Çizgi vektör: sade renk + siyah kontur."""
@@ -520,9 +567,11 @@ def vector_cartoon_style(image_rgb, k=4):
     cartoon = cv2.bitwise_and(base, edges_rgb)
     return cartoon
 
+
 def vector_lines_style(image_rgb):
     """Sadece çizgi: renksiz line-art."""
     return extract_edge_lines(image_rgb)
+
 
 def png_encode(arr):
     pil = Image.fromarray(arr)
@@ -530,9 +579,11 @@ def png_encode(arr):
     pil.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
+
 # ============================================================
 # VEKTÖR API
 # ============================================================
+
 
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_style():
@@ -581,19 +632,88 @@ def vectorize_style():
 
     return jsonify({"success": True, "image_data": png_encode(out)})
 
+
+# ============================================================
+# PDF ARAÇLARI – PDF BİRLEŞTİR
+# ============================================================
+
+
+@app.route("/pdf/merge")
+def pdf_merge_page():
+    """PDF birleştirme aracı sayfası."""
+    return render_template("pdf_merge.html")
+
+
+@app.route("/api/pdf_merge", methods=["POST"])
+def api_pdf_merge():
+    """
+    Birden fazla PDF dosyasını tek PDF'te birleştirir.
+    Çıktıyı direkt indirme olarak döner.
+    """
+    permission = check_usage_permission()
+    if not permission["allowed"]:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "limit_reached",
+                    "message": "Ücretsiz hakkınız doldu.",
+                    "whatsapp": f"https://wa.me/{WHATSAPP}?text=Aylık+üyelik+istiyorum",
+                }
+            ),
+            403,
+        )
+
+    files = request.files.getlist("files")
+    pdf_files = [f for f in files if f and f.filename.lower().endswith(".pdf")]
+
+    if len(pdf_files) < 2:
+        return "Lütfen en az 2 adet PDF dosyası yükleyin.", 400
+
+    merger = PdfMerger()
+
+    try:
+        for f in pdf_files:
+            # Dosyayı belleğe al, sonra birleştir
+            file_bytes = io.BytesIO(f.read())
+            merger.append(file_bytes)
+
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        output.seek(0)
+
+        # Kullanımı kaydet
+        register_usage()
+
+        # Dosyayı indirme olarak gönder
+        return send_file(
+            output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="birlesik.pdf",
+        )
+    except Exception as e:
+        print("api_pdf_merge error:", e)
+        return "PDF birleştirme sırasında bir hata oluştu.", 500
+
+
 # ============================================================
 # SAYFA ROUTE'LARI
 # ============================================================
+
 
 @app.route("/")
 def home():
     # Yeni ana sayfa (araç hub'ı)
     return render_template("index.html")
 
+
 @app.route("/vektor")
 def vector_page():
     # Eski vektör aracı bu sayfada
     return render_template("vector.html")
+
 
 # ============================================================
 # MAIN
