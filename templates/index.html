@@ -1,1001 +1,908 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>Akıllı Vektörleştirici</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Botlab Tools - PDF, Görsel ve Vektör Araçları</title>
 
     <style>
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
+
+        :root {
+            --bg-main: #050814;
+            --bg-elevated: #0b1024;
+            --bg-card: #11172f;
+            --bg-card-soft: #181f3a;
+            --border-subtle: rgba(255,255,255,0.05);
+            --text-main: #f5f7ff;
+            --text-muted: #9ca4c8;
+            --accent: #4f8dff;
+            --accent-soft: rgba(79,141,255,0.18);
+            --accent-strong: #67e8f9;
+            --danger: #ff5c7a;
+            --radius-lg: 18px;
+            --radius-full: 999px;
+            --shadow-soft: 0 22px 45px rgba(0,0,0,0.45);
+            --shadow-card: 0 16px 30px rgba(0,0,0,0.4);
+        }
+
         body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
-            color: #e5e7eb;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                sans-serif;
+            background: radial-gradient(circle at top, #141b3a 0, #050814 55%, #020308 100%);
+            color: var(--text-main);
             min-height: 100vh;
-        }
-        a { color: inherit; text-decoration: none; }
-
-        .app-shell {
-            max-width: 1200px;
-            margin: 24px auto 32px;
-            padding: 0 16px;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            font-size: 22px;
-            font-weight: 700;
-        }
-        .logo span {
-            color: #38bdf8;
-        }
-
-        .status-text {
-            font-size: 13px;
-            color: #9ca3af;
-        }
-
-        .top-buttons {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 999px;
-            padding: 7px 16px;
-            font-size: 13px;
-            cursor: pointer;
-            background: #1d4ed8;
-            color: #e5e7eb;
-        }
-        .btn-secondary {
-            background: #4b5563;
-        }
-        .btn-danger {
-            background: #b91c1c;
-        }
-        .btn:disabled {
-            opacity: .6;
-            cursor: default;
-        }
-
-        .card {
-            background: #020617;
-            border-radius: 20px;
-            padding: 24px 26px 26px;
-            box-shadow: 0 24px 80px rgba(15,23,42,0.8);
-            border: 1px solid #1f2937;
-        }
-
-        .card-header {
-            margin-bottom: 18px;
-        }
-        .card-header h1 {
-            font-size: 22px;
-            margin-bottom: 4px;
-        }
-        .card-header p {
-            font-size: 13px;
-            color: #9ca3af;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-            gap: 20px;
-        }
-
-        .panel {
-            border-radius: 16px;
-            border: 1px dashed #374151;
-            background: #020617;
-            padding: 18px;
-        }
-
-        .panel-title {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            letter-spacing: .03em;
-            text-transform: uppercase;
-            color: #9ca3af;
-        }
-
-        .panel-title-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .mini-btn {
-            border-radius: 999px;
-            border: 1px solid #374151;
-            background: #020617;
-            color: #9ca3af;
-            font-size: 11px;
-            padding: 4px 8px;
-            cursor: pointer;
-        }
-        .mini-btn:hover {
-            border-color: #2563eb;
-            color: #e5e7eb;
-        }
-
-        .upload-box {
-            border-radius: 14px;
-            border: 1px dashed #4b5563;
-            background: #020617;
-            height: 330px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
         }
 
-        .upload-box p {
-            font-size: 13px;
-            color: #6b7280;
+        .page-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
         }
 
-        .upload-btn {
-            cursor: pointer;
-            border-radius: 999px;
-            background: #111827;
-            padding: 6px 14px;
-            font-size: 13px;
-            border: 1px solid #1f2937;
-        }
-        .upload-btn:hover {
-            border-color: #2563eb;
-            color: #e5e7eb;
-        }
-
-        .preview-img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: block;
-        }
-
-        .preview-wrapper {
-            width: 100%;
-            height: 100%;
-            border-radius: 12px;
-            background: #020617;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .settings-group {
-            margin-bottom: 16px;
-        }
-        .settings-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-            color: #9ca3af;
-            margin-bottom: 6px;
-        }
-
-        .style-toggle {
-            display: flex;
-            gap: 6px;
-            background: #020617;
-            padding: 4px;
-            border-radius: 999px;
-            border: 1px solid #1f2937;
-        }
-        .style-toggle button {
-            flex: 1;
-            border-radius: 999px;
-            border: none;
-            padding: 6px 8px;
-            font-size: 12px;
-            cursor: pointer;
-            background: transparent;
-            color: #9ca3af;
-        }
-        .style-toggle button.active {
-            background: #1d4ed8;
-            color: #e5e7eb;
-        }
-
-        .mode-toggle {
-            display: inline-flex;
-            gap: 6px;
-            background: #020617;
-            padding: 4px;
-            border-radius: 999px;
-            border: 1px solid #1f2937;
-        }
-        .mode-toggle button {
-            border: none;
-            border-radius: 999px;
-            padding: 4px 9px;
-            font-size: 12px;
-            cursor: pointer;
-            background: transparent;
-            color: #9ca3af;
-        }
-        .mode-toggle button.active {
-            background: #1d4ed8;
-            color: #e5e7eb;
-        }
-
-        .range-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        input[type="range"] {
-            width: 100%;
-        }
-
-        .primary-actions {
+        /* Top bar */
+        .top-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
             gap: 10px;
-            margin-top: 12px;
-            margin-bottom: 8px;
         }
 
-        .note-text {
-            font-size: 11px;
-            color: #9ca3af;
-        }
-
-        .footer {
-            margin-top: 14px;
-            text-align: center;
-            font-size: 11px;
-            color: #6b7280;
-        }
-
-        .premium-info {
-            font-size: 12px;
-            color: #facc15;
-            margin-top: 6px;
-        }
-
-        .error-text {
-            font-size: 12px;
-            color: #f97373;
-            margin-top: 6px;
-        }
-
-        /* Progress bar */
-        .progress-wrap {
-            margin-top: 8px;
-        }
-        .progress-bar-bg {
-            width: 100%;
-            height: 6px;
-            border-radius: 999px;
-            background: #111827;
-            overflow: hidden;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            border-radius: 999px;
-            background: #22c55e;
-            width: 0%;
-            transition: width 0.25s ease-out;
-        }
-        .progress-label {
-            margin-top: 4px;
-            font-size: 11px;
-            color: #9ca3af;
-        }
-
-        /* Basit modal */
-        .modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(15,23,42,0.8);
-            display: none;
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 38%, #181f3a 100%);
+            display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 50;
-        }
-        .modal-backdrop.show {
-            display: flex;
-        }
-        .modal-box {
-            background: #020617;
-            border-radius: 16px;
-            border: 1px solid #1f2937;
-            padding: 20px 22px 18px;
-            width: 320px;
-            max-width: calc(100% - 40px);
-        }
-        .modal-box h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-        .modal-box p {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-bottom: 10px;
-        }
-        .modal-input {
-            width: 100%;
-            border-radius: 8px;
-            border: 1px solid #374151;
-            background: #020617;
-            color: #e5e7eb;
-            padding: 7px 9px;
-            font-size: 13px;
-            margin-bottom: 12px;
-        }
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 4px;
+            color: #020617;
+            font-weight: 800;
+            font-size: 18px;
+            box-shadow: 0 0 0 1px rgba(148,163,255,0.35);
         }
 
-        /* Paket kartları */
-        .package-card {
-            border-radius: 12px;
-            border: 1px solid #1f2937;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-            background: #020617;
+        .brand-text-main {
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            font-size: 18px;
         }
-        .package-title {
+
+        .brand-text-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pill {
+            font-size: 11px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.85);
+            color: var(--accent-strong);
+            border: 1px solid rgba(103,232,249,0.35);
+        }
+
+        .btn-ghost,
+        .btn-primary {
+            border-radius: var(--radius-full);
+            font-size: 13px;
+            padding: 7px 16px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-main);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-ghost {
+            border-color: rgba(148,163,255,0.35);
+            background: rgba(15,23,42,0.8);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f8dff, #7c3aed);
+            border: none;
+            box-shadow: 0 12px 25px rgba(37,99,235,0.35);
+        }
+
+        .btn-primary span.dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(30,64,175,0.7);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.05);
+        }
+
+        /* Hero */
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 3fr) minmax(0, 2.8fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .hero-left {
+            background: radial-gradient(circle at top left, rgba(79,141,255,0.16) 0, transparent 55%),
+                        linear-gradient(135deg, rgba(15,23,42,0.96), rgba(10,14,30,0.96));
+            border-radius: var(--radius-lg);
+            padding: 22px 22px 20px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-tag-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .hero-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(22,163,74,0.14);
+            color: #4ade80;
+            border: 1px solid rgba(34,197,94,0.5);
+        }
+
+        .hero-mini-tag {
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: rgba(79,70,229,0.14);
+            color: #a5b4fc;
+            border: 1px dashed rgba(129,140,248,0.7);
+        }
+
+        .hero-title {
+            font-size: 25px;
+            line-height: 1.24;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .hero-highlight {
+            background: linear-gradient(120deg, #4f8dff, #67e8f9);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .hero-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 460px;
+            margin-bottom: 14px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .hero-actions small {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .hero-stat strong {
+            display: block;
             font-size: 14px;
-            font-weight: 600;
+            color: var(--accent-strong);
+        }
+
+        .hero-right {
+            border-radius: var(--radius-lg);
+            background: linear-gradient(145deg, rgba(15,23,42,0.98), #020617);
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-soft);
+            padding: 16px 16px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+        }
+
+        .hero-section-title {
+            font-size: 13px;
+            color: var(--text-muted);
             margin-bottom: 4px;
         }
-        .package-desc {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-bottom: 6px;
+
+        .hero-section-title span {
+            color: var(--accent-strong);
         }
-        .package-prices {
-            font-size: 12px;
-            color: #e5e7eb;
-            margin-bottom: 6px;
+
+        .category-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
         }
-        .package-prices span {
+
+        .category-tab {
+            flex: 1;
+            text-align: center;
+            padding: 6px 8px;
             font-size: 11px;
-            color: #9ca3af;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,255,0.3);
+            background: rgba(15,23,42,0.9);
+            cursor: pointer;
+            color: var(--text-muted);
         }
-        .package-select-btn {
+
+        .category-tab.active {
+            background: radial-gradient(circle at top, rgba(79,141,255,0.3) 0, rgba(15,23,42,1) 52%);
+            color: #e5edff;
+            border-color: rgba(129,140,248,0.9);
+        }
+
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .mini-card {
+            border-radius: 14px;
+            padding: 9px 9px 8px;
+            background: var(--bg-card);
+            border: 1px solid rgba(15,23,42,0.9);
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mini-card span.icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 9px;
+            background: rgba(79,141,255,0.16);
+            border: 1px solid rgba(129,140,248,0.7);
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+
+        .mini-card h4 {
             font-size: 12px;
-            padding: 5px 10px;
+            margin-bottom: 2px;
+        }
+
+        .mini-card p {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .mini-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            margin-top: 4px;
+            color: #a5b4fc;
+        }
+
+        .mini-tag i {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .vector-highlight-card {
+            border-radius: 14px;
+            padding: 9px 9px 8px;
+            background: radial-gradient(circle at top left, rgba(79,141,255,0.35) 0, rgba(15,23,42,1) 60%);
+            border: 1px solid rgba(96,165,250,0.9);
+            box-shadow: 0 18px 40px rgba(37,99,235,0.45);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .vector-highlight-card h4 {
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .vector-highlight-card p {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .vector-highlight-card button {
             border-radius: 999px;
             border: none;
-            background: #1d4ed8;
-            color: #e5e7eb;
+            font-size: 11px;
+            padding: 6px 10px;
+            background: #f97316;
+            color: #0f172a;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 26px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .section-title span {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 6px;
+        }
+
+        .section-link {
+            font-size: 11px;
+            color: var(--accent-strong);
             cursor: pointer;
         }
 
-        @media (max-width: 900px) {
-            .grid {
-                grid-template-columns: minmax(0, 1fr);
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .tool-card {
+            border-radius: 16px;
+            padding: 11px 11px 10px;
+            background: var(--bg-card-soft);
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .tool-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 9px;
+            background: rgba(30,64,175,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .tool-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .tool-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .tool-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .tool-tag {
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(148,163,255,0.5);
+            font-size: 10px;
+        }
+
+        .tool-badge-beta {
+            color: #facc15;
+            font-size: 10px;
+        }
+
+        .tool-primary-link {
+            font-size: 11px;
+            color: var(--accent-strong);
+            cursor: pointer;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: auto;
+            padding: 14px 16px 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(15,23,42,0.9);
+            background: radial-gradient(circle at top, rgba(15,23,42,0.9) 0, #020617 60%);
+        }
+
+        footer .footer-inner {
+            max-width: 1180px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        footer strong {
+            color: var(--accent-strong);
+        }
+
+        @media (max-width: 860px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+            .hero-right {
+                order: -1;
+            }
+            .tool-grid {
+                grid-template-columns: repeat(2, minmax(0,1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .hero-left {
+                padding: 18px 16px;
+            }
+            .tool-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-
-<div class="app-shell">
-    <!-- Üst bar -->
-    <div class="top-bar">
-        <div>
-            <div class="logo">Botlab <span>Vector</span></div>
-            <div class="status-text" id="userStatusText">Durum yükleniyor...</div>
-        </div>
-        <div class="top-buttons">
-            <button class="btn-secondary btn" id="buyBtn">Aylık Satın Al</button>
-            <button class="btn btn-secondary" id="loginBtn" onclick="openLoginModal()">Giriş Yap</button>
-            <button class="btn btn-danger" id="logoutBtn" style="display:none;" onclick="logout()">Çıkış Yap</button>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h1>Akıllı Vektörleştirici</h1>
-            <p>Fotoğrafını yükle, stil ve renk sayısını seç; anında cartoon / vektör avatarını oluştur.</p>
-            <div id="premiumInfo" class="premium-info" style="display:none;"></div>
+<div class="page-shell">
+    <!-- TOP BAR -->
+    <header class="top-bar">
+        <div class="brand">
+            <div class="brand-logo">B</div>
+            <div>
+                <div class="brand-text-main">Botlab Tools</div>
+                <div class="brand-text-sub">PDF · Görsel · Vektör Araçları</div>
+            </div>
         </div>
 
-        <div class="grid">
-            <!-- Sol: Orijinal Görsel -->
-            <div class="panel">
-                <div class="panel-title-row">
-                    <div class="panel-title">Orijinal Görsel</div>
-                    <button class="mini-btn" type="button" onclick="resetImage()">Yeni görsel</button>
-                </div>
+        <div class="top-actions">
+            <div class="pill">Tamamen tarayıcı üzerinde çalışır · Dosyalarınız güvende</div>
+            <button class="btn-ghost" onclick="window.location.href='/vektor';">Giriş Yap</button>
+            <button class="btn-primary" onclick="window.location.href='/vektor';">
+                <span class="dot"></span> Ücretsiz Başla
+            </button>
+        </div>
+    </header>
 
-                <div class="upload-box" id="uploadBox">
-                    <div id="originalEmpty">
-                        <button class="upload-btn" onclick="document.getElementById('imageInput').click()">Dosya Seç</button>
-                        <p>PNG / JPG / JPEG desteklenir.</p>
-                    </div>
-                    <div id="originalPreviewWrapper" class="preview-wrapper" style="display:none;">
-                        <img id="originalPreview" class="preview-img" alt="Orijinal önizleme">
-                    </div>
-                </div>
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-left">
+            <div class="hero-tag-row">
+                <span class="hero-badge">Yeni</span>
+                <span class="hero-mini-tag">PDF + Görsel + Vektör tek panel</span>
+            </div>
+            <h1 class="hero-title">
+                PDF'lerinizi ve görsellerinizi<br />
+                <span class="hero-highlight">tek tıkla düzenleyin, sıkıştırın<br />ve vektöre çevirin.</span>
+            </h1>
+            <p class="hero-sub">
+                Dosyaları indirip farklı sitelere yüklemekle uğraşmayın. Botlab Tools ile
+                PDF ve görsel işlerinizi tek ekranda, saniyeler içinde halledin.
+            </p>
 
-                <input type="file" id="imageInput" accept="image/png,image/jpeg" style="display:none;">
+            <div class="hero-actions">
+                <button class="btn-primary" onclick="window.location.hash='#pdf-tools';">
+                    En popüler araçları göster
+                </button>
+                <button class="btn-ghost" onclick="window.location.hash='#vector-tools';">
+                    Vektörleştiriciyi keşfet
+                </button>
             </div>
 
-            <!-- Sağ: Ayarlar & Çıktı -->
-            <div class="panel">
-                <div class="panel-title">Ayarlar &amp; Çıktı</div>
-
-                <!-- Stil -->
-                <div class="settings-group">
-                    <div class="settings-label">Stil</div>
-                    <div class="style-toggle" id="styleToggle">
-                        <button type="button" data-style="normal">Normal Vektör</button>
-                        <button type="button" data-style="cartoon" class="active">Çizgi Vektör</button>
-                        <button type="button" data-style="lines">Sadece Çizgi</button>
-                    </div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <strong>PDF Araçları</strong>
+                    Birleştir, böl, dönüştür, imzala…
                 </div>
-
-                <!-- Renk Sayısı -->
-                <div class="settings-group">
-                    <div class="settings-label">Renk Sayısı</div>
-                    <div class="range-row">
-                        <input type="range" id="colorRange" min="2" max="10" value="4">
-                        <span id="colorCount" style="font-size:12px; color:#e5e7eb;">4</span>
-                    </div>
-                    <!-- YENİ: Nakış preset butonları -->
-                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                        <button type="button" class="mini-btn color-preset" data-value="4">Nakış Basic (4)</button>
-                        <button type="button" class="mini-btn color-preset" data-value="6">Nakış Orta (6)</button>
-                        <button type="button" class="mini-btn color-preset" data-value="8">Nakış Detay (8)</button>
-                        <button type="button" class="mini-btn color-preset" data-value="10">Max Detay (10)</button>
-                    </div>
-                    <div class="note-text" style="margin-top:4px;">
-                        Not: Nakış makineleri için genelde 4–10 arası renk önerilir. Preset tuşları ile hızlı seçim yapabilirsiniz.
-                    </div>
+                <div class="hero-stat">
+                    <strong>Görsel Araçlar</strong>
+                    Sıkıştır, yeniden boyutlandır, düzenle.
                 </div>
-
-                <!-- Çıktı Türü -->
-                <div class="settings-group">
-                    <div class="settings-label">Çıktı Türü</div>
-                    <div class="mode-toggle" id="modeToggle">
-                        <button type="button" data-mode="color" class="active">Renkli</button>
-                        <button type="button" data-mode="bw">Siyah-Beyaz</button>
-                    </div>
-                </div>
-
-                <div class="primary-actions">
-                    <button class="btn" onclick="handleVectorize()" id="vectorizeBtn">Önizle (Vektörleştir)</button>
-                    <a id="downloadBtn" class="btn btn-secondary" href="#" download="vektor.png" style="opacity:0.4; pointer-events:none;">İndir</a>
-                </div>
-                <div class="note-text" id="freeInfoText">Ücretsiz hak: yükleniyor...</div>
-
-                <div class="progress-wrap" id="progressWrap" style="display:none;">
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" id="progressFill"></div>
-                    </div>
-                    <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
-                </div>
-
-                <div class="error-text" id="errorText" style="display:none;"></div>
-
-                <div style="margin-top:12px; border-radius:12px; border:1px dashed #374151; padding:10px;">
-                    <div class="settings-label" style="margin-bottom:4px;">Vektör Önizleme</div>
-                    <div class="preview-wrapper" style="height:210px;">
-                        <span id="resultPlaceholder" style="font-size:12px; color:#6b7280;">Henüz çıktı yok.</span>
-                        <img id="resultPreview" class="preview-img" alt="Vektör önizleme" style="display:none;">
-                    </div>
+                <div class="hero-stat">
+                    <strong>Vektörleştirici</strong>
+                    AI destekli cartoon / çizgi avatar üret.
                 </div>
             </div>
         </div>
 
-        <div class="footer">
-            Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
+        <aside class="hero-right">
+            <div>
+                <div class="hero-section-title">
+                    Sık kullanılan <span>3 kategori</span>
+                </div>
+                <div class="category-tabs">
+                    <button class="category-tab active">PDF Araçları</button>
+                    <button class="category-tab">Görsel Araçlar</button>
+                    <button class="category-tab">Vektörleştirme</button>
+                </div>
+            </div>
+
+            <div class="mini-grid">
+                <div class="mini-card">
+                    <span class="icon">📎</span>
+                    <h4>PDF Birleştir</h4>
+                    <p>Birden fazla PDF’yi tek dosyada birleştir.</p>
+                    <div class="mini-tag">
+                        <i></i> Çok tercih edilen
+                    </div>
+                </div>
+
+                <div class="mini-card">
+                    <span class="icon">✂️</span>
+                    <h4>PDF Böl</h4>
+                    <p>Sayfa aralıklarını seç, otomatik ayır.</p>
+                    <div class="mini-tag">
+                        <i></i> Sayfa yönetimi
+                    </div>
+                </div>
+
+                <div class="mini-card">
+                    <span class="icon">📝</span>
+                    <h4>Word ↔ PDF</h4>
+                    <p>Tek tıkla ofis dosyalarını PDF’e veya tam tersi.</p>
+                    <div class="mini-tag">
+                        <i></i> Ofis dostu
+                    </div>
+                </div>
+
+                <div class="mini-card">
+                    <span class="icon">🗜️</span>
+                    <h4>PDF Sıkıştır</h4>
+                    <p>Kalite bozulmadan dosya boyutunu küçült.</p>
+                    <div class="mini-tag">
+                        <i></i> Mail için ideal
+                    </div>
+                </div>
+            </div>
+
+            <div class="vector-highlight-card">
+                <div>
+                    <h4>Akıllı Vektörleştirici</h4>
+                    <p>Fotoğrafını yükle, çizgi / cartoon avatarını anında oluştur.</p>
+                </div>
+                <button onclick="window.location.href='/vektor';">Hemen dene</button>
+            </div>
+        </aside>
+    </section>
+
+    <!-- PDF ARAÇLARI -->
+    <section class="section" id="pdf-tools">
+        <div class="section-header">
+            <h2 class="section-title">
+                PDF Araçları
+                <span>Belgelerinizi düzenleyin, dönüştürün ve paylaşmaya hazır hale getirin.</span>
+            </h2>
+            <div class="section-link">Tüm PDF araçlarını gör (yakında)</div>
         </div>
-    </div>
-</div>
 
-<!-- Login Modal -->
-<div class="modal-backdrop" id="loginModal">
-    <div class="modal-box">
-        <h3>Giriş Yap</h3>
-        <p>WhatsApp'tan bize ilettiğiniz mail adresini girerek premium sürüme erişebilirsiniz.</p>
-        <input type="email" id="loginEmail" class="modal-input" placeholder="ornek@mail.com">
-        <div class="modal-actions">
-            <button class="btn-secondary btn" onclick="closeLoginModal()">Kapat</button>
-            <button class="btn" onclick="submitLogin()">Giriş Yap</button>
+        <div class="tool-grid">
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">➕</div>
+                    <div class="tool-title">PDF Birleştir</div>
+                </div>
+                <p class="tool-desc">
+                    Farklı PDF dosyalarını sürükleyip bırakarak tek bir dosyada birleştirin.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Çok dosya</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">✂</div>
+                    <div class="tool-title">PDF Böl</div>
+                </div>
+                <p class="tool-desc">
+                    Belirli sayfa aralıklarını seçin, otomatik olarak yeni PDF’ler oluşturun.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Sayfa yönetimi</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">📝</div>
+                    <div class="tool-title">Word → PDF</div>
+                </div>
+                <p class="tool-desc">
+                    DOC/DOCX belgelerinizi bozulmadan PDF formatına dönüştürün.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Ofis dosyaları</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">📄</div>
+                    <div class="tool-title">PDF → Word</div>
+                </div>
+                <p class="tool-desc">
+                    Düzenlenebilir Word dosyalarına dönüştürerek metni kolayca değiştirin.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">OCR opsiyonlu</span>
+                    <span class="tool-badge-beta">Plan</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">🗜</div>
+                    <div class="tool-title">PDF Sıkıştır</div>
+                </div>
+                <p class="tool-desc">
+                    Email veya web yüklemeleri için dosya boyutunu küçültün.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Boyut küçültme</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">✍</div>
+                    <div class="tool-title">PDF İmzala</div>
+                </div>
+                <p class="tool-desc">
+                    Belgelere imza ekleyin, onay ve sözleşme süreçlerini hızlandırın.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">E-imza</span>
+                    <span class="tool-badge-beta">Plan</span>
+                </div>
+            </article>
         </div>
-    </div>
-</div>
+    </section>
 
-<!-- Paket Seçim Modal -->
-<div class="modal-backdrop" id="packagesModal">
-    <div class="modal-box" style="max-width:600px;">
-        <h3>Paket Seçimi</h3>
-        <p>İhtiyacınıza uygun paketi ve süreyi seçin; WhatsApp üzerinden bize iletin.</p>
+    <!-- GÖRSEL ARAÇLAR -->
+    <section class="section" id="image-tools">
+        <div class="section-header">
+            <h2 class="section-title">
+                Görsel Araçlar
+                <span>Sosyal medya, web sitesi ve baskı için görsellerinizi hazırlayın.</span>
+            </h2>
+            <div class="section-link">Tüm görsel araçlarını gör (yakında)</div>
+        </div>
 
-        <div class="settings-group">
-            <div class="settings-label">Süre</div>
-            <div class="mode-toggle" id="durationToggle">
-                <button type="button" data-duration="monthly" class="active">Aylık</button>
-                <button type="button" data-duration="quarterly">3 Aylık</button>
-                <button type="button" data-duration="yearly">1 Yıllık</button>
+        <div class="tool-grid">
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">🗜</div>
+                    <div class="tool-title">Görsel Sıkıştır</div>
+                </div>
+                <p class="tool-desc">
+                    JPG/PNG görsellerinizi kaliteyi koruyarak küçültün, site hızını artırın.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Web için</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">📐</div>
+                    <div class="tool-title">Yeniden Boyutlandır</div>
+                </div>
+                <p class="tool-desc">
+                    Piksel veya oran bazlı boyutlandırma; Instagram, YouTube kapak vb. şablonlar.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Şablonlu</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">✨</div>
+                    <div class="tool-title">Arka Plan Kaldır</div>
+                </div>
+                <p class="tool-desc">
+                    Ürün ve profil fotoğraflarının arka planını tek tıkla şeffaf yapın.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Studio görünümü</span>
+                    <span class="tool-badge-beta">Plan</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">💧</div>
+                    <div class="tool-title">Filigran Kaldır (Soft)</div>
+                </div>
+                <p class="tool-desc">
+                    Küçük logoları ve yazıları hafif bulanıklaştırarak azaltın. (Sorumlu kullanım)
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Deneysel</span>
+                    <span class="tool-badge-beta">Plan</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">📸</div>
+                    <div class="tool-title">Toplu Dönüştür (JPG ↔ PNG)</div>
+                </div>
+                <p class="tool-desc">
+                    Birden çok görseli aynı anda farklı formata dönüştürün.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Toplu işlem</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">🖼</div>
+                    <div class="tool-title">Görsellerden PDF</div>
+                </div>
+                <p class="tool-desc">
+                    Seçtiğiniz görselleri tek bir PDF sunuma dönüştürün.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Katalog</span>
+                    <span class="tool-primary-link">Yakında</span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <!-- VEKTÖRLEŞTİRME -->
+    <section class="section" id="vector-tools">
+        <div class="section-header">
+            <h2 class="section-title">
+                Akıllı Vektörleştirici
+                <span>Fotoğraflarınızı baskıya hazır vektör dosyalarına dönüştürün.</span>
+            </h2>
+            <div class="section-link" onclick="window.location.href='/vektor';">
+                Vektör aracına git
             </div>
         </div>
 
-        <div id="packagesContainer" style="margin-top:10px; max-height:260px; overflow-y:auto;"></div>
+        <div class="tool-grid">
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">🎨</div>
+                    <div class="tool-title">Normal Vektör</div>
+                </div>
+                <p class="tool-desc">
+                    Renk sayısını azaltarak sade, baskıya hazır logolar ve görseller oluşturun.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Aktif</span>
+                    <span class="tool-primary-link" onclick="window.location.href='/vektor';">
+                        Hemen dene
+                    </span>
+                </div>
+            </article>
 
-        <div class="modal-actions" style="margin-top:12px;">
-            <button class="btn-secondary btn" onclick="closePackagesModal()">Kapat</button>
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">✏</div>
+                    <div class="tool-title">Çizgi Vektör</div>
+                </div>
+                <p class="tool-desc">
+                    Fotoğrafları çizgi film / cartoon tarzında vektör avatar haline getirin.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Aktif</span>
+                    <span class="tool-primary-link" onclick="window.location.href='/vektor';">
+                        Hemen dene
+                    </span>
+                </div>
+            </article>
+
+            <article class="tool-card">
+                <div class="tool-card-header">
+                    <div class="tool-icon">🖊</div>
+                    <div class="tool-title">Sadece Çizgi</div>
+                </div>
+                <p class="tool-desc">
+                    Renkleri kaldırın, yalnızca kontur çizgilerle sade bir tasarım elde edin.
+                </p>
+                <div class="tool-meta">
+                    <span class="tool-tag">Aktif</span>
+                    <span class="tool-primary-link" onclick="window.location.href='/vektor';">
+                        Hemen dene
+                    </span>
+                </div>
+            </article>
         </div>
-    </div>
+    </section>
 </div>
 
-<script>
-    let currentStyle = "cartoon"; // default: Çizgi Vektör
-    let currentMode = "color";
-    let currentFile = null;
-    let lastResultData = null;
-
-    let progressTimer = null;
-
-    let packagesData = [];
-    let packagesLoaded = false;
-    let currentDuration = "monthly";
-    let globalWhatsapp = null;
-
-    // ===== Kullanıcı Durumu =====
-    async function loadUserStatus() {
-        try {
-            const res = await fetch("/user_status");
-            const data = await res.json();
-
-            const statusEl = document.getElementById("userStatusText");
-            const premiumEl = document.getElementById("premiumInfo");
-            const freeInfoEl = document.getElementById("freeInfoText");
-            const loginBtn = document.getElementById("loginBtn");
-            const logoutBtn = document.getElementById("logoutBtn");
-
-            premiumEl.style.display = "none";
-
-            if (data.logged_in) {
-                loginBtn.style.display = "none";
-                logoutBtn.style.display = "inline-flex";
-
-                const total = data.total_usage || 0;
-
-                if (data.premium) {
-                    statusEl.textContent = `Premium Üye: ${data.email} (Aktif, bugüne kadar ${total} görsel vektörleştirdiniz.)`;
-                    const d = new Date(data.end_date);
-                    premiumEl.textContent = `Premium üyelik bitiş tarihi: ${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
-                    premiumEl.style.display = "block";
-                    freeInfoEl.textContent = "Ücretsiz hak: Sınırsız (Premium hesap)";
-                } else {
-                    statusEl.textContent = `Üye: ${data.email} (Premium süreniz dolmuş, şu an misafir hakları ile devam ediyorsunuz. Toplam ${total} görsel işlediniz.)`;
-                    freeInfoEl.textContent = "Ücretsiz hak: Sınırlı (görsel dönüşümlerinizde limit uygulanır)";
-                }
-            } else {
-                loginBtn.style.display = "inline-flex";
-                logoutBtn.style.display = "none";
-                statusEl.textContent = "Misafir Kullanıcı";
-                freeInfoEl.textContent = `Kalan ücretsiz hak: ${data.remaining}`;
-            }
-        } catch (e) {
-            console.error(e);
-            document.getElementById("userStatusText").textContent = "Durum alınamadı.";
-            document.getElementById("freeInfoText").textContent = "";
-        }
-    }
-
-    // ===== Stil & mod butonları =====
-    function setupToggles() {
-        const styleButtons = document.querySelectorAll("#styleToggle button");
-        styleButtons.forEach(btn => {
-            btn.addEventListener("click", () => {
-                styleButtons.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                currentStyle = btn.getAttribute("data-style");
-            });
-        });
-
-        const modeButtons = document.querySelectorAll("#modeToggle button");
-        modeButtons.forEach(btn => {
-            btn.addEventListener("click", () => {
-                modeButtons.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                currentMode = btn.getAttribute("data-mode");
-            });
-        });
-
-        const range = document.getElementById("colorRange");
-        const countEl = document.getElementById("colorCount");
-        range.addEventListener("input", () => {
-            countEl.textContent = range.value;
-        });
-
-        // YENİ: Renk preset butonları
-        const presetButtons = document.querySelectorAll(".color-preset");
-        presetButtons.forEach(btn => {
-            btn.addEventListener("click", () => {
-                const val = btn.getAttribute("data-value");
-                range.value = val;
-                countEl.textContent = val;
-            });
-        });
-    }
-
-    // ===== Dosya yükleme & önizleme =====
-    document.getElementById("imageInput").addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        currentFile = file;
-        const url = URL.createObjectURL(file);
-
-        document.getElementById("originalEmpty").style.display = "none";
-        document.getElementById("originalPreviewWrapper").style.display = "flex";
-        document.getElementById("originalPreview").src = url;
-
-        // Yeni görsel seçildiğinde önceki çıktıları temizle
-        resetResultPreview();
-    });
-
-    function resetImage() {
-        currentFile = null;
-        lastResultData = null;
-
-        const input = document.getElementById("imageInput");
-        input.value = "";
-
-        document.getElementById("originalEmpty").style.display = "block";
-        document.getElementById("originalPreviewWrapper").style.display = "none";
-        document.getElementById("originalPreview").src = "";
-
-        resetResultPreview();
-    }
-
-    function resetResultPreview() {
-        const resultImg = document.getElementById("resultPreview");
-        const placeholder = document.getElementById("resultPlaceholder");
-        const downloadBtn = document.getElementById("downloadBtn");
-        const errorEl = document.getElementById("errorText");
-
-        lastResultData = null;
-        resultImg.style.display = "none";
-        resultImg.src = "";
-        placeholder.style.display = "block";
-        placeholder.textContent = "Henüz çıktı yok.";
-        downloadBtn.href = "#";
-        downloadBtn.style.opacity = 0.4;
-        downloadBtn.style.pointerEvents = "none";
-
-        errorEl.style.display = "none";
-        errorEl.textContent = "";
-
-        stopProgressPolling(0);
-        document.getElementById("progressWrap").style.display = "none";
-    }
-
-    // ===== Progress bar =====
-    function startProgressPolling() {
-        const wrap = document.getElementById("progressWrap");
-        wrap.style.display = "block";
-        updateProgressBar(0);
-
-        if (progressTimer) clearInterval(progressTimer);
-
-        progressTimer = setInterval(async () => {
-            try {
-                const res = await fetch("/vectorize_progress");
-                const data = await res.json();
-                const p = data.progress ?? 0;
-                updateProgressBar(p);
-            } catch (e) {
-                console.error(e);
-            }
-        }, 500);
-    }
-
-    function stopProgressPolling(finalValue = null) {
-        if (progressTimer) {
-            clearInterval(progressTimer);
-            progressTimer = null;
-        }
-        if (finalValue !== null) {
-            updateProgressBar(finalValue);
-        }
-    }
-
-    function updateProgressBar(p) {
-        const fill = document.getElementById("progressFill");
-        const label = document.getElementById("progressLabel");
-        p = Math.max(0, Math.min(100, p));
-        fill.style.width = p + "%";
-
-        if (p === 0) {
-            label.textContent = "Hazırlanıyor...";
-        } else if (p < 30) {
-            label.textContent = `İşleme başlatılıyor... %${p}`;
-        } else if (p < 70) {
-            label.textContent = `Vektör stilleri uygulanıyor... %${p}`;
-        } else if (p < 100) {
-            label.textContent = `Son dokunuşlar yapılıyor... %${p}`;
-        } else {
-            label.textContent = "Tamamlandı 🎉";
-        }
-    }
-
-    // ===== Vektörleştirme =====
-    async function handleVectorize() {
-        const errorEl = document.getElementById("errorText");
-        errorEl.style.display = "none";
-        errorEl.textContent = "";
-
-        if (!currentFile) {
-            errorEl.textContent = "Lütfen önce bir görsel seçin.";
-            errorEl.style.display = "block";
-            return;
-        }
-
-        const btn = document.getElementById("vectorizeBtn");
-        const resultImg = document.getElementById("resultPreview");
-        const placeholder = document.getElementById("resultPlaceholder");
-        const downloadBtn = document.getElementById("downloadBtn");
-
-        btn.disabled = true;
-        btn.textContent = "Vektörleştiriliyor...";
-        placeholder.style.display = "block";
-        placeholder.textContent = "İşleniyor...";
-        resultImg.style.display = "none";
-        downloadBtn.style.opacity = 0.4;
-        downloadBtn.style.pointerEvents = "none";
-
-        startProgressPolling();
-
-        try {
-            const formData = new FormData();
-            formData.append("image", currentFile);
-            formData.append("style", currentStyle);
-            formData.append("colors", document.getElementById("colorRange").value);
-            formData.append("mode", currentMode);
-
-            const res = await fetch("/vectorize_style", {
-                method: "POST",
-                body: formData
-            });
-
-            if (res.status === 403) {
-                const data = await res.json();
-                errorEl.textContent = data.message || "Ücretsiz hakkınız doldu.";
-                errorEl.style.display = "block";
-                if (data.whatsapp) {
-                    document.getElementById("buyBtn").onclick = () => {
-                        window.open(data.whatsapp, "_blank");
-                    };
-                }
-                placeholder.style.display = "block";
-                placeholder.textContent = "Limit nedeniyle çıktı üretilemedi.";
-                stopProgressPolling(0);
-                btn.disabled = false;
-                btn.textContent = "Önizle (Vektörleştir)";
-                return;
-            }
-
-            const data = await res.json();
-            if (!data.success) {
-                errorEl.textContent = data.message || "Beklenmeyen bir hata oluştu.";
-                errorEl.style.display = "block";
-                placeholder.style.display = "block";
-                placeholder.textContent = "Çıktı üretilemedi.";
-                stopProgressPolling(0);
-                btn.disabled = false;
-                btn.textContent = "Önizle (Vektörleştir)";
-                return;
-            }
-
-            lastResultData = data.image_data;
-            resultImg.src = lastResultData;
-            resultImg.style.display = "block";
-            placeholder.style.display = "none";
-
-            downloadBtn.href = lastResultData;
-            downloadBtn.style.opacity = 1;
-            downloadBtn.style.pointerEvents = "auto";
-
-            stopProgressPolling(100);
-        } catch (e) {
-            console.error(e);
-            errorEl.textContent = "İşleme sırasında bir hata oluştu.";
-            errorEl.style.display = "block";
-            placeholder.style.display = "block";
-            placeholder.textContent = "Çıktı üretilemedi.";
-            stopProgressPolling(0);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = "Önizle (Vektörleştir)";
-            loadUserStatus(); // kullanım haklarını güncelle
-        }
-    }
-
-    // ===== Login Modal =====
-    function openLoginModal() {
-        document.getElementById("loginModal").classList.add("show");
-        document.getElementById("loginEmail").focus();
-    }
-    function closeLoginModal() {
-        document.getElementById("loginModal").classList.remove("show");
-    }
-
-    async function submitLogin() {
-        const email = document.getElementById("loginEmail").value.trim();
-        if (!email) return;
-
-        try {
-            const res = await fetch("/login", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({email})
-            });
-            const data = await res.json();
-            if (!data.success) {
-                alert(data.message || "Giriş yapılamadı.");
-                return;
-            }
-            closeLoginModal();
-            await loadUserStatus();
-        } catch (e) {
-            console.error(e);
-            alert("Giriş sırasında hata oluştu.");
-        }
-    }
-
-    async function logout() {
-        try {
-            await fetch("/logout", {method: "POST"});
-        } catch (e) {
-            console.error(e);
-        }
-        window.location.reload();
-    }
-
-    // ===== Paket Modal & API =====
-    async function openPackagesModal() {
-        document.getElementById("packagesModal").classList.add("show");
-        if (!packagesLoaded) {
-            await loadPackages();
-        } else {
-            renderPackages();
-        }
-    }
-
-    function closePackagesModal() {
-        document.getElementById("packagesModal").classList.remove("show");
-    }
-
-    async function loadPackages() {
-        try {
-            const res = await fetch("/packages");
-            const data = await res.json();
-            if (!data.success) {
-                alert("Paket bilgileri alınamadı.");
-                return;
-            }
-            packagesData = data.packages || [];
-            globalWhatsapp = data.whatsapp || null;
-            packagesLoaded = true;
-            setupDurationToggle();
-            renderPackages();
-        } catch (e) {
-            console.error(e);
-            alert("Paket bilgileri alınırken hata oluştu.");
-        }
-    }
-
-    function setupDurationToggle() {
-        const durationButtons = document.querySelectorAll("#durationToggle button");
-        durationButtons.forEach(btn => {
-            btn.addEventListener("click", () => {
-                durationButtons.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                currentDuration = btn.getAttribute("data-duration"); // monthly, quarterly, yearly
-                renderPackages();
-            });
-        });
-    }
-
-    function renderPackages() {
-        const container = document.getElementById("packagesContainer");
-        container.innerHTML = "";
-        if (!packagesData || packagesData.length === 0) {
-            container.innerHTML = '<div class="note-text">Henüz tanımlı paket yok.</div>';
-            return;
-        }
-
-        packagesData.forEach(pkg => {
-            const priceKey = currentDuration === "monthly"
-                ? "price_monthly"
-                : currentDuration === "quarterly"
-                    ? "price_quarterly"
-                    : "price_yearly";
-
-            const priceLabel = currentDuration === "monthly"
-                ? "Aylık"
-                : currentDuration === "quarterly"
-                    ? "3 Aylık"
-                    : "1 Yıllık";
-
-            const price = pkg[priceKey] || "-";
-
-            const html = `
-                <div class="package-card">
-                    <div class="package-title">${pkg.display_name}</div>
-                    <div class="package-desc">${pkg.description || ""}</div>
-                    <div class="package-prices">
-                        <div><span>${priceLabel} Fiyat:</span> ${price}</div>
-                    </div>
-                    <button class="package-select-btn" onclick="selectPackage('${pkg.slug}')">
-                        Bu paketi seç
-                    </button>
-                </div>
-            `;
-            container.insertAdjacentHTML("beforeend", html);
-        });
-    }
-
-    function selectPackage(slug) {
-        const pkg = packagesData.find(p => p.slug === slug);
-        if (!pkg) return;
-
-        const priceLabel = currentDuration === "monthly"
-            ? "Aylık"
-            : currentDuration === "quarterly"
-                ? "3 Aylık"
-                : "1 Yıllık";
-
-        const priceKey = currentDuration === "monthly"
-            ? "price_monthly"
-            : currentDuration === "quarterly"
-                ? "price_quarterly"
-                : "price_yearly";
-
-        const price = pkg[priceKey] || "";
-
-        let text = `Merhaba, ${priceLabel} ${pkg.display_name} paketini satın almak istiyorum.`;
-        if (price) {
-            text += ` Fiyat bilgisinde ${price} olarak görünüyor.`;
-        }
-
-        const encoded = encodeURIComponent(text);
-        const number = globalWhatsapp || "905555555555";
-        const url = `https://wa.me/${number}?text=${encoded}`;
-        window.open(url, "_blank");
-    }
-
-    // Init
-    document.addEventListener("DOMContentLoaded", () => {
-        setupToggles();
-        loadUserStatus();
-        document.getElementById("buyBtn").onclick = openPackagesModal;
-    });
-</script>
+<footer>
+    <div class="footer-inner">
+        <span>Botlab Teknoloji — Yapay Zeka Destekli Dosya ve Görsel Araçları</span>
+        <span>Geri bildirim için <strong>WhatsApp</strong> üzerinden bize ulaşabilirsiniz.</span>
+    </div>
+</footer>
 
 </body>
 </html>
