@@ -255,25 +255,7 @@ def control_panel():
 # ADMIN API'LERİ
 # ============================================================
 
-@app.route("/admin_users")
-@admin_required
-def admin_users():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT email, start_date, end_date, total_usage FROM users")
-    rows = cur.fetchall()
-    conn.close()
 
-    users = []
-    for r in rows:
-        users.append({
-            "email": r[0],
-            "start_date": r[1],
-            "end_date": r[2],
-            "total_usage": r[3]
-        })
-
-    return jsonify({"success": True, "users": users})
 
 @app.route("/admin_add_user", methods=["POST"])
 @admin_required
@@ -595,6 +577,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
