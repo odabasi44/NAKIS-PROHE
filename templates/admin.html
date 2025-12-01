@@ -132,133 +132,53 @@
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-let table;
+    let table;
 
-// SAYFA YÜKLENİNCE KULLANICILARI GETİR
-window.onload = loadUsers;
+    // SAYFA YÜKLENİNCE KULLANICILARI GETİR
+    window.onload = loadUsers;
 
-async function loadUsers() {
-    const res = await fetch("/admin_users");
-    const data = await res.json();
+    // … (loadUsers, addUser vs burda)
 
-    const tbody = document.getElementById("userBody");
-    tbody.innerHTML = "";
-
-    data.users.forEach(u => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${u.email}</td>
-                <td>${u.start_date}</td>
-                <td>${u.end_date}</td>
-                <td>${u.total_usage}</td>
-                <td>
-                    <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
-                    <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
-                </td>
-            </tr>
-        `;
-    });
-
-    if (table) table.destroy();
-    table = new DataTable('#userTable');
-}
-
-/* -------------------------------------------------------
-   KULLANICI EKLE
-------------------------------------------------------- */
-function openAddModal() {
-    new bootstrap.Modal(document.getElementById("addUserModal")).show();
-}
-
-async function addUser() {
-    const email = document.getElementById("newUserEmail").value.trim();
-    if (!email) {
-        alert("Email boş olamaz.");
-        return;
-    }
-
-    try {
-        const res = await fetch("/admin_add_user", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email})
-        });
-
-        if (!res.ok) {
-            const txt = await res.text();
-            alert("Sunucu hatası: " + txt);
-            return;
-        }
-
-        const data = await res.json();
-        if (!data.success) {
-            alert(data.message || "Kullanıcı eklenemedi.");
-            return;
-        }
-
-        document.getElementById("newUserEmail").value = "";
+    // *** BURAYI EKLE / GÜNCELLE ***
+    function openAddModal() {
         const modalEl = document.getElementById("addUserModal");
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        modal.hide();
-
-        await loadUsers();
-    } catch (err) {
-        console.error(err);
-        alert("İstek sırasında hata oluştu.");
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
     }
-}
-}
 
-/* -------------------------------------------------------
-   KULLANIM SIFIRLAMA
-------------------------------------------------------- */
-async function resetUsage(email) {
-    await fetch("/admin_reset_usage", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email})
-    });
+    async function addUser() {
+        const email = document.getElementById("newUserEmail").value.trim();
+        if (!email) {
+            alert("Email boş olamaz.");
+            return;
+        }
 
-    loadUsers();
-}
+        try {
+            const res = await fetch("/admin_add_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email})
+            });
 
-/* -------------------------------------------------------
-   PREMIUM UZATMA
-------------------------------------------------------- */
-async function extendUser(email) {
-    await fetch("/admin_extend_user", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email, days: 30})
-    });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Kullanıcı eklenemedi.");
+                return;
+            }
 
-    loadUsers();
-}
+            document.getElementById("newUserEmail").value = "";
+            const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
+            modal.hide();
+            await loadUsers();
+        } catch (err) {
+            console.error(err);
+            alert("İstek sırasında hata oluştu.");
+        }
+    }
 
-/* -------------------------------------------------------
-   KULLANICI SİL
-------------------------------------------------------- */
-async function deleteUser(email) {
-    if (!confirm("Silmek istediğine emin misin?")) return;
-
-    await fetch("/admin_delete_user", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email})
-    });
-
-    loadUsers();
-}
-
-/* -------------------------------------------------------
-   ÇIKIŞ
-------------------------------------------------------- */
-async function logout() {
-    await fetch("/admin_logout", {method: "POST"});
-    window.location.href = "/control_panel";
-}
+    // ... diğer fonksiyonlar (resetUsage, extendUser, deleteUser, logout)
 </script>
+
 
 </body>
 </html>
