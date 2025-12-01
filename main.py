@@ -211,6 +211,10 @@ def register_usage():
 # ADMIN DECORATOR + ADMIN GİRİŞ
 # ============================================================
 
+# ============================================================
+# ADMIN DECORATOR + ADMIN GİRİŞ
+# ============================================================
+
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -222,9 +226,13 @@ def admin_required(f):
 @app.route("/admin_login", methods=["POST"])
 def admin_login():
     data = request.get_json()
-    if data.get("email") == ADMIN_EMAIL and data.get("password") == ADMIN_PASSWORD:
+    email = data.get("email")
+    password = data.get("password")
+
+    if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
         session["admin_logged_in"] = True
         return jsonify({"success": True})
+
     return jsonify({"success": False, "message": "Yanlış email veya şifre"})
 
 @app.route("/admin_logout", methods=["POST"])
@@ -232,6 +240,158 @@ def admin_login():
 def admin_logout():
     session.pop("admin_logged_in", None)
     return jsonify({"success": True})
+
+# ============================================================
+# ADMIN PANEL SAYFASI
+# ============================================================
+
+@app.route("/control_panel")
+def control_panel():
+    if not session.get("admin_logged_in"):
+        return send_from_directory("templates", "admin_login.html")
+    return send_from_directory("templates", "admin.html")
+
+# ============================================================
+# ADMIN API'LERİ
+# ============================================================
+
+@app.route("/admin_users")
+@admin_required
+def admin_users():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT email, start_date, end_date, total_usage FROM users")
+    rows = cur.fetchall()
+    conn.close()
+
+    users = []
+    for r in rows:
+        users.append({
+            "email": r[0],
+            "start_date": r[1],
+            "end_date": r[2],
+            "total_usage": r[3]
+        })
+
+    return jsonify({"success": True, "users": users})
+
+@app.route("/admin_add_user", methods=["POST"])
+@admin_required
+def admin_add_user():
+    """Yeni premium kullanıcı ekler.
+       Eğer kullanıcının aktif premiumu varsa hata döner."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+        days = int(data.get("days") or SETTINGS["premium_duration_days"])
+
+        if not email:
+            return jsonify({"success": False, "message": "Email alanı boş olamaz."}), 400
+
+        now = datetime.now()
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+
+        # Mevcut kullanıcıyı kontrol et
+        cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
+        row = cur.fetchone()
+
+        if row:
+            end_date = datetime.fromisoformat(row[0])
+            if end_date > now:
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "message": "Bu kullanıcının zaten aktif bir premium üyeliği var."
+                }), 400
+
+        new_end = now + timedelta(days=days)
+
+        cur.execute("""
+            INSERT OR REPLACE INTO users (email, start_date, end_date, total_usage)
+            VALUES (?, ?, ?, COALESCE((SELECT total_usage FROM users WHERE email=?), 0))
+        """, (email, now.isoformat(), new_end.isoformat(), email))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print("admin_add_user error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/admin_delete_user", methods=["POST"])
+@admin_required
+def admin_delete_user():
+    """Kullanıcı siler."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+
+        if not email:
+            return jsonify({"success": False, "message": "Email alanı boş."}), 400
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print("admin_delete_user error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/admin_reset_usage", methods=["POST"])
+@admin_required
+def admin_reset_usage():
+    """Kullanıcının toplam kullanımını sıfırlar."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET total_usage = 0 WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print("admin_reset_usage error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/admin_extend_user", methods=["POST"])
+@admin_required
+def admin_extend_user():
+    """+30 gün ekler. Eğer süresi geçmişse bugünden; değilse mevcut bitişten itibaren."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+        extra_days = int(data.get("days") or 30)
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
+        row = cur.fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "message": "Kullanıcı bulunamadı."}), 404
+
+        now = datetime.now()
+        current_end = datetime.fromisoformat(row[0])
+        base = current_end if current_end > now else now
+        new_end = base + timedelta(days=extra_days)
+
+        cur.execute("UPDATE users SET end_date=? WHERE email=?", (new_end.isoformat(), email))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print("admin_extend_user error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
 
 # ============================================================
 # ADMIN PANEL SERVE
@@ -440,6 +600,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
