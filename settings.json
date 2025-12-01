@@ -11,3 +11,11 @@
         ]
     }
 }
+{
+    "admin_email": "odabasiaiteknoloji@gmail.com",
+    "admin_password": "280494Odabasi.",
+    "whatsapp_number": "905555555555",
+
+    "free_usage_limit": 5,
+    "premium_duration_days": 365
+}
