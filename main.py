@@ -228,19 +228,24 @@ def logout():
 
 @app.route("/user_status")
 def user_status():
+    # Önce oturumda kullanıcı var mı bak
     if "email" in session:
         email = session["email"]
-        premium = is_user_premium(email)
         user = get_user(email)
 
-        return jsonify({
-            "logged_in": True,
-            "email": email,
-            "premium": premium,
-            "end_date": user[2],
-            "total_usage": user[3] or 0
-        })
+        if user:
+            premium = is_user_premium(email)
+            return jsonify({
+                "logged_in": True,
+                "email": email,
+                "premium": premium,
+                "end_date": user[2]
+            })
 
+        # DB'de kayıt yoksa (silinmiş vs.) oturumu temizle ve misafir gibi davran
+        session.pop("email", None)
+
+    # Misafir kullanıcı durumu
     client_id = get_client_id()
     usage = get_guest_usage(client_id)
     return jsonify({
@@ -249,6 +254,7 @@ def user_status():
         "guest_usage": usage,
         "remaining": max(0, FREE_LIMIT - usage)
     })
+
 
 @app.route("/packages")
 def get_packages():
@@ -769,6 +775,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
