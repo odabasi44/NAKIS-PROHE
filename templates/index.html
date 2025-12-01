@@ -113,6 +113,27 @@
             color: #9ca3af;
         }
 
+        .panel-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .mini-btn {
+            border-radius: 999px;
+            border: 1px solid #374151;
+            background: #020617;
+            color: #9ca3af;
+            font-size: 11px;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+        .mini-btn:hover {
+            border-color: #2563eb;
+            color: #e5e7eb;
+        }
+
         .upload-box {
             border-radius: 14px;
             border: 1px dashed #4b5563;
@@ -260,7 +281,31 @@
             margin-top: 6px;
         }
 
-        /* Basit login modal */
+        /* Progress bar */
+        .progress-wrap {
+            margin-top: 8px;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: #111827;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: #22c55e;
+            width: 0%;
+            transition: width 0.25s ease-out;
+        }
+        .progress-label {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #9ca3af;
+        }
+
+        /* Basit modal */
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -307,6 +352,43 @@
             margin-top: 4px;
         }
 
+        /* Paket kartları */
+        .package-card {
+            border-radius: 12px;
+            border: 1px solid #1f2937;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: #020617;
+        }
+        .package-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .package-desc {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 6px;
+        }
+        .package-prices {
+            font-size: 12px;
+            color: #e5e7eb;
+            margin-bottom: 6px;
+        }
+        .package-prices span {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+        .package-select-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: none;
+            background: #1d4ed8;
+            color: #e5e7eb;
+            cursor: pointer;
+        }
+
         @media (max-width: 900px) {
             .grid {
                 grid-template-columns: minmax(0, 1fr);
@@ -333,14 +415,17 @@
     <div class="card">
         <div class="card-header">
             <h1>Akıllı Vektörleştirici</h1>
-            <p>Fotoğrafını yükle, stil ve renk sayısını seç, anında cartoon / vektör avatarını oluştur.</p>
+            <p>Fotoğrafını yükle, arka plan otomatik kaldırılsın, stil ve renk sayısını seç; anında cartoon / vektör avatarını oluştur.</p>
             <div id="premiumInfo" class="premium-info" style="display:none;"></div>
         </div>
 
         <div class="grid">
             <!-- Sol: Orijinal Görsel -->
             <div class="panel">
-                <div class="panel-title">Orijinal Görsel</div>
+                <div class="panel-title-row">
+                    <div class="panel-title">Orijinal Görsel</div>
+                    <button class="mini-btn" type="button" onclick="resetImage()">Yeni görsel</button>
+                </div>
 
                 <div class="upload-box" id="uploadBox">
                     <div id="originalEmpty">
@@ -392,6 +477,14 @@
                     <a id="downloadBtn" class="btn btn-secondary" href="#" download="vektor.png" style="opacity:0.4; pointer-events:none;">İndir</a>
                 </div>
                 <div class="note-text" id="freeInfoText">Ücretsiz hak: yükleniyor...</div>
+
+                <div class="progress-wrap" id="progressWrap" style="display:none;">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
+                </div>
+
                 <div class="error-text" id="errorText" style="display:none;"></div>
 
                 <div style="margin-top:12px; border-radius:12px; border:1px dashed #374151; padding:10px;">
@@ -410,7 +503,7 @@
     </div>
 </div>
 
-<!-- Basit Login Modal -->
+<!-- Login Modal -->
 <div class="modal-backdrop" id="loginModal">
     <div class="modal-box">
         <h3>Giriş Yap</h3>
@@ -423,11 +516,41 @@
     </div>
 </div>
 
+<!-- Paket Seçim Modal -->
+<div class="modal-backdrop" id="packagesModal">
+    <div class="modal-box" style="max-width:600px;">
+        <h3>Paket Seçimi</h3>
+        <p>İhtiyacınıza uygun paketi ve süreyi seçin; WhatsApp üzerinden bize iletin.</p>
+
+        <div class="settings-group">
+            <div class="settings-label">Süre</div>
+            <div class="mode-toggle" id="durationToggle">
+                <button type="button" data-duration="monthly" class="active">Aylık</button>
+                <button type="button" data-duration="quarterly">3 Aylık</button>
+                <button type="button" data-duration="yearly">1 Yıllık</button>
+            </div>
+        </div>
+
+        <div id="packagesContainer" style="margin-top:10px; max-height:260px; overflow-y:auto;"></div>
+
+        <div class="modal-actions" style="margin-top:12px;">
+            <button class="btn-secondary btn" onclick="closePackagesModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let currentStyle = "cartoon"; // default: Çizgi Vektör
     let currentMode = "color";
     let currentFile = null;
     let lastResultData = null;
+
+    let progressTimer = null;
+
+    let packagesData = [];
+    let packagesLoaded = false;
+    let currentDuration = "monthly";
+    let globalWhatsapp = null;
 
     // ===== Kullanıcı Durumu =====
     async function loadUserStatus() {
@@ -447,14 +570,16 @@
                 loginBtn.style.display = "none";
                 logoutBtn.style.display = "inline-flex";
 
+                const total = data.total_usage || 0;
+
                 if (data.premium) {
-                    statusEl.textContent = `Premium Üye: ${data.email} (Aktif)`;
+                    statusEl.textContent = `Premium Üye: ${data.email} (Aktif, bugüne kadar ${total} görsel vektörleştirdiniz.)`;
                     const d = new Date(data.end_date);
                     premiumEl.textContent = `Premium üyelik bitiş tarihi: ${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
                     premiumEl.style.display = "block";
-                    freeInfoEl.textContent = "Ücretsiz hak: Sınırsız";
+                    freeInfoEl.textContent = "Ücretsiz hak: Sınırsız (Premium hesap)";
                 } else {
-                    statusEl.textContent = `Üye: ${data.email} (Premium süreniz dolmuş, şu an misafir hakları ile devam ediyorsunuz.)`;
+                    statusEl.textContent = `Üye: ${data.email} (Premium süreniz dolmuş, şu an misafir hakları ile devam ediyorsunuz. Toplam ${total} görsel işlediniz.)`;
                     freeInfoEl.textContent = "Ücretsiz hak: Sınırlı (görsel dönüşümlerinizde limit uygulanır)";
                 }
             } else {
@@ -508,7 +633,95 @@
         document.getElementById("originalEmpty").style.display = "none";
         document.getElementById("originalPreviewWrapper").style.display = "flex";
         document.getElementById("originalPreview").src = url;
+
+        // Yeni görsel seçildiğinde önceki çıktıları temizle
+        resetResultPreview();
     });
+
+    function resetImage() {
+        currentFile = null;
+        lastResultData = null;
+
+        const input = document.getElementById("imageInput");
+        input.value = "";
+
+        document.getElementById("originalEmpty").style.display = "block";
+        document.getElementById("originalPreviewWrapper").style.display = "none";
+        document.getElementById("originalPreview").src = "";
+
+        resetResultPreview();
+    }
+
+    function resetResultPreview() {
+        const resultImg = document.getElementById("resultPreview");
+        const placeholder = document.getElementById("resultPlaceholder");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const errorEl = document.getElementById("errorText");
+
+        lastResultData = null;
+        resultImg.style.display = "none";
+        resultImg.src = "";
+        placeholder.style.display = "block";
+        placeholder.textContent = "Henüz çıktı yok.";
+        downloadBtn.href = "#";
+        downloadBtn.style.opacity = 0.4;
+        downloadBtn.style.pointerEvents = "none";
+
+        errorEl.style.display = "none";
+        errorEl.textContent = "";
+
+        stopProgressPolling(0);
+        document.getElementById("progressWrap").style.display = "none";
+    }
+
+    // ===== Progress bar =====
+    function startProgressPolling() {
+        const wrap = document.getElementById("progressWrap");
+        wrap.style.display = "block";
+        updateProgressBar(0);
+
+        if (progressTimer) clearInterval(progressTimer);
+
+        progressTimer = setInterval(async () => {
+            try {
+                const res = await fetch("/vectorize_progress");
+                const data = await res.json();
+                const p = data.progress ?? 0;
+                updateProgressBar(p);
+            } catch (e) {
+                console.error(e);
+            }
+        }, 500);
+    }
+
+    function stopProgressPolling(finalValue = null) {
+        if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+        }
+        if (finalValue !== null) {
+            updateProgressBar(finalValue);
+        }
+    }
+
+    function updateProgressBar(p) {
+        const fill = document.getElementById("progressFill");
+        const label = document.getElementById("progressLabel");
+        p = Math.max(0, Math.min(100, p));
+        fill.style.width = p + "%";
+
+        if (p === 0) {
+            label.textContent = "Hazırlanıyor...";
+        } else if (p < 30) {
+            label.textContent = `Arka plan kaldırılıyor... %${p}`;
+        } else if (p < 70) {
+            label.textContent = `Vektör stilleri uygulanıyor... %${p}`;
+        } else if (p < 100) {
+            label.textContent = `Son dokunuşlar yapılıyor... %${p}`;
+        } else {
+            label.textContent = "Tamamlandı 🎉";
+        }
+    }
 
     // ===== Vektörleştirme =====
     async function handleVectorize() {
@@ -535,6 +748,8 @@
         downloadBtn.style.opacity = 0.4;
         downloadBtn.style.pointerEvents = "none";
 
+        startProgressPolling();
+
         try {
             const formData = new FormData();
             formData.append("image", currentFile);
@@ -549,16 +764,16 @@
 
             if (res.status === 403) {
                 const data = await res.json();
-                errorEl.textContent = data.message || "Ücretsiz hakkınız dolmuş.";
+                errorEl.textContent = data.message || "Ücretsiz hakkınız doldu.";
                 errorEl.style.display = "block";
                 if (data.whatsapp) {
-                    // Aylık Satın Al butonuna link verelim
                     document.getElementById("buyBtn").onclick = () => {
                         window.open(data.whatsapp, "_blank");
                     };
                 }
                 placeholder.style.display = "block";
                 placeholder.textContent = "Limit nedeniyle çıktı üretilemedi.";
+                stopProgressPolling(0);
                 btn.disabled = false;
                 btn.textContent = "Önizle (Vektörleştir)";
                 return;
@@ -570,6 +785,7 @@
                 errorEl.style.display = "block";
                 placeholder.style.display = "block";
                 placeholder.textContent = "Çıktı üretilemedi.";
+                stopProgressPolling(0);
                 btn.disabled = false;
                 btn.textContent = "Önizle (Vektörleştir)";
                 return;
@@ -583,12 +799,15 @@
             downloadBtn.href = lastResultData;
             downloadBtn.style.opacity = 1;
             downloadBtn.style.pointerEvents = "auto";
+
+            stopProgressPolling(100);
         } catch (e) {
             console.error(e);
             errorEl.textContent = "İşleme sırasında bir hata oluştu.";
             errorEl.style.display = "block";
             placeholder.style.display = "block";
             placeholder.textContent = "Çıktı üretilemedi.";
+            stopProgressPolling(0);
         } finally {
             btn.disabled = false;
             btn.textContent = "Önizle (Vektörleştir)";
@@ -634,20 +853,127 @@
         } catch (e) {
             console.error(e);
         }
-        // Tam reset
         window.location.reload();
     }
 
-    // Aylık Satın Al butonu (default - istersen linki değiştir)
-    document.getElementById("buyBtn").onclick = () => {
-        // Buradaki numarayı istersen kendi WhatsApp numaranla değiştir.
-        window.open("https://wa.me/905335620807?text=Aylık+üyelik+istiyorum", "_blank");
-    };
+    // ===== Paket Modal & API =====
+    async function openPackagesModal() {
+        document.getElementById("packagesModal").classList.add("show");
+        if (!packagesLoaded) {
+            await loadPackages();
+        } else {
+            renderPackages();
+        }
+    }
+
+    function closePackagesModal() {
+        document.getElementById("packagesModal").classList.remove("show");
+    }
+
+    async function loadPackages() {
+        try {
+            const res = await fetch("/packages");
+            const data = await res.json();
+            if (!data.success) {
+                alert("Paket bilgileri alınamadı.");
+                return;
+            }
+            packagesData = data.packages || [];
+            globalWhatsapp = data.whatsapp || null;
+            packagesLoaded = true;
+            setupDurationToggle();
+            renderPackages();
+        } catch (e) {
+            console.error(e);
+            alert("Paket bilgileri alınırken hata oluştu.");
+        }
+    }
+
+    function setupDurationToggle() {
+        const durationButtons = document.querySelectorAll("#durationToggle button");
+        durationButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                durationButtons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentDuration = btn.getAttribute("data-duration"); // monthly, quarterly, yearly
+                renderPackages();
+            });
+        });
+    }
+
+    function renderPackages() {
+        const container = document.getElementById("packagesContainer");
+        container.innerHTML = "";
+        if (!packagesData || packagesData.length === 0) {
+            container.innerHTML = '<div class="note-text">Henüz tanımlı paket yok.</div>';
+            return;
+        }
+
+        packagesData.forEach(pkg => {
+            const priceKey = currentDuration === "monthly"
+                ? "price_monthly"
+                : currentDuration === "quarterly"
+                    ? "price_quarterly"
+                    : "price_yearly";
+
+            const priceLabel = currentDuration === "monthly"
+                ? "Aylık"
+                : currentDuration === "quarterly"
+                    ? "3 Aylık"
+                    : "1 Yıllık";
+
+            const price = pkg[priceKey] || "-";
+
+            const html = `
+                <div class="package-card">
+                    <div class="package-title">${pkg.display_name}</div>
+                    <div class="package-desc">${pkg.description || ""}</div>
+                    <div class="package-prices">
+                        <div><span>${priceLabel} Fiyat:</span> ${price}</div>
+                    </div>
+                    <button class="package-select-btn" onclick="selectPackage('${pkg.slug}')">
+                        Bu paketi seç
+                    </button>
+                </div>
+            `;
+            container.insertAdjacentHTML("beforeend", html);
+        });
+    }
+
+    function selectPackage(slug) {
+        const pkg = packagesData.find(p => p.slug === slug);
+        if (!pkg) return;
+
+        const priceLabel = currentDuration === "monthly"
+            ? "Aylık"
+            : currentDuration === "quarterly"
+                ? "3 Aylık"
+                : "1 Yıllık";
+
+        const priceKey = currentDuration === "monthly"
+            ? "price_monthly"
+            : currentDuration === "quarterly"
+                ? "price_quarterly"
+                : "price_yearly";
+
+        const price = pkg[priceKey] || "";
+
+        let text = `Merhaba, ${priceLabel} ${pkg.display_name} paketini satın almak istiyorum.`;
+        if (price) {
+            text += ` Fiyat bilgisinde ${price} olarak görünüyor.`;
+        }
+
+        const encoded = encodeURIComponent(text);
+        const number = globalWhatsapp || "905555555555";
+        const url = `https://wa.me/${number}?text=${encoded}`;
+        window.open(url, "_blank");
+    }
 
     // Init
     document.addEventListener("DOMContentLoaded", () => {
         setupToggles();
         loadUserStatus();
+        document.getElementById("buyBtn").onclick = openPackagesModal;
     });
 </script>
 
