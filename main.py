@@ -550,114 +550,62 @@ def admin_save_packages():
 # VEKTÖRLEŞTİRME FONKSİYONLARI
 # ============================================================
 
-def remove_background(image_rgb):
+def remove_background(image_rgb: np.ndarray):
     """
-    GrabCut ile basit arka plan kaldırma.
-    Ön plan beyaz olmayan kısım, arka plan beyaza boyanır.
-    Ayrıca alpha mask üretir.
+    Daha sağlam arka plan kaldırma:
+    - GrabCut ile ilk maske
+    - Morfolojik temizlik
+    - En büyük objeyi (köpek, yüz vs.) bırak
+    - Hafif blur ile kenarları yumuşat
+    Dönen:
+        fg_rgb : arka planı siyaha çekilmiş RGB
+        alpha  : 0–255 maske (0 = şeffaf, 255 = görünür)
     """
-    h, w, _ = image_rgb.shape
+    h, w = image_rgb.shape[:2]
+
+    # OpenCV BGR ister, o yüzden çeviriyoruz
+    img_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+
+    # 1) GrabCut için başlangıç maskesi + dikdörtgen (kenarlardan %5 boşluk)
     mask = np.zeros((h, w), np.uint8)
-    rect = (10, 10, max(1, w - 20), max(1, h - 20))
+    rect = (int(w * 0.05), int(h * 0.05), int(w * 0.9), int(h * 0.9))
     bgdModel = np.zeros((1, 65), np.float64)
     fgdModel = np.zeros((1, 65), np.float64)
+
     try:
-        cv2.grabCut(image_rgb, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
-        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
+        cv2.grabCut(img_bgr, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+        # arka plan / muhtemel arka plan → 0, diğerleri → 255
+        mask = np.where(
+            (mask == cv2.GC_BGD) | (mask == cv2.GC_PR_BGD),
+            0,
+            255
+        ).astype("uint8")
     except Exception:
-        # hata durumunda tüm resmi ön plan kabul et
-        mask2 = np.ones((h, w), np.uint8)
+        # Hata olursa tüm resmi ön plan kabul et
+        mask = np.full((h, w), 255, dtype="uint8")
 
-    fg = image_rgb.copy()
-    fg[mask2 == 0] = [255, 255, 255]
-    alpha = (mask2 * 255).astype("uint8")
-    return fg, alpha
+    # 2) Maske temizle (delikleri kapat, ufak gürültüyü at)
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
 
-def quantize_colors(image_rgb, k=4):
-    """
-    Renk sayısını azaltarak düz, poster tarzı görüntü üretir.
-    'Normal vektör' stilinde kullanıyoruz.
-    """
-    k = max(2, min(12, int(k or 4)))  # mantıklı sınırlar
-    img_color = cv2.medianBlur(image_rgb, 5)
-    Z = np.float32(img_color.reshape((-1, 3)))
+    # 3) En büyük objeyi bırak (köpek / yüz vs.)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    if num_labels > 1:
+        # 0 index arka plan, 1..N objeler
+        largest = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+        mask = np.where(labels == largest, 255, 0).astype("uint8")
 
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-    _, labels, centers = cv2.kmeans(
-        Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS
-    )
-    centers = np.uint8(centers)
-    reduced = centers[labels.flatten()].reshape(img_color.shape)
-    return reduced
+    # 4) Kenarları yumuşat
+    mask = cv2.GaussianBlur(mask, (5, 5), 0)
 
-def extract_edge_lines(image_rgb):
-    """
-    Beyaz arka plan üzerinde siyah çizgileri çıkarır.
-    'Sadece çizgi' stilinde kullanıyoruz.
-    """
-    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 5)
-    edges = cv2.Canny(gray, 80, 140)
-    edges = cv2.dilate(edges, None, iterations=1)
+    # 5) Maskeyi uygula – arka planı siyaha çek
+    fg_rgb = image_rgb.copy()
+    fg_rgb[mask == 0] = (0, 0, 0)
 
-    h, w = gray.shape
-    line_img = np.full((h, w), 255, dtype=np.uint8)  # beyaz zemin
-    line_img[edges > 0] = 0                          # kenarlar siyah
-    line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
-    return line_rgb
+    alpha = mask  # 0–255
+    return fg_rgb, alpha
 
-def vector_normal_style(image_rgb, k=4):
-    """
-    Normal vektör: sadece renk sadeleştirme.
-    (Düz renklere indirgenmiş, çizgisiz poster görünümü)
-    """
-    return quantize_colors(image_rgb, k)
-
-def vector_cartoon_style(image_rgb, k=4):
-    """
-    Çizgi vektör: sade renk + siyah kontur.
-    (Düz renk + kalın siyah çizgiler)
-    """
-    base = quantize_colors(image_rgb, k)
-
-    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 5)
-    edges = cv2.Canny(gray, 80, 140)
-    edges = cv2.dilate(edges, None, iterations=1)
-
-    # Kenarları maskeye çevir
-    edges = 255 - edges
-    edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
-
-    cartoon = cv2.bitwise_and(base, edges_rgb)
-    return cartoon
-
-def vector_lines_style(image_rgb):
-    """
-    Sadece çizgi: renksiz line-art.
-    (Beyaz zemin üzerinde siyah hatlar)
-    """
-    return extract_edge_lines(image_rgb)
-
-def png_encode(arr, alpha=None):
-    if alpha is not None:
-        # alpha 2D ise RGBA'ya dönüştür
-        if alpha.ndim == 2:
-            alpha_channel = alpha
-        else:
-            alpha_channel = cv2.cvtColor(alpha, cv2.COLOR_RGB2GRAY)
-
-        if arr.shape[:2] != alpha_channel.shape[:2]:
-            alpha_channel = cv2.resize(alpha_channel, (arr.shape[1], arr.shape[0]))
-
-        rgba = np.dstack([arr, alpha_channel])
-        pil = Image.fromarray(rgba)
-    else:
-        pil = Image.fromarray(arr)
-
-    buffer = io.BytesIO()
-    pil.save(buffer, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 # ============================================================
 # VEKTÖR API
@@ -734,3 +682,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
