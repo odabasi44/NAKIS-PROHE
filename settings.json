@@ -1,16 +1,4 @@
-{
-    "launch": {
-        "configurations": [
-        {
-            "name": "Launch Chrome",
-            "request": "launch",
-            "type": "chrome",
-            "url": "http://localhost:5000",
-            "webRoot": "${workspaceFolder}"
-        }
-        ]
-    }
-}
+
 {
     "admin_email": "odabasiaiteknoloji@gmail.com",
     "admin_password": "280494Odabasi.",
