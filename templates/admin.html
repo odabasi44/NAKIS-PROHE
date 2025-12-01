@@ -88,15 +88,17 @@
     </div>
 
     <table id="userTable" class="table table-striped" style="width:100%;">
-        <thead>
-        <tr>
-            <th>Email</th>
-            <th>Başlangıç</th>
-            <th>Bitiş</th>
-            <th>Kullanım</th>
-            <th>İşlem</th>
-        </tr>
-        </thead>
+       <thead>
+<tr>
+    <th>Email</th>
+    <th>Başlangıç</th>
+    <th>Bitiş</th>
+    <th>Süre (gün)</th>
+    <th>Kullanım</th>
+    <th>İşlem</th>
+</tr>
+</thead>
+
         <tbody id="userBody"></tbody>
     </table>
 </div>
@@ -154,20 +156,24 @@
             tbody.innerHTML = "";
 
             (data.users || []).forEach(u => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${u.email}</td>
-                        <td>${u.start_date || ''}</td>
-                        <td>${u.end_date || ''}</td>
-                        <td>${u.total_usage ?? 0}</td>
-                        <td>
-                            <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
-                            <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
-                        </td>
-                    </tr>
-                `;
-            });
+    const days = calcDays(u.start_date, u.end_date);
+
+    tbody.innerHTML += `
+        <tr>
+            <td>${u.email}</td>
+            <td>${u.start_date || ''}</td>
+            <td>${u.end_date || ''}</td>
+            <td>${days}</td>
+            <td>${u.total_usage ?? 0}</td>
+            <td>
+                <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
+                <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
+            </td>
+        </tr>
+    `;
+});
+
 
             if (table) {
                 table.destroy();
