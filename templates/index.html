@@ -413,24 +413,17 @@ async function loadUserStatus(){
 
 }
 
-function startPremiumCountdown(endDateStr){
-    const el = document.getElementById("premiumCountdown");
-    function tick(){
-        const end = new Date(endDateStr).getTime();
-        const now = Date.now();
-        const diff = end - now;
-        if(diff <= 0){
-            el.innerHTML = " • Premium süresi doldu";
-            return;
-        }
-        const d = Math.floor(diff/(1000*60*60*24));
-        const h = Math.floor((diff/(1000*60*60))%24);
-        const m = Math.floor((diff/(1000*60))%60);
-        el.innerHTML = ` • Premium süreniz: ${d}g ${h}s ${m}dk`;
-    }
-    tick();
-    setInterval(tick, 60000);
+function formatDate(dateStr){
+    if(!dateStr) return "-";
+    const d = new Date(dateStr);
+    // Türkçe kısa tarih
+    return d.toLocaleDateString("tr-TR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    });
 }
+
 
 /* ------- UI CONTROLS ------- */
 function updateColorValue(v){
