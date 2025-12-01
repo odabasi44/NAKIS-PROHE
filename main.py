@@ -394,32 +394,87 @@ def admin_extend_user():
 # VEKTÖRLEŞTİRME FONKSİYONLARI
 # ============================================================
 
-def cartoon_vectorize(image_rgb, k=4):
-    img_color = cv2.medianBlur(image_rgb, 7)
+# ============================================================
+# VEKTÖRLEŞTİRME FONKSİYONLARI
+# ============================================================
+
+def quantize_colors(image_rgb, k=4):
+    """
+    Renk sayısını azaltarak düz, poster tarzı görüntü üretir.
+    'Normal vektör' stilinde kullanıyoruz.
+    """
+    k = max(2, min(12, int(k or 4)))  # mantıklı sınırlar
+    img_color = cv2.medianBlur(image_rgb, 5)
     Z = np.float32(img_color.reshape((-1, 3)))
 
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
     _, labels, centers = cv2.kmeans(
-        Z, k, None,
-        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0),
-        10, cv2.KMEANS_RANDOM_CENTERS)
-
+        Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS
+    )
     centers = np.uint8(centers)
     reduced = centers[labels.flatten()].reshape(img_color.shape)
+    return reduced
+
+
+def extract_edge_lines(image_rgb):
+    """
+    Beyaz arka plan üzerinde siyah çizgileri çıkarır.
+    'Sadece çizgi' stilinde kullanıyoruz.
+    """
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+    gray = cv2.medianBlur(gray, 5)
+    edges = cv2.Canny(gray, 80, 140)
+    edges = cv2.dilate(edges, None, iterations=1)
+
+    h, w = gray.shape
+    line_img = np.full((h, w), 255, dtype=np.uint8)  # beyaz zemin
+    line_img[edges > 0] = 0                          # kenarlar siyah
+    line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
+    return line_rgb
+
+
+def vector_normal_style(image_rgb, k=4):
+    """
+    Normal vektör: sadece renk sadeleştirme.
+    (Düz renklere indirgenmiş, çizgisiz poster görünümü)
+    """
+    return quantize_colors(image_rgb, k)
+
+
+def vector_cartoon_style(image_rgb, k=4):
+    """
+    Çizgi vektör: sade renk + siyah kontur.
+    (Paylaştığın örnekteki gibi düz renk + kalın siyah çizgiler)
+    """
+    base = quantize_colors(image_rgb, k)
 
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+    gray = cv2.medianBlur(gray, 5)
     edges = cv2.Canny(gray, 80, 140)
-    edges = cv2.dilate(edges, None)
-    edges = 255 - edges
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+    edges = cv2.dilate(edges, None, iterations=1)
 
-    cartoon = cv2.bitwise_and(reduced, edges_colored)
+    # Kenarları maskeye çevir
+    edges = 255 - edges
+    edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+
+    cartoon = cv2.bitwise_and(base, edges_rgb)
     return cartoon
+
+
+def vector_lines_style(image_rgb):
+    """
+    Sadece çizgi: renksiz line-art.
+    (Beyaz zemin üzerinde siyah hatlar)
+    """
+    return extract_edge_lines(image_rgb)
+
 
 def png_encode(arr):
     pil = Image.fromarray(arr)
     buffer = io.BytesIO()
     pil.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
 
 # ============================================================
 # VEKTÖR API
@@ -438,20 +493,22 @@ def vectorize_style():
         }), 403
 
     file = request.files["image"]
-    style = request.form.get("style", "cartoon")
+    style = request.form.get("style", "cartoon")  # normal / cartoon / lines
     colors = int(request.form.get("colors", 4))
-    mode = request.form.get("mode", "color")  # "color" veya "bw"
+    mode = request.form.get("mode", "color")      # color veya bw
 
     img = Image.open(io.BytesIO(file.read()))
     arr = np.array(img.convert("RGB"))
 
-    # Şimdilik ana stilimiz cartoon
-    if style == "cartoon":
-        out = cartoon_vectorize(arr, k=colors)
-    else:
-        out = arr
+    style = style.lower()
+    if style == "normal":
+        out = vector_normal_style(arr, colors)
+    elif style == "lines":
+        out = vector_lines_style(arr)
+    else:  # "cartoon" varsayılan
+        out = vector_cartoon_style(arr, colors)
 
-    # Siyah beyaz isteniyorsa:
+    # Siyah-beyaz istendiyse, son çıktıyı griye çevir
     if mode == "bw":
         gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
         out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
@@ -460,6 +517,7 @@ def vectorize_style():
     register_usage()
 
     return jsonify({"success": True, "image_data": png_encode(out)})
+
 
 # ============================================================
 # ANA SAYFA
@@ -475,3 +533,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
