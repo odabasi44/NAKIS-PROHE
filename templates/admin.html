@@ -82,10 +82,22 @@
 
 <!-- MAIN -->
 <div id="main">
+    <div class="mb-2 text-muted">
+        Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
+    </div>
+
     <div id="topBar">
         <h3>Kullanıcı Yönetimi</h3>
         <span>Admin Panel Aktif</span>
     </div>
+
+    <!-- ... tablo kısmı ... -->
+
+    <div class="mt-4 text-muted small">
+        Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
+    </div>
+</div>
+
 
     <table id="userTable" class="table table-striped" style="width:100%;">
        <thead>
@@ -232,6 +244,37 @@
         console.error("addUser error", err);
         alert("İstek sırasında hata oluştu.");
     }
+        //Kullanıcı Sil
+        async function deleteUser(email) {
+    if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+    try {
+        const res = await fetch("/admin_delete_user", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({email})
+        });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.message || "Kullanıcı silinemedi.");
+            return;
+        }
+        // Tam tazele
+        window.location.reload();
+    } catch (err) {
+        console.error("deleteUser error", err);
+        alert("Silme sırasında hata oluştu.");
+    }
+}
+        async function logout() {
+    try {
+        await fetch("/admin_logout", {method: "POST"});
+    } catch (err) {
+        console.error("logout error", err);
+    }
+    window.location.href = "/control_panel";
+}
+
+
 }
 
 
