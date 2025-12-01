@@ -397,11 +397,6 @@ def admin_extend_user():
 # ADMIN PANEL SERVE
 # ============================================================
 
-@app.route("/control_panel")
-def control_panel():
-    if not session.get("admin_logged_in"):
-        return send_from_directory("templates", "admin_login.html")
-    return send_from_directory("templates", "admin.html")
 
 # ============================================================
 # ADMIN API'LERİ
@@ -600,6 +595,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
