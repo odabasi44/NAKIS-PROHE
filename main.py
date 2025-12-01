@@ -606,6 +606,101 @@ def remove_background(image_rgb: np.ndarray):
     alpha = mask  # 0–255
     return fg_rgb, alpha
 
+def quantize_colors(image_rgb, k=4):
+    """
+    Renk sayısını azaltarak düz, poster tarzı görüntü üretir.
+    'Normal vektör' stilinde kullanıyoruz.
+    """
+    k = max(2, min(12, int(k or 4)))  # mantıklı sınırlar
+    img_color = cv2.medianBlur(image_rgb, 5)
+    Z = np.float32(img_color.reshape((-1, 3)))
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
+    _, labels, centers = cv2.kmeans(
+        Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS
+    )
+    centers = np.uint8(centers)
+    reduced = centers[labels.flatten()].reshape(img_color.shape)
+    return reduced
+
+
+def extract_edge_lines(image_rgb):
+    """
+    Beyaz arka plan üzerinde siyah çizgileri çıkarır.
+    'Sadece çizgi' stilinde kullanıyoruz.
+    """
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+    gray = cv2.medianBlur(gray, 5)
+    edges = cv2.Canny(gray, 80, 140)
+    edges = cv2.dilate(edges, None, iterations=1)
+
+    h, w = gray.shape
+    line_img = np.full((h, w), 255, dtype=np.uint8)  # beyaz zemin
+    line_img[edges > 0] = 0                          # kenarlar siyah
+    line_rgb = cv2.cvtColor(line_img, cv2.COLOR_GRAY2RGB)
+    return line_rgb
+
+
+def vector_normal_style(image_rgb, k=4):
+    """
+    Normal vektör: sadece renk sadeleştirme.
+    (Düz renklere indirgenmiş, çizgisiz poster görünümü)
+    """
+    return quantize_colors(image_rgb, k)
+
+
+def vector_cartoon_style(image_rgb, k=4):
+    """
+    Çizgi vektör: sade renk + siyah kontur.
+    (Düz renk + kalın siyah çizgiler)
+    """
+    base = quantize_colors(image_rgb, k)
+
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+    gray = cv2.medianBlur(gray, 5)
+    edges = cv2.Canny(gray, 80, 140)
+    edges = cv2.dilate(edges, None, iterations=1)
+
+    # Kenarları maskeye çevir
+    edges = 255 - edges
+    edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+
+    cartoon = cv2.bitwise_and(base, edges_rgb)
+    return cartoon
+
+
+def vector_lines_style(image_rgb):
+    """
+    Sadece çizgi: renksiz line-art.
+    (Beyaz zemin üzerinde siyah hatlar)
+    """
+    return extract_edge_lines(image_rgb)
+
+
+def png_encode(arr, alpha=None):
+    """
+    PNG'yi base64 döner. alpha verilirse transparan arka planı korur.
+    """
+    if alpha is not None:
+        # alpha 2D ise RGBA'ya dönüştür
+        if alpha.ndim == 2:
+            alpha_channel = alpha
+        else:
+            alpha_channel = cv2.cvtColor(alpha, cv2.COLOR_RGB2GRAY)
+
+        if arr.shape[:2] != alpha_channel.shape[:2]:
+            alpha_channel = cv2.resize(alpha_channel, (arr.shape[1], arr.shape[0]))
+
+        rgba = np.dstack([arr, alpha_channel])
+        pil = Image.fromarray(rgba)
+    else:
+        pil = Image.fromarray(arr)
+
+    buffer = io.BytesIO()
+    pil.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
 
 # ============================================================
 # VEKTÖR API
@@ -674,6 +769,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
