@@ -228,32 +228,36 @@ def logout():
 
 @app.route("/user_status")
 def user_status():
-    # Önce oturumda kullanıcı var mı bak
+    # Oturumda kullanıcı varsa
     if "email" in session:
         email = session["email"]
         user = get_user(email)
 
         if user:
             premium = is_user_premium(email)
+            total_usage = user[3] if len(user) > 3 and user[3] is not None else 0
             return jsonify({
                 "logged_in": True,
                 "email": email,
                 "premium": premium,
-                "end_date": user[2]
+                "end_date": user[2],
+                "total_usage": total_usage
             })
 
-        # DB'de kayıt yoksa (silinmiş vs.) oturumu temizle ve misafir gibi davran
+        # DB'de kaydı silinmişse misafir moduna dön
         session.pop("email", None)
 
-    # Misafir kullanıcı durumu
+    # Misafir kullanıcı
     client_id = get_client_id()
     usage = get_guest_usage(client_id)
     return jsonify({
         "logged_in": False,
         "premium": False,
         "guest_usage": usage,
-        "remaining": max(0, FREE_LIMIT - usage)
+        "remaining": max(0, FREE_LIMIT - usage),
+        "total_usage": 0
     })
+
 
 
 @app.route("/packages")
@@ -324,23 +328,24 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-@app.route("/admin_login", methods=["POST"])
-def admin_login():
+@app.route("/login", methods=["POST"])
+def login():
     data = request.get_json()
     email = data.get("email")
-    password = data.get("password")
+    user = get_user(email)
 
-    if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
-        session["admin_logged_in"] = True
-        return jsonify({"success": True})
+    if user and is_user_premium(email):
+        session["email"] = email
+        total_usage = user[3] if len(user) > 3 and user[3] is not None else 0
+        return jsonify({
+            "success": True,
+            "premium": True,
+            "end_date": user[2],
+            "total_usage": total_usage
+        })
 
-    return jsonify({"success": False, "message": "Yanlış email veya şifre"})
+    return jsonify({"success": False, "message": "Bu mail için premium üyelik yok."})
 
-@app.route("/admin_logout", methods=["POST"])
-@admin_required
-def admin_logout():
-    session.pop("admin_logged_in", None)
-    return jsonify({"success": True})
 
 # ============================================================
 # ADMIN PANEL SAYFASI
@@ -756,14 +761,23 @@ def vectorize_style():
         gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
         out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    # 4) Kullanım kaydı
-    register_usage()
+            # 4) Kullanım kaydı
+        register_usage()
 
-    # 5) PNG + alpha (şeffaf arka plan)
-    return jsonify({
-        "success": True,
-        "image_data": png_encode(out, alpha)
-    })
+        # 4.5) Premium ise güncel kullanım sayısını çek
+        current_usage = 0
+        if "email" in session:
+            u = get_user(session["email"])
+            if u:
+                current_usage = u[3] if len(u) > 3 and u[3] is not None else 0
+
+        # 5) PNG + alpha (şeffaf arka plan)
+        return jsonify({
+            "success": True,
+            "image_data": png_encode(out, alpha),
+            "total_usage": current_usage
+        })
+
 
 
 # ============================================================
@@ -780,6 +794,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
