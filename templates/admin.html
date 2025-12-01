@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kontrol Paneli</title>
+
+    <!-- Bootstrap + Icons + DataTables -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" 
+          href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+
+    <style>
+        body {
+            display: flex;
+            background: #f4f4f4;
+        }
+
+        /* SIDEBAR */
+        #sidebar {
+            width: 260px;
+            background: #222;
+            height: 100vh;
+            color: white;
+            padding-top: 20px;
+            position: fixed;
+        }
+
+        #sidebar h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        #sidebar a {
+            display: block;
+            padding: 12px 20px;
+            color: #ddd;
+            text-decoration: none;
+            font-size: 15px;
+        }
+
+        #sidebar a:hover {
+            background: #333;
+        }
+
+        /* MAIN PANEL */
+        #main {
+            margin-left: 260px;
+            padding: 30px;
+            width: calc(100% - 260px);
+        }
+
+        #topBar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #userTable_wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+    <h2>Kontrol Paneli</h2>
+    <a href="#" onclick="openAddModal()">Kullanıcı Ekle</a>
+    <a href="#" onclick="logout()">Çıkış Yap</a>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+    <!-- TOP BAR -->
+    <div id="topBar">
+        <h3>Kullanıcı Yönetimi</h3>
+        <span>Admin Panel Aktif</span>
+    </div>
+
+    <!-- TABLO -->
+    <table id="userTable" class="table table-striped" style="width:100%;">
+        <thead>
+        <tr>
+            <th>Email</th>
+            <th>Başlangıç</th>
+            <th>Bitiş</th>
+            <th>Kullanım</th>
+            <th>İşlem</th>
+        </tr>
+        </thead>
+        <tbody id="userBody"></tbody>
+    </table>
+
+</div>
+
+
+<!-- MODAL: Kullanıcı Ekle -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5>Kullanıcı Ekle (Premium)</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input id="newUserEmail" class="form-control" placeholder="Email">
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="addUser()">Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+let table;
+
+// SAYFA YÜKLENİNCE KULLANICILARI GETİR
+window.onload = loadUsers;
+
+async function loadUsers() {
+    const res = await fetch("/admin_users");
+    const data = await res.json();
+
+    const tbody = document.getElementById("userBody");
+    tbody.innerHTML = "";
+
+    data.users.forEach(u => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${u.email}</td>
+                <td>${u.start_date}</td>
+                <td>${u.end_date}</td>
+                <td>${u.total_usage}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
+                    <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    if (table) table.destroy();
+    table = new DataTable('#userTable');
+}
+
+/* -------------------------------------------------------
+   KULLANICI EKLE
+------------------------------------------------------- */
+function openAddModal() {
+    new bootstrap.Modal(document.getElementById("addUserModal")).show();
+}
+
+async function addUser() {
+    const email = document.getElementById("newUserEmail").value;
+
+    await fetch("/admin_add_user", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email})
+    });
+
+    loadUsers();
+}
+
+/* -------------------------------------------------------
+   KULLANIM SIFIRLAMA
+------------------------------------------------------- */
+async function resetUsage(email) {
+    await fetch("/admin_reset_usage", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email})
+    });
+
+    loadUsers();
+}
+
+/* -------------------------------------------------------
+   PREMIUM UZATMA
+------------------------------------------------------- */
+async function extendUser(email) {
+    await fetch("/admin_extend_user", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email, days: 30})
+    });
+
+    loadUsers();
+}
+
+/* -------------------------------------------------------
+   KULLANICI SİL
+------------------------------------------------------- */
+async function deleteUser(email) {
+    if (!confirm("Silmek istediğine emin misin?")) return;
+
+    await fetch("/admin_delete_user", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email})
+    });
+
+    loadUsers();
+}
+
+/* -------------------------------------------------------
+   ÇIKIŞ
+------------------------------------------------------- */
+async function logout() {
+    await fetch("/admin_logout", {method: "POST"});
+    window.location.href = "/control_panel";
+}
+</script>
+
+</body>
+</html>
