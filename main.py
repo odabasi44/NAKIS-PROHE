@@ -558,21 +558,19 @@ def admin_save_packages():
 
 def remove_background(image_rgb: np.ndarray):
     """
-    Daha sağlam arka plan kaldırma:
-    - GrabCut ile ilk maske
-    - Morfolojik temizlik
-    - En büyük objeyi (köpek, yüz vs.) bırak
-    - Hafif blur ile kenarları yumuşat
+    Arka plan kaldırma:
+    - GrabCut ile maske
+    - Maske temizleme
+    - Çok kötü sonuç olursa (hemen hemen her yer ön plan / arka plan)
+      arka planı hiç kaldırmadan orijinal görseli geri dön.
     Dönen:
-        fg_rgb : arka planı siyaha çekilmiş RGB
+        fg_rgb : arka planı siyaha çekilmiş RGB (canvas koyu olduğu için sorun değil)
         alpha  : 0–255 maske (0 = şeffaf, 255 = görünür)
     """
     h, w = image_rgb.shape[:2]
 
-    # OpenCV BGR ister, o yüzden çeviriyoruz
     img_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
-    # 1) GrabCut için başlangıç maskesi + dikdörtgen (kenarlardan %5 boşluk)
     mask = np.zeros((h, w), np.uint8)
     rect = (int(w * 0.05), int(h * 0.05), int(w * 0.9), int(h * 0.9))
     bgdModel = np.zeros((1, 65), np.float64)
@@ -580,37 +578,36 @@ def remove_background(image_rgb: np.ndarray):
 
     try:
         cv2.grabCut(img_bgr, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
-        # arka plan / muhtemel arka plan → 0, diğerleri → 255
         mask = np.where(
             (mask == cv2.GC_BGD) | (mask == cv2.GC_PR_BGD),
             0,
             255
         ).astype("uint8")
-    except Exception:
-        # Hata olursa tüm resmi ön plan kabul et
-        mask = np.full((h, w), 255, dtype="uint8")
+    except Exception as e:
+        # Herhangi bir hata olursa: hiç arka plan kaldırma, direkt orijinal görsel
+        print("remove_background error:", e)
+        return image_rgb, np.full((h, w), 255, dtype=np.uint8)
 
-    # 2) Maske temizle (delikleri kapat, ufak gürültüyü at)
+    # Maske temizliği
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
 
-    # 3) En büyük objeyi bırak (köpek / yüz vs.)
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    if num_labels > 1:
-        # 0 index arka plan, 1..N objeler
-        largest = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
-        mask = np.where(labels == largest, 255, 0).astype("uint8")
+    # Maske güvenilir mi? (ön plan oranı çok küçük ya da çok büyükse bozuktur)
+    fg_ratio = float(cv2.countNonZero(mask)) / float(h * w)
+    if fg_ratio < 0.10 or fg_ratio > 0.90:
+        # Çok saçma bir maske -> arka plan kaldırmayı iptal et
+        return image_rgb, np.full((h, w), 255, dtype=np.uint8)
 
-    # 4) Kenarları yumuşat
+    # Kenarları yumuşat
     mask = cv2.GaussianBlur(mask, (5, 5), 0)
 
-    # 5) Maskeyi uygula – arka planı siyaha çek
+    # Arka planı siyaha çek (alpha sayesinde zaten görünmeyecek)
     fg_rgb = image_rgb.copy()
     fg_rgb[mask == 0] = (0, 0, 0)
 
-    alpha = mask  # 0–255
-    return fg_rgb, alpha
+    return fg_rgb, mask
+
 
 def quantize_colors(image_rgb, k=4):
     """
@@ -735,6 +732,14 @@ def vectorize_style():
     img = Image.open(io.BytesIO(file.read()))
     arr = np.array(img.convert("RGB"))
 
+    # Çok büyük görsellerde bellek ve hız için küçült
+    max_side = 1024
+    h, w = arr.shape[:2]
+    scale = max_side / float(max(h, w))
+    if scale < 1.0:
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        arr = cv2.resize(arr, (new_w, new_h), interpolation=cv2.INTER_AREA)
     # 1) Önce arka planı kaldır
     arr_nb, alpha = remove_background(arr)
 
@@ -775,6 +780,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
