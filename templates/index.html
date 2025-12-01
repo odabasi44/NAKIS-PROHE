@@ -399,18 +399,18 @@ async function loadUserStatus(){
     document.getElementById("logoutBtn").style.display="none";
 
     if(data.logged_in && data.premium){
-        statusDiv.innerHTML = `Premium Üye: ${data.email} <span>Aktif</span>`;
-        document.getElementById("loginBtn").style.display="none";
-        document.getElementById("logoutBtn").style.display="inline-block";
-        freeSpan.innerHTML = "Sınırsız";
-        startPremiumCountdown(data.end_date);
-    } else if(data.logged_in && !data.premium){
-        statusDiv.innerHTML = `Premium Süresi Doldu: ${data.email}`;
-        freeSpan.innerHTML = data.remaining;
-    } else {
-        statusDiv.innerHTML = "Misafir Kullanıcı";
-        freeSpan.innerHTML = data.remaining;
-    }
+    statusDiv.innerHTML = `Premium Üye: ${data.email} <span>Aktif</span>`;
+    document.getElementById("loginBtn").style.display="none";
+    document.getElementById("logoutBtn").style.display="inline-block";
+    freeSpan.innerHTML = "Sınırsız";
+
+    const bitis = formatDate(data.end_date);
+    premiumCountdown.innerHTML = ` • Premium bitiş tarihi: ${bitis}`;
+} else if(data.logged_in && !data.premium){
+    statusDiv.innerHTML = `Premium Süresi Doldu: ${data.email}`;
+    freeSpan.innerHTML = data.remaining;
+}
+
 }
 
 function startPremiumCountdown(endDateStr){
