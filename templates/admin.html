@@ -171,15 +171,42 @@ function openAddModal() {
 }
 
 async function addUser() {
-    const email = document.getElementById("newUserEmail").value;
+    const email = document.getElementById("newUserEmail").value.trim();
+    if (!email) {
+        alert("Email boş olamaz.");
+        return;
+    }
 
-    await fetch("/admin_add_user", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email})
-    });
+    try {
+        const res = await fetch("/admin_add_user", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({email})
+        });
 
-    loadUsers();
+        if (!res.ok) {
+            const txt = await res.text();
+            alert("Sunucu hatası: " + txt);
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.message || "Kullanıcı eklenemedi.");
+            return;
+        }
+
+        document.getElementById("newUserEmail").value = "";
+        const modalEl = document.getElementById("addUserModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+
+        await loadUsers();
+    } catch (err) {
+        console.error(err);
+        alert("İstek sırasında hata oluştu.");
+    }
+}
 }
 
 /* -------------------------------------------------------
