@@ -2,213 +2,471 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kontrol Paneli</title>
-
-    <!-- Bootstrap + DataTables -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <title>Botlab Vector - Admin Paneli</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
-        body {
-            display: flex;
-            background: #f4f4f4;
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+        }
+        body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #020617;
+            color: #e5e7eb;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        .shell {
+            max-width: 1200px;
+            margin: 24px auto 32px;
+            padding: 0 16px;
         }
 
-        /* SIDEBAR */
-        #sidebar {
-            width: 260px;
-            background: #111827;
-            height: 100vh;
-            color: white;
-            padding-top: 20px;
-            position: fixed;
-        }
-
-        #sidebar h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 22px;
-        }
-
-        #sidebar a {
-            display: block;
-            padding: 12px 20px;
-            color: #d1d5db;
-            text-decoration: none;
-            font-size: 15px;
-        }
-
-        #sidebar a:hover {
-            background: #1f2937;
-            color: white;
-        }
-
-        /* MAIN */
-        #main {
-            margin-left: 260px;
-            padding: 30px;
-            width: calc(100% - 260px);
-        }
-
-        #topBar {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.08);
+        .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 18px;
+        }
+        .logo {
+            font-size: 21px;
+            font-weight: 700;
+        }
+        .logo span {
+            color: #38bdf8;
+        }
+        .subtitle {
+            font-size: 12px;
+            color: #9ca3af;
         }
 
-        #userTable_wrapper {
-            background: white;
-            padding: 20px;
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .btn {
+            border-radius: 999px;
+            border: none;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #1d4ed8;
+            color: #e5e7eb;
+        }
+        .btn-secondary {
+            background: #4b5563;
+        }
+        .btn-danger {
+            background: #b91c1c;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 220px minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .sidebar {
+            background: #020617;
+            border-radius: 16px;
+            border: 1px solid #1f2937;
+            padding: 14px 12px;
+        }
+        .sidebar h3 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #9ca3af;
+        }
+        .nav-btn {
+            width: 100%;
+            text-align: left;
+            border-radius: 10px;
+            border: none;
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            background: transparent;
+            color: #e5e7eb;
+            margin-bottom: 4px;
+        }
+        .nav-btn:hover {
+            background: #111827;
+        }
+
+        .content {
+            background: #020617;
+            border-radius: 16px;
+            border: 1px solid #1f2937;
+            padding: 18px 18px 16px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .content-header h2 {
+            font-size: 17px;
+        }
+        .content-header p {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .table-wrap {
             border-radius: 12px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.06);
+            border: 1px solid #1f2937;
+            overflow: hidden;
+            background: #020617;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead {
+            background: #020617;
+        }
+        th, td {
+            padding: 8px 9px;
+            border-bottom: 1px solid #111827;
+        }
+        th {
+            text-align: left;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        tbody tr:nth-child(even) {
+            background: #020617;
+        }
+        tbody tr:hover {
+            background: #020617;
+        }
+
+        .pill {
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .pill-active {
+            background: rgba(34,197,94,0.12);
+            color: #bbf7d0;
+        }
+        .pill-expired {
+            background: rgba(248,113,113,0.12);
+            color: #fecaca;
+        }
+
+        .small-text {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+
+        .actions-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .btn-xs {
+            border-radius: 999px;
+            border: none;
+            padding: 3px 7px;
+            font-size: 11px;
+            cursor: pointer;
+            background: #111827;
+            color: #e5e7eb;
+        }
+        .btn-xs:hover {
+            background: #1f2937;
+        }
+
+        .footer {
+            margin-top: 14px;
+            font-size: 11px;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.86);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 40;
+        }
+        .modal-backdrop.show {
+            display: flex;
+        }
+        .modal-box {
+            background: #020617;
+            border-radius: 16px;
+            border: 1px solid #1f2937;
+            padding: 18px 18px 16px;
+            width: 360px;
+            max-width: calc(100% - 40px);
+        }
+        .modal-box h3 {
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+        .modal-box p {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 10px;
+        }
+        .modal-input, .modal-select, .modal-textarea {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #374151;
+            background: #020617;
+            color: #e5e7eb;
+            padding: 6px 8px;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .modal-textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* Paket modalı daha geniş */
+        #packagesAdminModal .modal-box {
+            width: 620px;
+            max-width: calc(100% - 40px);
+        }
+
+        .packages-grid {
+            max-height: 260px;
+            overflow-y: auto;
+            border-radius: 10px;
+            border: 1px solid #1f2937;
+            padding: 10px;
+            background: #020617;
+        }
+        .package-row {
+            border-radius: 10px;
+            border: 1px solid #111827;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .package-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .package-row-header span {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .pkg-label {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-bottom: 2px;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
     </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<div id="sidebar">
-    <h2>Kontrol Paneli</h2>
-    <a href="javascript:void(0)" onclick="openAddModal()">Kullanıcı Ekle</a>
-    <a href="javascript:void(0)" onclick="logout()">Çıkış Yap</a>
+<div class="shell">
+    <div class="topbar">
+        <div>
+            <div class="logo">Botlab <span>Vector</span> Admin</div>
+            <div class="subtitle">Yapay Zeka Destekli Vektörleştirme Uygulaması - Yönetim Paneli</div>
+        </div>
+        <div class="top-actions">
+            <span>Admin: <strong>odabasiaiteknoloji@gmail.com</strong></span>
+            <button class="btn-danger btn" onclick="handleAdminLogout()">Çıkış Yap</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Menü</h3>
+            <button class="nav-btn" onclick="openAddUserModal()">Kullanıcı Ekle</button>
+            <button class="nav-btn" onclick="openPackagesAdminModal()">Paketleri Ayarla</button>
+            <button class="nav-btn" onclick="handleAdminLogout()">Admin Çıkış</button>
+
+            <div style="margin-top:14px;" class="small-text">
+                Bu panelden premium kullanıcı erişimlerini yönetebilir, paket metin ve fiyatlarını güncelleyebilirsiniz.
+            </div>
+        </aside>
+
+        <main class="content">
+            <div class="content-header">
+                <div>
+                    <h2>Premium Kullanıcılar</h2>
+                    <p>Mail ile tanımlanan premium kullanıcıların sürelerini ve kullanım adetlerini buradan yönetebilirsiniz.</p>
+                </div>
+                <button class="btn" onclick="openAddUserModal()">+ Yeni Kullanıcı</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>E-posta</th>
+                            <th>Başlangıç</th>
+                            <th>Bitiş</th>
+                            <th>Durum</th>
+                            <th>Toplam Kullanım</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="6" class="small-text" style="text-align:center; padding:14px;">
+                                Yükleniyor...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="footer">
+                Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması | Admin Paneli
+            </div>
+        </main>
+    </div>
 </div>
 
-<!-- MAIN -->
-<div id="main">
+<!-- Kullanıcı Ekle Modal -->
+<div class="modal-backdrop" id="addUserModal">
+    <div class="modal-box">
+        <h3>Yeni Premium Kullanıcı Ekle</h3>
+        <p>Kullanıcının mail adresini ve premium süresini seçin.</p>
 
-    <div class="mb-2 text-muted">
-        Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
-    </div>
+        <input type="email" id="newUserEmail" class="modal-input" placeholder="kullanici@mail.com">
 
-    <div id="topBar">
-        <h3>Kullanıcı Yönetimi</h3>
-        <span>Admin Panel Aktif</span>
-    </div>
+        <label class="pkg-label">Süre Seçin</label>
+        <select id="newUserDuration" class="modal-select">
+            <option value="30">1 Ay</option>
+            <option value="180">6 Ay</option>
+            <option value="365">1 Yıl</option>
+        </select>
 
-    <table id="userTable" class="table table-striped" style="width:100%;">
-        <thead>
-        <tr>
-            <th>Email</th>
-            <th>Başlangıç</th>
-            <th>Bitiş</th>
-            <th>Süre (gün)</th>
-            <th>Kullanım</th>
-            <th>İşlem</th>
-        </tr>
-        </thead>
-        <tbody id="userBody"></tbody>
-    </table>
-
-    <div class="mt-4 text-muted small">
-        Botlab Teknoloji – Yapay Zeka Destekli Vektörleştirme Uygulaması
-    </div>
-</div>
-
-<!-- MODAL: Kullanıcı Ekle -->
-<div class="modal fade" id="addUserModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Kullanıcı Ekle (Premium)</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <label class="form-label">Email</label>
-                <input id="newUserEmail" class="form-control" placeholder="Email">
-
-                <label class="form-label mt-3">Süre</label>
-                <select id="newUserDuration" class="form-select">
-                    <option value="30">1 Ay</option>
-                    <option value="180">6 Ay</option>
-                    <option value="365" selected>1 Yıl</option>
-                </select>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="addUser()">Ekle</button>
-            </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeAddUserModal()">Vazgeç</button>
+            <button class="btn" onclick="submitNewUser()">Kaydet</button>
         </div>
     </div>
 </div>
 
-<!-- JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<!-- Paketleri Ayarla Modal -->
+<div class="modal-backdrop" id="packagesAdminModal">
+    <div class="modal-box">
+        <h3>Paketleri Ayarla</h3>
+        <p>Temel / Orta / Premium paketlerin başlık, açıklama ve fiyatlarını buradan güncelleyebilirsiniz.</p>
+
+        <div class="packages-grid" id="packagesAdminContainer">
+            <!-- Dinamik doldurulacak -->
+        </div>
+
+        <div class="modal-actions" style="margin-top:10px;">
+            <button class="btn btn-secondary" onclick="closePackagesAdminModal()">Kapat</button>
+            <button class="btn" onclick="savePackagesAdmin()">Kaydet</button>
+        </div>
+    </div>
+</div>
 
 <script>
-    let table = null;
-
-    function calcDays(start, end) {
-        if (!start || !end) return "-";
-        const s = new Date(start);
-        const e = new Date(end);
-        const diff = (e - s) / (1000 * 60 * 60 * 24);
-        return Math.round(diff);
-    }
-
     async function loadUsers() {
+        const tbody = document.getElementById("usersTableBody");
+        tbody.innerHTML = '<tr><td colspan="6" class="small-text" style="text-align:center; padding:14px;">Yükleniyor...</td></tr>';
+
         try {
             const res = await fetch("/admin_users");
             const data = await res.json();
-
-            const tbody = document.getElementById("userBody");
-            tbody.innerHTML = "";
-
-            (data.users || []).forEach(u => {
-                const days = calcDays(u.start_date, u.end_date);
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${u.email}</td>
-                        <td>${u.start_date || ''}</td>
-                        <td>${u.end_date || ''}</td>
-                        <td>${days}</td>
-                        <td>${u.total_usage ?? 0}</td>
-                        <td>
-                            <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
-                            <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            if (table) {
-                table.destroy();
+            if (!data.success) {
+                tbody.innerHTML = '<tr><td colspan="6" class="small-text" style="text-align:center; padding:14px;">Kullanıcı listesi alınamadı.</td></tr>';
+                return;
             }
-            table = new DataTable('#userTable');
+
+            const users = data.users || [];
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="small-text" style="text-align:center; padding:14px;">Henüz premium kullanıcı tanımlı değil.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = "";
+            const now = new Date();
+
+            users.forEach(u => {
+                const tr = document.createElement("tr");
+
+                const start = u.start_date ? new Date(u.start_date) : null;
+                const end = u.end_date ? new Date(u.end_date) : null;
+
+                const active = end && end > now;
+                const diffDays = end ? Math.round((end - now) / (1000*60*60*24)) : null;
+
+                const statusHtml = active
+                    ? `<span class="pill pill-active">Aktif • ${diffDays} gün kaldı</span>`
+                    : `<span class="pill pill-expired">Süresi Dolmuş</span>`;
+
+                tr.innerHTML = `
+                    <td>${u.email}</td>
+                    <td>${start ? start.toLocaleString() : "-"}</td>
+                    <td>${end ? end.toLocaleString() : "-"}</td>
+                    <td>${statusHtml}</td>
+                    <td>${u.total_usage || 0}</td>
+                    <td>
+                        <div class="actions-cell">
+                            <button class="btn-xs" onclick="extendUser('${u.email}', 30)">+ 30 gün</button>
+                            <button class="btn-xs" onclick="resetUsage('${u.email}')">Kullanımı Sıfırla</button>
+                            <button class="btn-xs" onclick="deleteUser('${u.email}')">Sil</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         } catch (e) {
-            console.error("loadUsers error", e);
-            alert("Kullanıcılar yüklenirken hata oluştu.");
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="6" class="small-text" style="text-align:center; padding:14px;">Liste alınırken hata oluştu.</td></tr>';
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadUsers();
-    });
-
-    function openAddModal() {
-        const modalEl = document.getElementById("addUserModal");
-        const modal = new bootstrap.Modal(modalEl);
-        modal.show();
+    function openAddUserModal() {
+        document.getElementById("addUserModal").classList.add("show");
+        document.getElementById("newUserEmail").focus();
+    }
+    function closeAddUserModal() {
+        document.getElementById("addUserModal").classList.remove("show");
     }
 
-    async function addUser() {
+    async function submitNewUser() {
         const email = document.getElementById("newUserEmail").value.trim();
         const days = parseInt(document.getElementById("newUserDuration").value, 10);
 
         if (!email) {
-            alert("Email boş olamaz.");
+            alert("Lütfen geçerli bir e-posta girin.");
             return;
         }
 
@@ -218,30 +476,41 @@
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({email, days})
             });
-
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error(txt);
-            }
-
             const data = await res.json();
             if (!data.success) {
-                alert(data.message || "Kullanıcı eklenemedi.");
+                alert(data.message || "Kullanıcı eklenirken hata oluştu.");
                 return;
             }
+            closeAddUserModal();
+            loadUsers();
+        } catch (e) {
+            console.error(e);
+            alert("Kullanıcı eklenirken hata oluştu.");
+        }
+    }
 
-            document.getElementById("newUserEmail").value = "";
-            const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
-            modal.hide();
-
-            window.location.reload();
-        } catch (err) {
-            console.error("addUser error", err);
-            alert("İstek sırasında hata oluştu.");
+    async function extendUser(email, days) {
+        if (!confirm(`${email} için +${days} gün eklemek istiyor musunuz?`)) return;
+        try {
+            const res = await fetch("/admin_extend_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, days})
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Süre uzatılamadı.");
+                return;
+            }
+            loadUsers();
+        } catch (e) {
+            console.error(e);
+            alert("İşlem sırasında hata oluştu.");
         }
     }
 
     async function resetUsage(email) {
+        if (!confirm(`${email} kullanıcısının toplam kullanımını sıfırlamak istiyor musunuz?`)) return;
         try {
             const res = await fetch("/admin_reset_usage", {
                 method: "POST",
@@ -250,69 +519,159 @@
             });
             const data = await res.json();
             if (!data.success) {
-                alert(data.message || "Sıfırlama yapılamadı.");
+                alert(data.message || "Kullanım sıfırlanamadı.");
                 return;
             }
-            window.location.reload();
-        } catch (err) {
-            console.error("resetUsage error", err);
-            alert("Sıfırlama sırasında hata oluştu.");
-        }
-    }
-
-    async function extendUser(email) {
-        try {
-            const res = await fetch("/admin_extend_user", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({email, days: 30})
-            });
-            const data = await res.json();
-            if (!data.success) {
-                alert(data.message || "Süre uzatılamadı.");
-                return;
-            }
-            window.location.reload();
-        } catch (err) {
-            console.error("extendUser error", err);
-            alert("Süre uzatırken hata oluştu.");
+            loadUsers();
+        } catch (e) {
+            console.error(e);
+            alert("İşlem sırasında hata oluştu.");
         }
     }
 
     async function deleteUser(email) {
-        if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+        if (!confirm(`${email} kullanıcısını silmek istiyor musunuz?`)) return;
         try {
             const res = await fetch("/admin_delete_user", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({email})
             });
-
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error(txt);
-            }
-
             const data = await res.json();
             if (!data.success) {
                 alert(data.message || "Kullanıcı silinemedi.");
                 return;
             }
-            window.location.reload();
-        } catch (err) {
-            console.error("deleteUser error", err);
-            alert("Silme sırasında hata oluştu.");
+            loadUsers();
+        } catch (e) {
+            console.error(e);
+            alert("Kullanıcı silinirken hata oluştu.");
         }
     }
 
-    async function logout() {
+    async function handleAdminLogout() {
         try {
             await fetch("/admin_logout", {method: "POST"});
-        } catch (err) {
-            console.error("logout error", err);
+        } catch (e) {
+            console.error(e);
         }
-        window.location.href = "/control_panel";
+        window.location.href = "/";
     }
+
+    // Paketler - Admin
+    function openPackagesAdminModal() {
+        document.getElementById("packagesAdminModal").classList.add("show");
+        loadPackagesAdmin();
+    }
+    function closePackagesAdminModal() {
+        document.getElementById("packagesAdminModal").classList.remove("show");
+    }
+
+    async function loadPackagesAdmin() {
+        const container = document.getElementById("packagesAdminContainer");
+        container.innerHTML = '<div class="small-text">Paketler yükleniyor...</div>';
+
+        try {
+            const res = await fetch("/admin_packages");
+            const data = await res.json();
+            if (!data.success) {
+                container.innerHTML = '<div class="small-text">Paket bilgileri alınamadı.</div>';
+                return;
+            }
+
+            const pkgs = data.packages || [];
+            if (pkgs.length === 0) {
+                container.innerHTML = '<div class="small-text">Henüz tanımlı paket yok.</div>';
+                return;
+            }
+
+            container.innerHTML = "";
+            pkgs.forEach(p => {
+                const div = document.createElement("div");
+                div.className = "package-row";
+                div.setAttribute("data-id", p.id);
+
+                div.innerHTML = `
+                    <div class="package-row-header">
+                        <span>${p.display_name}</span>
+                        <span class="small-text">Kod: ${p.slug}</span>
+                    </div>
+                    <div>
+                        <div class="pkg-label">Paket Adı</div>
+                        <input class="modal-input pkg-name" value="${p.display_name || ""}">
+                    </div>
+                    <div>
+                        <div class="pkg-label">Açıklama</div>
+                        <textarea class="modal-textarea pkg-desc">${p.description || ""}</textarea>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px; margin-top:4px;">
+                        <div>
+                            <div class="pkg-label">Aylık Fiyat</div>
+                            <input class="modal-input pkg-monthly" value="${p.price_monthly || ""}">
+                        </div>
+                        <div>
+                            <div class="pkg-label">3 Aylık Fiyat</div>
+                            <input class="modal-input pkg-quarterly" value="${p.price_quarterly || ""}">
+                        </div>
+                        <div>
+                            <div class="pkg-label">1 Yıllık Fiyat</div>
+                            <input class="modal-input pkg-yearly" value="${p.price_yearly || ""}">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<div class="small-text">Paketler yüklenirken hata oluştu.</div>';
+        }
+    }
+
+    async function savePackagesAdmin() {
+        const container = document.getElementById("packagesAdminContainer");
+        const rows = container.querySelectorAll(".package-row");
+        const payload = [];
+
+        rows.forEach(row => {
+            const id = parseInt(row.getAttribute("data-id"), 10);
+            const name = row.querySelector(".pkg-name").value.trim();
+            const desc = row.querySelector(".pkg-desc").value.trim();
+            const monthly = row.querySelector(".pkg-monthly").value.trim();
+            const quarterly = row.querySelector(".pkg-quarterly").value.trim();
+            const yearly = row.querySelector(".pkg-yearly").value.trim();
+
+            payload.push({
+                id,
+                display_name: name,
+                description: desc,
+                price_monthly: monthly,
+                price_quarterly: quarterly,
+                price_yearly: yearly
+            });
+        });
+
+        try {
+            const res = await fetch("/admin_packages/save", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({packages: payload})
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || "Paketler kaydedilemedi.");
+                return;
+            }
+            alert("Paketler başarıyla güncellendi.");
+            closePackagesAdminModal();
+        } catch (e) {
+            console.error(e);
+            alert("Paketler kaydedilirken hata oluştu.");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadUsers();
+    });
 </script>
 
 </body>
