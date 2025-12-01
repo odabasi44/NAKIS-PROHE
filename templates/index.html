@@ -415,7 +415,7 @@
     <div class="card">
         <div class="card-header">
             <h1>Akıllı Vektörleştirici</h1>
-            <p>Fotoğrafını yükle, arka plan otomatik kaldırılsın, stil ve renk sayısını seç; anında cartoon / vektör avatarını oluştur.</p>
+            <p>Fotoğrafını yükle, stil ve renk sayısını seç; anında cartoon / vektör avatarını oluştur.</p>
             <div id="premiumInfo" class="premium-info" style="display:none;"></div>
         </div>
 
@@ -460,6 +460,16 @@
                     <div class="range-row">
                         <input type="range" id="colorRange" min="2" max="10" value="4">
                         <span id="colorCount" style="font-size:12px; color:#e5e7eb;">4</span>
+                    </div>
+                    <!-- YENİ: Nakış preset butonları -->
+                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                        <button type="button" class="mini-btn color-preset" data-value="4">Nakış Basic (4)</button>
+                        <button type="button" class="mini-btn color-preset" data-value="6">Nakış Orta (6)</button>
+                        <button type="button" class="mini-btn color-preset" data-value="8">Nakış Detay (8)</button>
+                        <button type="button" class="mini-btn color-preset" data-value="10">Max Detay (10)</button>
+                    </div>
+                    <div class="note-text" style="margin-top:4px;">
+                        Not: Nakış makineleri için genelde 4–10 arası renk önerilir. Preset tuşları ile hızlı seçim yapabilirsiniz.
                     </div>
                 </div>
 
@@ -620,6 +630,16 @@
         range.addEventListener("input", () => {
             countEl.textContent = range.value;
         });
+
+        // YENİ: Renk preset butonları
+        const presetButtons = document.querySelectorAll(".color-preset");
+        presetButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const val = btn.getAttribute("data-value");
+                range.value = val;
+                countEl.textContent = val;
+            });
+        });
     }
 
     // ===== Dosya yükleme & önizleme =====
@@ -713,7 +733,7 @@
         if (p === 0) {
             label.textContent = "Hazırlanıyor...";
         } else if (p < 30) {
-            label.textContent = `Arka plan kaldırılıyor... %${p}`;
+            label.textContent = `İşleme başlatılıyor... %${p}`;
         } else if (p < 70) {
             label.textContent = `Vektör stilleri uygulanıyor... %${p}`;
         } else if (p < 100) {
