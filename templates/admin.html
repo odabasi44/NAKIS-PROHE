@@ -189,8 +189,6 @@
     // Kullanıcı ekle
     async function addUser() {
     const email = document.getElementById("newUserEmail").value.trim();
-    const days = parseInt(document.getElementById("newUserDuration").value, 10);
-
     if (!email) {
         alert("Email boş olamaz.");
         return;
@@ -200,7 +198,7 @@
         const res = await fetch("/admin_add_user", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email, days})
+            body: JSON.stringify({email})
         });
 
         const data = await res.json();
@@ -213,14 +211,16 @@
         const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
         modal.hide();
 
-        // Tablonun kesin tazelenmesi için sayfayı yenileyelim
+        // 🔥 En garantili yol: sayfayı yeniden yükle
         window.location.reload();
-        // İstersen şunu da kullanabilirsin: await loadUsers();
+        // İstersen sadece tabloyu da yenileyebilirsin:
+        // await loadUsers();
     } catch (err) {
         console.error("addUser error", err);
         alert("İstek sırasında hata oluştu.");
     }
 }
+
 
 </script>
 
