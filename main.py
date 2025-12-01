@@ -270,9 +270,19 @@ def admin_users():
 @app.route("/admin_add_user", methods=["POST"])
 @admin_required
 def admin_add_user():
-    email = request.json.get("email")
-    add_user(email)
-    return jsonify({"success": True})
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+
+        if not email:
+            return jsonify({"success": False, "message": "Email alanı boş olamaz."}), 400
+
+        add_user(email)
+        return jsonify({"success": True})
+    except Exception as e:
+        print("admin_add_user error:", e)
+        return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route("/admin_delete_user", methods=["POST"])
 @admin_required
@@ -393,3 +403,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
