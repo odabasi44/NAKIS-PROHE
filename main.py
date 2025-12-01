@@ -204,22 +204,6 @@ def get_progress_value() -> int:
 # GİRİŞ / ÇIKIŞ / STATUS API
 # ============================================================
 
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    email = data.get("email")
-    user = get_user(email)
-
-    if user and is_user_premium(email):
-        session["email"] = email
-        return jsonify({
-            "success": True,
-            "premium": True,
-            "end_date": user[2],
-            "total_usage": user[3] or 0
-        })
-
-    return jsonify({"success": False, "message": "Bu mail için premium üyelik yok."})
 
 @app.route("/logout", methods=["POST"])
 def logout():
@@ -794,6 +778,7 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
