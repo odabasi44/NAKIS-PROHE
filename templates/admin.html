@@ -4,21 +4,22 @@
     <meta charset="UTF-8">
     <title>Kontrol Paneli</title>
 
-    <!-- Bootstrap + Icons + DataTables -->
+    <!-- Bootstrap + DataTables -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" 
-          href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
 
     <style>
         body {
             display: flex;
             background: #f4f4f4;
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         /* SIDEBAR */
         #sidebar {
             width: 260px;
-            background: #222;
+            background: #111827;
             height: 100vh;
             color: white;
             padding-top: 20px;
@@ -31,19 +32,20 @@
             font-size: 22px;
         }
 
-        # a {
+        #sidebar a {
             display: block;
             padding: 12px 20px;
-            color: #ddd;
+            color: #d1d5db;
             text-decoration: none;
             font-size: 15px;
         }
 
-        # a:hover {
-            background: #333;
+        #sidebar a:hover {
+            background: #1f2937;
+            color: white;
         }
 
-        /* MAIN PANEL */
+        /* MAIN */
         #main {
             margin-left: 260px;
             padding: 30px;
@@ -52,43 +54,39 @@
 
         #topBar {
             background: white;
-            padding: 15px;
+            padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 25px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            box-shadow: 0 0 5px rgba(0,0,0,0.08);
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
 
         #userTable_wrapper {
             background: white;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+            box-shadow: 0 0 10px rgba(0,0,0,0.06);
         }
-
     </style>
 </head>
 <body>
 
-<!--  -->
+<!-- SIDEBAR -->
 <div id="sidebar">
     <h2>Kontrol Paneli</h2>
     <a href="javascript:void(0)" onclick="openAddModal()">Kullanıcı Ekle</a>
     <a href="javascript:void(0)" onclick="logout()">Çıkış Yap</a>
 </div>
 
-
 <!-- MAIN -->
 <div id="main">
-
-    <!-- TOP BAR -->
     <div id="topBar">
         <h3>Kullanıcı Yönetimi</h3>
         <span>Admin Panel Aktif</span>
     </div>
 
-    <!-- TABLO -->
     <table id="userTable" class="table table-striped" style="width:100%;">
         <thead>
         <tr>
@@ -101,16 +99,14 @@
         </thead>
         <tbody id="userBody"></tbody>
     </table>
-
 </div>
-
 
 <!-- MODAL: Kullanıcı Ekle -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5>Kullanıcı Ekle (Premium)</h5>
+                <h5 class="modal-title">Kullanıcı Ekle (Premium)</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
@@ -132,20 +128,56 @@
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    let table;
+    let table = null;
 
-    // SAYFA YÜKLENİNCE KULLANICILARI GETİR
-    window.onload = loadUsers;
+    // Sayfa yüklenince çalışsın
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUsers();
+    });
 
-    // … (loadUsers, addUser vs burda)
+    // Kullanıcıları yükle
+    async function loadUsers() {
+        try {
+            const res = await fetch("/admin_users");
+            const data = await res.json();
 
-    // *** BURAYI EKLE / GÜNCELLE ***
+            const tbody = document.getElementById("userBody");
+            tbody.innerHTML = "";
+
+            (data.users || []).forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.email}</td>
+                        <td>${u.start_date || ''}</td>
+                        <td>${u.end_date || ''}</td>
+                        <td>${u.total_usage ?? 0}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="extendUser('${u.email}')">+30 gün</button>
+                            <button class="btn btn-sm btn-info" onclick="resetUsage('${u.email}')">Sıfırla</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.email}')">Sil</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (table) {
+                table.destroy();
+            }
+            table = new DataTable('#userTable');
+        } catch (e) {
+            console.error("loadUsers error", e);
+            alert("Kullanıcılar yüklenirken hata oluştu.");
+        }
+    }
+
+    // Modal aç
     function openAddModal() {
         const modalEl = document.getElementById("addUserModal");
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 
+    // Kullanıcı ekle
     async function addUser() {
         const email = document.getElementById("newUserEmail").value.trim();
         if (!email) {
@@ -171,14 +203,68 @@
             modal.hide();
             await loadUsers();
         } catch (err) {
-            console.error(err);
+            console.error("addUser error", err);
             alert("İstek sırasında hata oluştu.");
         }
     }
 
-    // ... diğer fonksiyonlar (resetUsage, extendUser, deleteUser, logout)
-</script>
+    // Kullanım sıfırlama
+    async function resetUsage(email) {
+        try {
+            await fetch("/admin_reset_usage", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email})
+            });
+            await loadUsers();
+        } catch (err) {
+            console.error("resetUsage error", err);
+            alert("Sıfırlama sırasında hata oluştu.");
+        }
+    }
 
+    // Süre uzatma
+    async function extendUser(email) {
+        try {
+            await fetch("/admin_extend_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email, days: 30})
+            });
+            await loadUsers();
+        } catch (err) {
+            console.error("extendUser error", err);
+            alert("Süre uzatırken hata oluştu.");
+        }
+    }
+
+    // Kullanıcı sil
+    async function deleteUser(email) {
+        if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+        try {
+            await fetch("/admin_delete_user", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({email})
+            });
+            await loadUsers();
+        } catch (err) {
+            console.error("deleteUser error", err);
+            alert("Silme sırasında hata oluştu.");
+        }
+    }
+
+    // Admin logout
+    async function logout() {
+        try {
+            await fetch("/admin_logout", {method: "POST"});
+            window.location.href = "/control_panel";
+        } catch (err) {
+            console.error("logout error", err);
+            alert("Çıkış sırasında hata oluştu.");
+        }
+    }
+</script>
 
 </body>
 </html>
