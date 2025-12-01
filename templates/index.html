@@ -381,9 +381,15 @@ async function login(){
     }
 }
 async function logout(){
-    await fetch("/logout", {method:"POST"});
-    loadUserStatus();
+    try {
+        await fetch("/logout", {method:"POST"});
+    } catch(e) {
+        console.error(e);
+    }
+    // 🔥 Tam reset: sayfayı baştan yükle
+    window.location.reload();
 }
+
 
 /* ------- USER STATUS ------- */
 async function loadUserStatus(){
