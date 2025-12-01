@@ -273,15 +273,44 @@ def admin_add_user():
     try:
         data = request.get_json(silent=True) or {}
         email = (data.get("email") or "").strip().lower()
+        days = int(data.get("days") or SETTINGS["premium_duration_days"])
 
         if not email:
             return jsonify({"success": False, "message": "Email alanı boş olamaz."}), 400
 
-        add_user(email)
+        now = datetime.now()
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+
+        # Mevcut kullanıcıyı kontrol et
+        cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
+        row = cur.fetchone()
+
+        if row:
+            end_date = datetime.fromisoformat(row[0])
+            if end_date > now:
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "message": "Bu kullanıcının zaten aktif bir premium üyeliği var."
+                }), 400
+
+        # Aktif değilse (yoksa veya süresi bitmişse) yeni süre tanımla
+        new_end = now + timedelta(days=days)
+
+        cur.execute("""
+            INSERT OR REPLACE INTO users (email, start_date, end_date, total_usage)
+            VALUES (?, ?, ?, COALESCE((SELECT total_usage FROM users WHERE email=?), 0))
+        """, (email, now.isoformat(), new_end.isoformat(), email))
+        conn.commit()
+        conn.close()
+
         return jsonify({"success": True})
     except Exception as e:
         print("admin_add_user error:", e)
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 
 @app.route("/admin_delete_user", methods=["POST"])
@@ -411,5 +440,6 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
