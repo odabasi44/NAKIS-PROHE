@@ -635,9 +635,9 @@ def vectorize_style():
         img = Image.open(io.BytesIO(file.read()))
         arr = np.array(img.convert("RGB"))
 
-        # Adım 1: Arka plan kaldır (zorunlu adım)
-        set_progress(25)
-        arr_no_bg, alpha = remove_background(arr)
+    # --- ÖNCE ARKA PLANI KALDIR ---
+    arr, alpha = remove_background(arr)
+
 
         # Adım 2: Stil uygula
         style = style.lower()
@@ -655,14 +655,13 @@ def vectorize_style():
             gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
             out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-        # Kullanım hakkını kaydet
-        register_usage()
+          # Kullanımı kaydet
+    register_usage()
 
-        set_progress(95)
-        encoded = png_encode(out, alpha)
-        set_progress(100)
+    # Arka planı transparan yapmak için alpha maskeyi ekle
+    out_rgba = np.dstack([out, alpha])
 
-        return jsonify({"success": True, "image_data": encoded})
+    return jsonify({"success": True, "image_data": png_encode(out_rgba)})
     except Exception as e:
         print("vectorize_style error:", e)
         set_progress(0)
@@ -682,4 +681,5 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
