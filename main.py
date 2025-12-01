@@ -363,28 +363,36 @@ def png_encode(arr):
 
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_style():
+    # Kullanım limiti kontrolü
     permission = check_usage_permission()
-
     if not permission["allowed"]:
         return jsonify({
             "success": False,
             "error": "limit_reached",
             "message": "Ücretsiz hakkınız doldu.",
             "whatsapp": f"https://wa.me/{WHATSAPP}?text=Aylık+üyelik+istiyorum"
-        })
+        }), 403
 
     file = request.files["image"]
     style = request.form.get("style", "cartoon")
     colors = int(request.form.get("colors", 4))
+    mode = request.form.get("mode", "color")  # "color" veya "bw"
 
     img = Image.open(io.BytesIO(file.read()))
     arr = np.array(img.convert("RGB"))
 
+    # Şimdilik ana stilimiz cartoon
     if style == "cartoon":
         out = cartoon_vectorize(arr, k=colors)
     else:
         out = arr
 
+    # Siyah beyaz isteniyorsa:
+    if mode == "bw":
+        gray = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
+        out = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+    # Kullanım hakkını kaydet
     register_usage()
 
     return jsonify({"success": True, "image_data": png_encode(out)})
@@ -403,4 +411,5 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
