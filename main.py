@@ -1,483 +1,395 @@
-from flask import Flask, request, jsonify, render_template
+import os
+import json
+import sqlite3
+from datetime import datetime, timedelta
+from functools import wraps
+
+from flask import Flask, request, jsonify, render_template, session, send_from_directory
 from flask_cors import CORS
+
 import cv2
 import numpy as np
 from PIL import Image
 import io
 import base64
-import json
-from collections import Counter
-
-app = Flask(__name__)
-CORS(app)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/analyze_colors', methods=['POST'])
-def analyze_colors():
-    """Görseldeki renkleri analiz et"""
-    try:
-        file = request.files['image']
-        max_colors = int(request.form.get('max_colors', 20))
-        
-        file_stream = io.BytesIO(file.read())
-        image = Image.open(file_stream)
-        image = image.convert('RGB')
-        
-        # Görsel boyutunu küçült (performans için)
-        width, height = image.size
-        if width > 400 or height > 400:
-            ratio = min(400/width, 400/height)
-            new_width = int(width * ratio)
-            new_height = int(height * ratio)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        img_array = np.array(image)
-        
-        # Tüm renkleri topla
-        pixels = img_array.reshape(-1, 3)
-        
-        # En çok kullanılan renkleri bul
-        color_counts = Counter(map(tuple, pixels))
-        dominant_colors = color_counts.most_common(max_colors)
-        
-        # Renkleri formatla
-        colors = []
-        for color, count in dominant_colors:
-            hex_color = '#{:02x}{:02x}{:02x}'.format(color[0], color[1], color[2])
-            percentage = (count / len(pixels)) * 100
-            colors.append({
-                'rgb': color,
-                'hex': hex_color,
-                'percentage': round(percentage, 2),
-                'count': count
-            })
-        
-        return jsonify({
-            'success': True,
-            'colors': colors,
-            'total_colors': len(dominant_colors)
-        })
-        
-    except Exception as e:
-        print(f"Renk analiz hatası: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/vectorize_custom', methods=['POST'])
-def vectorize_custom():
-    """Özel renk paleti ile vektörleştir"""
-    try:
-        file = request.files['image']
-        selected_colors = json.loads(request.form.get('selected_colors', '[]'))
-        style = request.form.get('style', 'sharp')
-        output_format = request.form.get('format', 'png')
-        
-        file_stream = io.BytesIO(file.read())
-        image = Image.open(file_stream)
-        image = image.convert('RGB')
-        
-        # Seçilen renkleri numpy array'e çevir
-        custom_colors = np.array([color['rgb'] for color in selected_colors], dtype=np.uint8)
-        
-        if output_format == 'png':
-            result_data = vectorize_with_custom_colors(image, custom_colors, style)
-            return jsonify({
-                'success': True, 
-                'image_data': result_data,
-                'format': 'png'
-            })
-        else:
-            svg = vectorize_with_custom_colors_svg(image, custom_colors, style)
-            return jsonify({
-                'success': True, 
-                'svg': svg,
-                'format': 'svg'
-            })
-        
-    except Exception as e:
-        print(f"Özel vektörleştirme hatası: {e}")
-        return jsonify({'error': str(e)}), 500
-
-def vectorize_with_custom_colors(image, custom_colors, style):
-    """Özel renk paleti ile PNG oluştur"""
-    try:
-        width, height = image.size
-        max_size = 600
-        
-        if width > max_size or height > max_size:
-            if width > height:
-                new_width = max_size
-                new_height = int((max_size / width) * height)
-            else:
-                new_height = max_size
-                new_width = int((max_size / height) * width)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        img_array = np.array(image)
-        
-        # Özel renklerle segmentasyon
-        data = img_array.reshape((-1, 3))
-        data = np.float32(data)
-        
-        # En yakın renkleri bul
-        segmented_data = []
-        for pixel in data:
-            distances = np.sqrt(np.sum((custom_colors - pixel) ** 2, axis=1))
-            closest_color_idx = np.argmin(distances)
-            segmented_data.append(custom_colors[closest_color_idx])
-        
-        segmented_image = np.array(segmented_data, dtype=np.uint8).reshape(img_array.shape)
-        
-        if style == 'sharp':
-            segmented_image = sharpen_edges_improved(segmented_image)
-        elif style == 'cartoon':
-            # Özel paletli cartoon için eski efekti kullanmaya devam edelim
-            segmented_image = apply_cartoon_effect(segmented_image)
-        
-        png_image = Image.fromarray(segmented_image)
-        buffered = io.BytesIO()
-        png_image.save(buffered, format="PNG", optimize=True, quality=95)
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        return f"data:image/png;base64,{img_str}"
-        
-    except Exception as e:
-        print(f"Özel PNG vektörleştirme hatası: {e}")
-        raise e
-
-def vectorize_with_custom_colors_svg(image, custom_colors, style):
-    """Özel renk paleti ile SVG oluştur"""
-    try:
-        width, height = image.size
-        max_size = 600
-        
-        if width > max_size or height > max_size:
-            if width > height:
-                new_width = max_size
-                new_height = int((max_size / width) * height)
-            else:
-                new_height = max_size
-                new_width = int((max_size / height) * width)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            width, height = new_width, new_height
-        
-        img_array = np.array(image)
-        
-        # Özel renklerle segmentasyon
-        data = img_array.reshape((-1, 3))
-        data = np.float32(data)
-        
-        segmented_data = []
-        for pixel in data:
-            distances = np.sqrt(np.sum((custom_colors - pixel) ** 2, axis=1))
-            closest_color_idx = np.argmin(distances)
-            segmented_data.append(custom_colors[closest_color_idx])
-        
-        segmented_image = np.array(segmented_data, dtype=np.uint8).reshape(img_array.shape)
-        
-        if style == 'sharp':
-            segmented_image = sharpen_edges_improved(segmented_image)
-        
-        return create_sharp_svg(segmented_image, custom_colors, width, height)
-        
-    except Exception as e:
-        print(f"Özel SVG vektörleştirme hatası: {e}")
-        raise e
-
-def apply_cartoon_effect(image):
-    """ESKİ cartoon efekti (custom renk paleti için kullanılıyor)"""
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 5)
-    edges = cv2.adaptiveThreshold(
-        gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-        cv2.THRESH_BINARY, 9, 2
-    )
-    
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
-    cartoon = cv2.bitwise_and(image, edges_colored)
-    cartoon = cv2.convertScaleAbs(cartoon, alpha=1.2, beta=10)
-    
-    return cartoon
-
-def sharpen_edges_improved(image):
-    """Kenar keskinleştirme"""
-    blurred = cv2.GaussianBlur(image, (0, 0), 3)
-    sharpened = cv2.addWeighted(image, 1.7, blurred, -0.7, 0)
-    
-    hsv = cv2.cvtColor(sharpened, cv2.COLOR_RGB2HSV)
-    hsv[:, :, 1] = cv2.multiply(hsv[:, :, 1], 1.2)
-    sharpened = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    
-    return np.clip(sharpened, 0, 255).astype(np.uint8)
-
-def create_sharp_svg(segmented_image, colors, width, height):
-    """SVG oluştur"""
-    svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}">\n'
-    svg += f'<rect width="100%" height="100%" fill="white"/>\n'
-    
-    for i, color in enumerate(colors):
-        color_bgr = color.tolist()
-        mask = np.all(segmented_image == color_bgr, axis=-1).astype(np.uint8) * 255
-        
-        kernel = np.ones((2, 2), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        hex_color = '#{:02x}{:02x}{:02x}'.format(color[0], color[1], color[2])
-        
-        for contour in contours:
-            if len(contour) > 2:
-                epsilon = 0.01 * cv2.arcLength(contour, True)
-                approx = cv2.approxPolyDP(contour, epsilon, True)
-                
-                if len(approx) > 2:
-                    path_data = "M "
-                    for j, point in enumerate(approx):
-                        x, y = point[0]
-                        if j == 0:
-                            path_data += f"{x} {y}"
-                        else:
-                            path_data += f" L {x} {y}"
-                    path_data += " Z"
-                    
-                    svg += f'<path d="{path_data}" fill="{hex_color}" stroke="none"/>\n'
-    
-    svg += '</svg>'
-    return svg
 
 # ============================================================
-# YENİ CARTOON VECTOR ALGORİTMASI (PNG için)
+# FLASK BAŞLANGIÇ
+# ============================================================
+
+app = Flask(__name__, static_folder="static")
+app.secret_key = "SUPER_SECRET_KEY_123"
+CORS(app)
+
+DB_PATH = "database.db"
+
+# ============================================================
+# SETTINGS.JSON OKU (Admin Bilgileri ve parametreler)
+# ============================================================
+
+with open("settings.json", "r", encoding="utf-8") as f:
+    SETTINGS = json.load(f)
+
+FREE_LIMIT = SETTINGS["free_usage_limit"]
+PREMIUM_DAYS = SETTINGS["premium_duration_days"]
+ADMIN_EMAIL = SETTINGS["admin_email"]
+ADMIN_PASSWORD = SETTINGS["admin_password"]
+WHATSAPP = SETTINGS["whatsapp_number"]
+
+# ============================================================
+# DATABASE OLUŞTUR
+# ============================================================
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            start_date TEXT,
+            end_date TEXT,
+            total_usage INTEGER DEFAULT 0
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS guests (
+            client_id TEXT PRIMARY KEY,
+            usage_count INTEGER DEFAULT 0
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ============================================================
+# DB YARDIMCILAR
+# ============================================================
+
+def get_client_id():
+    ip = request.remote_addr or "0.0.0.0"
+    agent = request.headers.get("User-Agent", "")
+    return f"{ip}_{hash(agent)}"
+
+def get_user(email):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT email, start_date, end_date, total_usage FROM users WHERE email=?", (email,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+def add_user(email):
+    now = datetime.now()
+    end = now + timedelta(days=PREMIUM_DAYS)
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT OR REPLACE INTO users (email, start_date, end_date, total_usage) VALUES (?, ?, ?, ?)",
+        (email, now.isoformat(), end.isoformat(), 0))
+    conn.commit()
+    conn.close()
+
+def increment_user_usage(email):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET total_usage = total_usage + 1 WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+
+def get_guest_usage(client_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT usage_count FROM guests WHERE client_id=?", (client_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else 0
+
+def increment_guest_usage(client_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO guests (client_id, usage_count)
+        VALUES (?, 1)
+        ON CONFLICT(client_id) DO UPDATE SET usage_count = usage_count + 1
+    """, (client_id,))
+    conn.commit()
+    conn.close()
+
+def is_user_premium(email):
+    user = get_user(email)
+    if not user:
+        return False
+    end_date = datetime.fromisoformat(user[2])
+    return end_date > datetime.now()
+
+# ============================================================
+# GİRİŞ / ÇIKIŞ / STATUS API
+# ============================================================
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    email = data.get("email")
+    user = get_user(email)
+
+    if user and is_user_premium(email):
+        session["email"] = email
+        return jsonify({
+            "success": True,
+            "premium": True,
+            "end_date": user[2]
+        })
+
+    return jsonify({"success": False, "message": "Bu mail için premium üyelik yok."})
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"success": True})
+
+@app.route("/user_status")
+def user_status():
+    if "email" in session:
+        email = session["email"]
+        premium = is_user_premium(email)
+        user = get_user(email)
+
+        return jsonify({
+            "logged_in": True,
+            "email": email,
+            "premium": premium,
+            "end_date": user[2]
+        })
+
+    client_id = get_client_id()
+    usage = get_guest_usage(client_id)
+    return jsonify({
+        "logged_in": False,
+        "premium": False,
+        "guest_usage": usage,
+        "remaining": max(0, FREE_LIMIT - usage)
+    })
+
+# ============================================================
+# KULLANIM İZNİ VE KULLANIM KAYDI
+# ============================================================
+
+def check_usage_permission():
+    # Premium kullanıcı
+    if "email" in session:
+        email = session["email"]
+        if is_user_premium(email):
+            return {"allowed": True, "premium": True}
+
+        # Premium bitmiş → guest olarak devam
+        client_id = get_client_id()
+        usage = get_guest_usage(client_id)
+        if usage < FREE_LIMIT:
+            return {"allowed": True, "premium": False, "remaining": FREE_LIMIT - usage}
+        return {"allowed": False, "premium": False, "remaining": 0}
+
+    # Guest kullanıcı
+    client_id = get_client_id()
+    usage = get_guest_usage(client_id)
+    if usage < FREE_LIMIT:
+        return {"allowed": True, "premium": False, "remaining": FREE_LIMIT - usage}
+
+    return {"allowed": False, "premium": False, "remaining": 0}
+
+def register_usage():
+    if "email" in session and is_user_premium(session["email"]):
+        increment_user_usage(session["email"])
+    else:
+        client_id = get_client_id()
+        increment_guest_usage(client_id)
+
+# ============================================================
+# ADMIN DECORATOR + ADMIN GİRİŞ
+# ============================================================
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            return jsonify({"success": False, "error": "not_admin"}), 403
+        return f(*args, **kwargs)
+    return wrapper
+
+@app.route("/admin_login", methods=["POST"])
+def admin_login():
+    data = request.get_json()
+    if data.get("email") == ADMIN_EMAIL and data.get("password") == ADMIN_PASSWORD:
+        session["admin_logged_in"] = True
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "Yanlış email veya şifre"})
+
+@app.route("/admin_logout", methods=["POST"])
+@admin_required
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    return jsonify({"success": True})
+
+# ============================================================
+# ADMIN PANEL SERVE
+# ============================================================
+
+@app.route("/control_panel")
+def control_panel():
+    if not session.get("admin_logged_in"):
+        return send_from_directory("templates", "admin_login.html")
+    return send_from_directory("templates", "admin.html")
+
+# ============================================================
+# ADMIN API'LERİ
+# ============================================================
+
+@app.route("/admin_users")
+@admin_required
+def admin_users():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT email,start_date,end_date,total_usage FROM users")
+    rows = cur.fetchall()
+    conn.close()
+
+    users = []
+    for r in rows:
+        users.append({
+            "email": r[0],
+            "start_date": r[1],
+            "end_date": r[2],
+            "total_usage": r[3]
+        })
+
+    return jsonify({"success": True, "users": users})
+
+@app.route("/admin_add_user", methods=["POST"])
+@admin_required
+def admin_add_user():
+    email = request.json.get("email")
+    add_user(email)
+    return jsonify({"success": True})
+
+@app.route("/admin_delete_user", methods=["POST"])
+@admin_required
+def admin_delete_user():
+    email = request.json.get("email")
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/admin_reset_usage", methods=["POST"])
+@admin_required
+def admin_reset_usage():
+    email = request.json.get("email")
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET total_usage=0 WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/admin_extend_user", methods=["POST"])
+@admin_required
+def admin_extend_user():
+    email = request.json.get("email")
+    days = int(request.json.get("days", 30))
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT end_date FROM users WHERE email=?", (email,))
+    row = cur.fetchone()
+
+    current_end = datetime.fromisoformat(row[0])
+    new_end = current_end + timedelta(days=days)
+
+    cur.execute("UPDATE users SET end_date=? WHERE email=?", (new_end.isoformat(), email))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"success": True})
+
+# ============================================================
+# VEKTÖRLEŞTİRME FONKSİYONLARI
 # ============================================================
 
 def cartoon_vectorize(image_rgb, k=4):
-    """
-    Renkleri k kümeye düşürüp keskin kenarlı cartoon vector görünümü üretir.
-    image_rgb: RGB numpy array
-    k: renk sayısı (2–6 arası ideal)
-    """
-    # Hafif blur
     img_color = cv2.medianBlur(image_rgb, 7)
+    Z = np.float32(img_color.reshape((-1, 3)))
 
-    # Renk kuantizasyonu (k-means)
-    Z = img_color.reshape((-1, 3))
-    Z = np.float32(Z)
-
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
     _, labels, centers = cv2.kmeans(
-        Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS
-    )
-    centers = np.uint8(centers)
-    res = centers[labels.flatten()]
-    img_reduced = res.reshape(img_color.shape)
+        Z, k, None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0),
+        10, cv2.KMEANS_RANDOM_CENTERS)
 
-    # Kenar çıkarma
+    centers = np.uint8(centers)
+    reduced = centers[labels.flatten()].reshape(img_color.shape)
+
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     edges = cv2.Canny(gray, 80, 140)
     edges = cv2.dilate(edges, None)
-    edges = 255 - edges  # çizgileri beyaz yap
+    edges = 255 - edges
     edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
 
-    # Renk + kenar maskesi ile combine
-    cartoon = cv2.bitwise_and(img_reduced, edges_colored)
-
+    cartoon = cv2.bitwise_and(reduced, edges_colored)
     return cartoon
 
-# ============================================================
-# Ana endpoint: /vectorize_style
-# ============================================================
-
-@app.route('/vectorize_style', methods=['POST'])
-def vectorize_with_style():
-    try:
-        file = request.files['image']
-        colors = int(request.form.get('colors', 8))
-        style = request.form.get('style', 'sharp')
-        output_format = request.form.get('format', 'png')
-        
-        file_stream = io.BytesIO(file.read())
-        image = Image.open(file_stream)
-        image = image.convert('RGB')
-        
-        if output_format == 'png':
-            if style == 'sharp':
-                result_data = vectorize_to_png(image, colors)
-            elif style == 'line_art':
-                result_data = create_line_art(image)
-            else:  # cartoon
-                # Cartoon için renk sayısını 2–6 aralığına sıkıştırıyoruz
-                cartoon_colors = max(2, min(colors, 6))
-                result_data = create_cartoon_effect_vector(image, cartoon_colors)
-            return jsonify({
-                'success': True, 
-                'image_data': result_data,
-                'format': 'png'
-            })
-        else:
-            if style == 'sharp':
-                svg = vectorize_with_colors_sharp(image, colors)
-            elif style == 'line_art':
-                svg = create_line_art_svg(image)
-            else:  # cartoon
-                cartoon_colors = max(2, min(colors, 6))
-                svg = create_cartoon_svg(image, cartoon_colors)
-            return jsonify({
-                'success': True, 
-                'svg': svg,
-                'format': 'svg'
-            })
-        
-    except Exception as e:
-        print(f"Vectorize style error: {e}")
-        return jsonify({'error': str(e)}), 500
+def png_encode(arr):
+    pil = Image.fromarray(arr)
+    buffer = io.BytesIO()
+    pil.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 # ============================================================
-# Yardımcı / fallback fonksiyonlar
+# VEKTÖR API
 # ============================================================
 
-def _image_to_data_url(pil_image):
-    buffered = io.BytesIO()
-    pil_image.save(buffered, format="PNG", optimize=True)
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return f"data:image/png;base64,{img_str}"
+@app.route("/vectorize_style", methods=["POST"])
+def vectorize_style():
+    permission = check_usage_permission()
 
+    if not permission["allowed"]:
+        return jsonify({
+            "success": False,
+            "error": "limit_reached",
+            "message": "Ücretsiz hakkınız doldu.",
+            "whatsapp": f"https://wa.me/{WHATSAPP}?text=Aylık+üyelik+istiyorum"
+        })
 
-def vectorize_to_png(image, colors=8):
-    """Hafif bir renk-kuantizasyonu yapıp base64 PNG döndürür."""
-    try:
-        width, height = image.size
-        max_size = 600
-        if width > max_size or height > max_size:
-            if width > height:
-                new_width = max_size
-                new_height = int((max_size / width) * height)
-            else:
-                new_height = max_size
-                new_width = int((max_size / height) * width)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    file = request.files["image"]
+    style = request.form.get("style", "cartoon")
+    colors = int(request.form.get("colors", 4))
 
-        arr = np.array(image)
-        data = arr.reshape((-1, 3)).astype(np.float32)
+    img = Image.open(io.BytesIO(file.read()))
+    arr = np.array(img.convert("RGB"))
 
-        # OpenCV k-means
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        flags = cv2.KMEANS_RANDOM_CENTERS
-        _, labels, centers = cv2.kmeans(data, colors, None, criteria, 10, flags)
-        centers = np.uint8(centers)
-        quant = centers[labels.flatten()]
-        quant_image = quant.reshape(arr.shape)
+    if style == "cartoon":
+        out = cartoon_vectorize(arr, k=colors)
+    else:
+        out = arr
 
-        quant_image = sharpen_edges_improved(quant_image)
+    register_usage()
 
-        pil = Image.fromarray(quant_image)
-        return _image_to_data_url(pil)
-    except Exception as e:
-        print(f"vectorize_to_png error: {e}")
-        raise
+    return jsonify({"success": True, "image_data": png_encode(out)})
 
+# ============================================================
+# ANA SAYFA
+# ============================================================
 
-def create_line_art(image):
-    """Canny kenar algılama ile siyah-beyaz line-art PNG data URL döndürür."""
-    try:
-        arr = np.array(image.convert('RGB'))
-        gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        inv = 255 - edges
-        img_rgb = cv2.cvtColor(inv, cv2.COLOR_GRAY2RGB)
-        pil = Image.fromarray(img_rgb)
-        return _image_to_data_url(pil)
-    except Exception as e:
-        print(f"create_line_art error: {e}")
-        raise
+@app.route("/")
+def home():
+    return render_template("index.html")
 
+# ============================================================
+# ÇALIŞTIR
+# ============================================================
 
-def create_cartoon_effect_vector(image, colors=4):
-    """
-    Yeni cartoon vector algoritmasını kullanıp PNG data URL döndürür.
-    colors parametresi 2–6 arası k-means renk sayısıdır.
-    """
-    try:
-        arr = np.array(image.convert('RGB'))
-
-        # Renk sayısını güvenli aralıkta tut
-        k = max(2, min(colors, 6))
-        cartoon = cartoon_vectorize(arr, k=k)
-
-        pil = Image.fromarray(cartoon)
-        return _image_to_data_url(pil)
-    except Exception as e:
-        print(f"create_cartoon_effect_vector error: {e}")
-        raise
-
-
-def vectorize_with_colors_sharp(image, colors=8):
-    """Renk sayısına göre kuantize edip `create_sharp_svg` çağırır."""
-    try:
-        width, height = image.size
-        max_size = 600
-        if width > max_size or height > max_size:
-            if width > height:
-                new_width = max_size
-                new_height = int((max_size / width) * height)
-            else:
-                new_height = max_size
-                new_width = int((max_size / height) * width)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            width, height = new_width, new_height
-
-        arr = np.array(image)
-        data = arr.reshape((-1, 3)).astype(np.float32)
-
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        flags = cv2.KMEANS_RANDOM_CENTERS
-        _, labels, centers = cv2.kmeans(data, colors, None, criteria, 10, flags)
-        centers = np.uint8(centers)
-
-        segmented = centers[labels.flatten()].reshape(arr.shape)
-        return create_sharp_svg(segmented, centers, width, height)
-    except Exception as e:
-        print(f"vectorize_with_colors_sharp error: {e}")
-        raise
-
-
-def create_line_art_svg(image):
-    """Fallback SVG: raster line-art PNG'yi gömerek SVG string döndürür."""
-    try:
-        png_data = create_line_art(image)
-        if png_data.startswith('data:image/png;base64,'):
-            b64 = png_data.split(',', 1)[1]
-        else:
-            b64 = png_data
-        width, height = image.size
-        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
-        svg += f'<image href="data:image/png;base64,{b64}" width="{width}" height="{height}"/>'
-        svg += '</svg>'
-        return svg
-    except Exception as e:
-        print(f"create_line_art_svg error: {e}")
-        raise
-
-
-def create_cartoon_svg(image, colors=4):
-    """Yeni cartoon vector PNG'yi SVG içine gömerek SVG string döndürür."""
-    try:
-        png_data = create_cartoon_effect_vector(image, colors)
-        if png_data.startswith('data:image/png;base64,'):
-            b64 = png_data.split(',', 1)[1]
-        else:
-            b64 = png_data
-        width, height = image.size
-        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
-        svg += f'<image href="data:image/png;base64,{b64}" width="{width}" height="{height}"/>'
-        svg += '</svg>'
-        return svg
-    except Exception as e:
-        print(f"create_cartoon_svg error: {e}")
-        raise
-
-if __name__ == '__main__':
-    # Disable the reloader to keep a single process (helps automated runs)
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=False)
