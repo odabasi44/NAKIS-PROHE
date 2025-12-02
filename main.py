@@ -140,54 +140,61 @@ def index():
 # PDF BİRLEŞTİRME ARAÇLARI
 # ============================================================
 
-@app.route("/pdf/merge")
-def pdf_merge_page():
-    """PDF birleştirme arayüzü"""
-    return render_template("pdf_merge.html")
-
-
 @app.route("/api/pdf/merge", methods=["POST"])
 def api_pdf_merge():
     """
-    Birden fazla PDF dosyasını tek bir PDF’te birleştirir.
-
-    İstek:
-      - form-data içinde `files` alanında 2+ adet PDF.
-
-    Yanıt (JSON):
-      - success: bool
-      - merged_pdf: base64 string (success=True ise)
-      - message: hata mesajı (success=False ise)
+    Birden fazla PDF dosyasını tek PDF'te birleştirir.
+    Çıktıyı base64 olarak JSON içinde döner.
     """
     try:
-        if "files" not in request.files:
-            return jsonify({"success": False,
-                            "message": "Herhangi bir PDF dosyası yüklenmedi."}), 400
-
-        files = request.files.getlist("files")
+        files = request.files.getlist("pdf_files")
         pdf_files = [f for f in files if f and f.filename.lower().endswith(".pdf")]
 
         if len(pdf_files) < 2:
-            return jsonify({"success": False,
-                            "message": "En az iki PDF dosyası seçmelisiniz."}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "En az iki PDF dosyası seçmelisiniz.",
+                    }
+                ),
+                400,
+            )
 
         merger = PdfMerger()
+
+        # her dosyayı memory'den oku
         for f in pdf_files:
-            merger.append(f)
+            merger.append(io.BytesIO(f.read()))
 
-        from io import BytesIO
-        out_buf = BytesIO()
-        merger.write(out_buf)
+        out_buffer = io.BytesIO()
+        merger.write(out_buffer)
         merger.close()
-        out_buf.seek(0)
+        out_buffer.seek(0)
 
-        merged_b64 = base64.b64encode(out_buf.read()).decode("utf-8")
+        pdf_bytes = out_buffer.read()
+        encoded = base64.b64encode(pdf_bytes).decode("utf-8")
 
-        return jsonify({"success": True, "merged_pdf": merged_b64})
+        return jsonify(
+            {
+                "success": True,
+                "file": encoded,          # base64 içerik
+                "filename": "birlesik.pdf",
+            }
+        )
+
     except Exception as e:
         print("api_pdf_merge error:", e)
-        return jsonify({"success": False,
-                        "message": "Birleştirme sırasında beklenmeyen bir hata oluştu."}), 500
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "Birleştirme sırasında sunucu hatası oluştu.",
+                }
+            ),
+            500,
+        )
+
 
 # ============================================================
 # VEKTÖRLEŞTİRME API
@@ -247,3 +254,4 @@ def vectorize_with_style():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
