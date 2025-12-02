@@ -144,6 +144,13 @@ def index():
 # PDF ARAÇLARI API
 # ============================================================
 
+
+@app.route("/pdf/merge")
+def pdf_merge_page():
+    return render_template("pdf_merge.html")
+
+
+
 @app.route("/api/pdf/merge", methods=["POST"])
 def api_pdf_merge():
     """
@@ -163,14 +170,14 @@ def api_pdf_merge():
                 400,
             )
 
-        merger = PdfMerger()
+        r = Pdfr()
 
         for f in pdf_files:
-            merger.append(io.BytesIO(f.read()))
+            r.append(io.BytesIO(f.read()))
 
         out_buffer = io.BytesIO()
-        merger.write(out_buffer)
-        merger.close()
+        r.write(out_buffer)
+        r.close()
         out_buffer.seek(0)
 
         pdf_bytes = out_buffer.read()
@@ -183,7 +190,7 @@ def api_pdf_merge():
         })
 
     except Exception as e:
-        print("api_pdf_merge error:", e)
+        print("api_pdf_ error:", e)
         return (
             jsonify({
                 "success": False,
@@ -252,6 +259,7 @@ def vectorize_with_style():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
