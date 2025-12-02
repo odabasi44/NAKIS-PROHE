@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Sıkıştır · Botlab Tools</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body {
+            background: radial-gradient(circle at top, #1a1f36, #0c0f1f 60%);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .neon-border {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 18px rgba(0, 119, 255, 0.25);
+        }
+
+        .neon-btn {
+            background: linear-gradient(to right, #ff8a00, #ffb347);
+            box-shadow: 0 0 15px rgba(255, 157, 0, 0.65);
+            color: #1a1a1a;
+        }
+
+        .upload-hover {
+            border-color: #4dabff !important;
+            box-shadow: 0 0 15px rgba(77, 171, 255, 0.5);
+        }
+    </style>
+</head>
+
+<body class="text-gray-200">
+
+
+    <!-- ███ GLOBAL HEADER ███ -->
+    <header class="w-full glass border-b border-white/10 shadow-lg">
+        <div class="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
+
+            <!-- LOGO -->
+            <a href="index.html" class="flex items-center space-x-2">
+                <img src="logo.png" alt="Botlab Tools" class="h-10">
+                <span class="text-white text-xl font-bold">Botlab Tools</span>
+            </a>
+
+            <!-- BUTTONS -->
+            <div class="flex items-center space-x-4">
+
+                <!-- Premium Satın Al -->
+                <button onclick="openPremiumPopup()"
+                    class="px-5 py-2 rounded-lg font-semibold neon-btn hover:opacity-90 transition">
+                    Premium Satın Al
+                </button>
+
+                <!-- Giriş Yap -->
+                <a href="admin_login.html"
+                    class="px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white shadow-lg hover:bg-blue-500 transition">
+                    Giriş Yap
+                </a>
+
+            </div>
+
+        </div>
+    </header>
+
+
+    <!-- ███ PDF SIKTIRMA SAYFASI ███ -->
+    <main class="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- LEFT SIDE: TOOL CARD -->
+        <section class="glass neon-border rounded-2xl p-8 lg:col-span-2">
+
+            <h2 class="text-3xl font-bold mb-3 text-white">PDF Sıkıştır</h2>
+            <p class="text-gray-400 mb-6">Dosyanızın boyutunu kaliteyi bozmadan küçültün.</p>
+
+            <!-- UPLOAD BOX -->
+            <div id="uploadArea"
+                class="border-2 border-dashed border-gray-600 rounded-xl p-12 text-center cursor-pointer hover:border-blue-400 transition">
+                <p class="text-lg text-gray-300">PDF dosyasını buraya sürükle veya tıkla</p>
+                <input type="file" id="pdfFile" accept="application/pdf" class="hidden">
+            </div>
+
+            <!-- QUALITY SELECTOR -->
+            <div class="mt-6">
+                <label class="block font-semibold mb-2">Kalite</label>
+                <select id="quality"
+                    class="w-full p-3 rounded-lg bg-[#1c2237] border border-gray-600 text-gray-200 focus:ring-2 focus:ring-blue-400">
+                    <option value="low">Düşük Boyut (Daha çok sıkıştır)</option>
+                    <option value="medium" selected>Orta Denge (Tavsiye edilir)</option>
+                    <option value="high">Yüksek Kalite (Az sıkıştır)</option>
+                </select>
+            </div>
+
+            <!-- PROCESS BUTTON -->
+            <button id="compressBtn"
+                class="mt-6 w-full neon-btn py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                PDF'i Sıkıştır
+            </button>
+
+            <!-- RESULT -->
+            <div id="resultBox" class="mt-6 hidden">
+                <h3 class="font-bold text-lg mb-2">İndir</h3>
+                <a id="downloadLink" href="#" download class="text-blue-300 underline font-semibold"></a>
+            </div>
+
+        </section>
+
+
+        <!-- RIGHT SIDE: PREMIUM BOX -->
+        <aside class="glass neon-border rounded-2xl p-8">
+
+            <h3 class="text-2xl font-bold text-orange-400 mb-4">Premium Avantajları</h3>
+
+            <ul class="space-y-3 text-gray-300">
+                <li>⚡ Sınırsız günlük sıkıştırma</li>
+                <li>📄 200MB’a kadar PDF desteği</li>
+                <li>🚀 Turbo sıkıştırma hızı</li>
+                <li>🔧 Gelişmiş kalite koruma</li>
+                <li>✨ Optimize PDF motoru</li>
+            </ul>
+
+            <button onclick="openPremiumPopup()"
+                class="mt-6 w-full neon-btn py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                Premium’a Geç
+            </button>
+
+        </aside>
+
+    </main>
+
+
+    <!-- ███ PREMIUM POPUP ███ -->
+    <div id="premiumPopup"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
+
+        <div class="glass neon-border w-full max-w-lg rounded-2xl p-8 shadow-2xl">
+
+            <h2 class="text-2xl font-bold text-orange-400 mb-4">Premium Paketler</h2>
+
+            <div class="space-y-4 text-gray-300">
+
+                <div>
+                    <h3 class="text-lg font-semibold text-blue-300">Ücretsiz Plan</h3>
+                    <ul class="text-sm space-y-1">
+                        <li>• 5 işlem / gün</li>
+                        <li>• Max 10MB</li>
+                        <li>• Normal kuyruk</li>
+                    </ul>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold text-orange-300">Premium Plan</h3>
+                    <ul class="text-sm space-y-1">
+                        <li>• Sınırsız sıkıştırma</li>
+                        <li>• 200MB’a kadar PDF</li>
+                        <li>• Öncelikli hız</li>
+                        <li>• Gelişmiş kalite koruma</li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- WhatsApp SATIN AL -->
+            <a href="https://wa.me/905335620807?text=Premium%20Paket%20satın%20almak%20istiyorum"
+                class="block mt-6 w-full neon-btn py-3 rounded-lg font-semibold text-gray-900 hover:opacity-90 transition">
+                WhatsApp Premium Satın Al
+            </a>
+
+            <button onclick="closePremiumPopup()"
+                class="mt-4 w-full text-gray-400 hover:text-gray-200 text-sm underline">
+                Kapat
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ███ JS ███ -->
+    <script>
+        // Upload logic
+        const uploadArea = document.getElementById("uploadArea");
+        const pdfInput = document.getElementById("pdfFile");
+
+        uploadArea.addEventListener("click", () => pdfInput.click());
+
+        uploadArea.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            uploadArea.classList.add("upload-hover");
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+            uploadArea.classList.remove("upload-hover");
+        });
+
+        uploadArea.addEventListener("drop", (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove("upload-hover");
+            pdfInput.files = e.dataTransfer.files;
+        });
+
+        // Process compress
+        document.getElementById("compressBtn").addEventListener("click", async () => {
+
+            const file = pdfInput.files[0];
+            const quality = document.getElementById("quality").value;
+
+            if (!file) return alert("PDF seçilmedi.");
+
+            const form = new FormData();
+            form.append("file", file);
+            form.append("quality", quality);
+
+            const res = await fetch("/compress_pdf", { method: "POST", body: form });
+
+            if (!res.ok) return alert("İşlem başarısız!");
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            const link = document.getElementById("downloadLink");
+            link.href = url;
+            link.textContent = "Sıkıştırılmış PDF'i indir";
+
+            document.getElementById("resultBox").classList.remove("hidden");
+        });
+
+        // Premium popup
+        function openPremiumPopup() {
+            document.getElementById("premiumPopup").classList.remove("hidden");
+        }
+        function closePremiumPopup() {
+            document.getElementById("premiumPopup").classList.add("hidden");
+        }
+    </script>
+
+</body>
+
+</html>
