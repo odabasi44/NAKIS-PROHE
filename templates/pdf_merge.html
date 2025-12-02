@@ -2,54 +2,48 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8" />
-    <title>PDF Birleştir - Botlab Tools</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+    <title>PDF Birleştir - Botlab Tools</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         :root {
-            --bg-main: #050814;
-            --bg-card: #11172f;
-            --bg-soft: #0b1024;
-            --border-subtle: rgba(255,255,255,0.06);
+            --bg: #050816;
+            --card: #0b1020;
+            --accent: #4f46e5;
+            --accent-soft: #1f2937;
+            --accent-grad: linear-gradient(135deg, #6366f1, #ec4899);
             --text-main: #f9fafb;
             --text-muted: #9ca3af;
-            --accent: #4f8dff;
-            --accent-soft: rgba(79,141,255,0.18);
-            --accent-strong: #67e8f9;
-            --radius-lg: 18px;
-            --radius-full: 999px;
-            --shadow-soft: 0 22px 45px rgba(0,0,0,0.5);
+            --danger: #f97373;
+            --success: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
                 sans-serif;
-            background: radial-gradient(circle at top, #141b3a 0, #050814 55%, #020308 100%);
+            background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
         }
 
-        .page-shell {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 24px 16px 32px;
-            flex: 1;
+        .page {
+            width: 100%;
+            max-width: 1200px;
+            padding: 24px 16px 40px;
         }
 
         .top-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 22px;
-            gap: 10px;
+            margin-bottom: 24px;
         }
 
         .brand {
@@ -59,22 +53,26 @@
         }
 
         .brand-logo {
-            width: 34px;
-            height: 34px;
-            border-radius: 12px;
-            background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 38%, #181f3a 100%);
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            background: var(--accent-grad);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #020617;
-            font-weight: 800;
-            font-size: 17px;
+            font-weight: 700;
+            font-size: 18px;
         }
 
-        .brand-text-main {
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .brand-text-title {
+            font-size: 18px;
             font-weight: 600;
-            letter-spacing: .03em;
-            font-size: 16px;
         }
 
         .brand-text-sub {
@@ -84,378 +82,503 @@
 
         .top-actions {
             display: flex;
-            align-items: center;
             gap: 8px;
         }
 
-        .btn-ghost,
-        .btn-primary {
-            border-radius: var(--radius-full);
-            font-size: 13px;
-            padding: 7px 14px;
-            border: 1px solid transparent;
-            background: transparent;
+        .btn-nav {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid #1f2937;
+            background: rgba(15, 23, 42, 0.8);
             color: var(--text-main);
+            font-size: 12px;
             cursor: pointer;
         }
 
-        .btn-ghost {
-            border-color: rgba(148,163,255,0.4);
-            background: rgba(15,23,42,0.9);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #4f8dff, #7c3aed);
+        .btn-nav-primary {
+            background: var(--accent-grad);
             border: none;
-            box-shadow: 0 12px 25px rgba(37,99,235,0.4);
         }
 
-        .btn-ghost:hover {
-            background: rgba(30,64,175,0.7);
-        }
-
-        .btn-primary:hover {
+        .btn-nav:hover {
             filter: brightness(1.05);
         }
 
+        .layout {
+            display: grid;
+            grid-template-columns: 1.5fr 1.2fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 960px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .card {
-            background: linear-gradient(145deg, rgba(15,23,42,0.98), #020617);
-            border-radius: 22px;
-            padding: 20px 18px 18px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: var(--shadow-soft);
+            background: radial-gradient(circle at top left, #111827 0, #020617 50%);
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.8);
+            padding: 18px 18px 16px;
         }
 
         .card-header {
-            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
         }
 
         .card-title {
-            font-size: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(55, 65, 81, 0.8);
+            color: var(--text-muted);
+        }
+
+        .desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .dropzone {
+            border-radius: 18px;
+            border: 1px dashed rgba(148, 163, 184, 0.5);
+            background: radial-gradient(circle, #020617 0, #020617 35%, #050816 100%);
+            padding: 26px 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease,
+                transform 0.1s ease;
+        }
+
+        .dropzone.dragover {
+            border-color: #6366f1;
+            background: radial-gradient(circle, #020617 0, #111827 40%, #050816 100%);
+            transform: translateY(-1px);
+        }
+
+        .dropzone-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .dropzone-title {
+            font-size: 15px;
             font-weight: 600;
             margin-bottom: 4px;
         }
 
-        .card-subtitle {
+        .dropzone-sub {
             font-size: 12px;
             color: var(--text-muted);
+            margin-bottom: 12px;
         }
 
-        .badge {
+        .dropzone-btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 3px 9px;
-            border-radius: 999px;
-            border: 1px solid rgba(74,222,128,0.5);
-            background: rgba(22,163,74,0.14);
-            color: #bbf7d0;
-            font-size: 11px;
-            margin-bottom: 6px;
-        }
-
-        .badge span.dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 999px;
-            background: #22c55e;
-        }
-
-        .dropzone {
-            margin-top: 10px;
-            border-radius: 16px;
-            border: 1px dashed rgba(148,163,255,0.65);
-            background: radial-gradient(circle at top, rgba(79,141,255,0.25) 0, rgba(15,23,42,0.9) 55%);
-            padding: 26px 18px;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.15s ease, background 0.15s ease;
-        }
-
-        .dropzone.dragover {
-            border-color: #67e8f9;
-            background: radial-gradient(circle at top, rgba(103,232,249,0.3) 0, rgba(15,23,42,1) 55%);
-        }
-
-        .dropzone h3 {
-            font-size: 15px;
-            margin-bottom: 6px;
-        }
-
-        .dropzone p {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .dropzone button {
-            margin-top: 10px;
+            gap: 6px;
+            padding: 8px 20px;
             border-radius: 999px;
             border: none;
-            padding: 7px 14px;
+            background: var(--accent-grad);
+            color: white;
             font-size: 13px;
-            background: rgba(15,23,42,0.9);
-            color: var(--accent-strong);
-            border: 1px solid rgba(129,140,248,0.7);
             cursor: pointer;
+        }
+
+        .helper {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
         }
 
         .file-list {
             margin-top: 14px;
-            border-radius: 14px;
-            background: rgba(15,23,42,0.95);
-            border: 1px solid rgba(31,41,55,0.9);
+            border-radius: 12px;
+            border: 1px solid rgba(55, 65, 81, 0.8);
+            background: radial-gradient(circle at top, #020617 0, #020617 60%, #000 100%);
             max-height: 180px;
             overflow-y: auto;
-            padding: 10px 10px 8px;
-            font-size: 12px;
-        }
-
-        .file-list-empty {
-            font-size: 11px;
-            color: var(--text-muted);
+            padding: 8px 0;
         }
 
         .file-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(31,41,55,0.7);
+            padding: 6px 12px;
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
-        .file-row:last-child {
-            border-bottom: none;
+        .file-row:nth-child(odd) {
+            background: rgba(15, 23, 42, 0.6);
         }
 
-        .file-row span.name {
+        .file-name {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 220px;
         }
 
-        .file-row span.size {
-            margin-left: 8px;
-            color: var(--text-muted);
+        .file-size {
             font-size: 11px;
         }
 
-        .actions-row {
-            margin-top: 16px;
+        .file-index {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-right: 6px;
+        }
+
+        .file-actions {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
         }
 
-        .hint {
-            font-size: 11px;
-            color: var(--text-muted);
+        .chip {
+            font-size: 10px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: rgba(31, 41, 55, 0.8);
+            border: 1px solid rgba(55, 65, 81, 0.9);
         }
 
-        .hint strong {
-            color: var(--accent-strong);
-        }
-
-        .submit-btn {
-            border-radius: var(--radius-full);
-            padding: 8px 18px;
-            font-size: 13px;
+        .btn-remove {
             border: none;
-            background: linear-gradient(135deg, #4f8dff, #7c3aed);
-            color: #f9fafb;
+            background: transparent;
+            color: #f97373;
+            font-size: 13px;
             cursor: pointer;
-            box-shadow: 0 10px 24px rgba(37,99,235,0.5);
         }
 
-        .submit-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        footer {
-            font-size: 11px;
-            color: var(--text-muted);
-            padding: 10px 16px 18px;
-            border-top: 1px solid rgba(15,23,42,0.9);
-            background: radial-gradient(circle at top, rgba(15,23,42,0.9) 0, #020617 60%);
-        }
-
-        .footer-inner {
-            max-width: 900px;
-            margin: 0 auto;
+        .actions {
+            margin-top: 14px;
             display: flex;
             justify-content: space-between;
-            gap: 10px;
             align-items: center;
+            gap: 16px;
         }
 
-        @media (max-width: 640px) {
-            .top-bar {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .actions-row {
-                flex-direction: column-reverse;
-                align-items: flex-start;
-            }
+        .merge-info {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn-merge {
+            padding: 9px 20px;
+            border-radius: 999px;
+            border: none;
+            background: var(--accent-grad);
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-merge:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-wrapper {
+            margin-top: 12px;
+        }
+
+        .progress-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(31, 41, 55, 0.9);
+            overflow: hidden;
+        }
+
+        .progress-inner {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: var(--accent-grad);
+            transition: width 0.15s linear;
+        }
+
+        .status {
+            margin-top: 6px;
+            font-size: 11px;
+        }
+
+        .status-error {
+            color: var(--danger);
+        }
+
+        .status-success {
+            color: var(--success);
+        }
+
+        .status-muted {
+            color: var(--text-muted);
+        }
+
+        .side-card {
+            background: radial-gradient(circle at top, #020617 0, #020617 60%, #000 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(55, 65, 81, 0.9);
+            padding: 16px 16px 14px;
+        }
+
+        .side-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .side-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .side-list {
+            display: grid;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .side-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .side-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(55, 65, 81, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+
+        .footer {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
         }
     </style>
 </head>
 <body>
-<div class="page-shell">
+<div class="page">
     <header class="top-bar">
         <div class="brand">
             <div class="brand-logo">B</div>
-            <div>
-                <div class="brand-text-main">Botlab Tools</div>
+            <div class="brand-text">
+                <div class="brand-text-title">Botlab Tools</div>
                 <div class="brand-text-sub">PDF Birleştir · Çoklu dosya</div>
             </div>
         </div>
-
         <div class="top-actions">
-            <button class="btn-ghost" onclick="window.location.href='/'">← Ana sayfa</button>
-            <button class="btn-primary" onclick="window.location.href='/vektor'">Vektörleştirici</button>
+            <button class="btn-nav" onclick="window.location.href='/'">← Ana sayfa</button>
+            <button class="btn-nav btn-nav-primary" onclick="window.location.href='/vector'">
+                Vektörleştirici
+            </button>
         </div>
     </header>
 
-    <main class="card">
-        <div class="card-header">
-            <div class="badge">
-                <span class="dot"></span>
-                En çok kullanılan PDF aracı
+    <main class="layout">
+        <!-- Sol: PDF seç & birleştir -->
+        <section class="card">
+            <div class="card-header">
+                <div class="card-title">PDF Birleştir</div>
+                <span class="badge">En çok kullanılan PDF aracı</span>
             </div>
-            <h1 class="card-title">PDF Birleştir</h1>
-            <p class="card-subtitle">
-                Birden fazla PDF dosyasını sürükleyip bırakın, sıralamayı kontrol edin ve tek tıkla tek dosyada birleştirin.
-                Dosyalar geçici olarak işlenir, sunucuda kalıcı olarak saklanmaz.
+            <p class="desc">
+                Birden fazla PDF dosyasını tek dosyada birleştir. Sıralamayı kontrol et,
+                tek tıkla indir. Dosyalar sadece işlem için kullanılır, kalıcı olarak saklanmaz.
             </p>
-        </div>
 
-       <!-- PDF Birleştir Aracı -->
-<div class="tool-card" id="pdf-merge-tool">
-    <h2>PDF Birleştir</h2>
-    <p style="font-size: 0.9rem; color: #cbd5f5;">
-        Birden fazla PDF dosyasını seçin, tek bir PDF haline getirelim.
-    </p>
-
-    <label class="file-label" style="display:block; margin-top:12px;">
-        PDF Dosyaları Seç (birden fazla)
-        <input type="file"
-               id="pdf-files"
-               accept="application/pdf"
-               multiple
-               style="margin-top:6px;">
-    </label>
-
-    <button id="pdf-merge-btn"
-            class="primary-btn"
-            style="margin-top:16px;">
-        PDF'leri Birleştir
-    </button>
-
-    <!-- Durum metni -->
-    <div id="pdf-merge-status"
-         style="margin-top:10px; font-size:0.9rem; color:#ccc;">
-        Henüz işlem yapılmadı.
-    </div>
-
-    <!-- Progress bar -->
-    <div id="pdf-merge-progress-wrapper"
-         style="margin-top:8px; display:none;">
-        <div style="background:#2d3748; border-radius:999px; overflow:hidden; height:8px;">
-            <div id="pdf-merge-progress-bar"
-                 style="width:0%; height:100%; background:#48bb78; transition:width 0.2s;"></div>
-        </div>
-    </div>
-</div>
-
-            <input id="fileInput" type="file" name="files" accept="application/pdf" multiple style="display: none;" />
-
+            <!-- DRAG & DROP AREA -->
             <div id="dropzone" class="dropzone">
-                <h3>PDF dosyalarınızı buraya sürükleyip bırakın</h3>
-                <p>veya aşağıdaki butona tıklayarak bilgisayarınızdan seçin.</p>
-                <button type="button" type="button">PDF Seç</button>
-            </div>
-
-            <div id="fileList" class="file-list">
-                <div class="file-list-empty">
-                    Henüz dosya seçmediniz. En az 2 PDF eklemeniz gerekiyor.
+                <div class="dropzone-icon">📄</div>
+                <div class="dropzone-title">PDF dosyalarınızı buraya sürükleyip bırakın</div>
+                <div class="dropzone-sub">
+                    veya aşağıdaki butonu kullanarak bilgisayarınızdan seçin
+                </div>
+                <button type="button" id="btnSelect" class="dropzone-btn">
+                    <span>PDF Seç</span>
+                </button>
+                <input type="file" id="pdfInput" accept="application/pdf"
+                       multiple style="display:none" />
+                <div class="helper">
+                    İpucu: İlk sıradaki dosya, birleşik PDF'in başında yer alır. Sıralamayı
+                    değiştirmek istiyorsanız dosya isimlerini masaüstünüzde
+                    1-,2-,3- şeklinde adlandırabilirsiniz.
                 </div>
             </div>
 
-            <div class="actions-row">
-                <p class="hint">
-                    İpucu: <strong>İlk sıradaki dosya</strong> birleştirilen PDF'in başında yer alır.
-                    Gerekirse dosyalarınızı önce masaüstünüzde yeniden adlandırın (1-,2-,3- gibi).
-                </p>
+            <!-- SEÇİLEN DOSYALAR -->
+            <div id="fileList" class="file-list" style="display:none"></div>
 
-                <button id="submitBtn" class="submit-btn" type="submit" disabled>
-                    PDF'leri Birleştir ve İndir
+            <!-- ALT AKSİYONLAR -->
+            <div class="actions">
+                <div class="merge-info" id="mergeInfo">
+                    Henüz dosya seçilmedi. En az 2 PDF eklemeniz gerekiyor.
+                </div>
+                <button type="button" id="btnMerge" class="btn-merge" disabled>
+                    <span>PDF'leri Birleştir ve İndir</span>
                 </button>
             </div>
-        </form>
+
+            <!-- PROGRESS / DURUM -->
+            <div class="progress-wrapper">
+                <div class="progress-label">İşlem durumu</div>
+                <div class="progress-bar">
+                    <div id="progressInner" class="progress-inner"></div>
+                </div>
+                <div id="statusText" class="status status-muted">
+                    Hazır. PDF dosyalarınızı bekliyorum.
+                </div>
+            </div>
+        </section>
+
+        <!-- Sağ: Bilgi / İpuçları -->
+        <aside class="side-card">
+            <div class="side-title">Neden bu aracı kullanmalısınız?</div>
+            <div class="side-sub">
+                Faturalar, sözleşmeler, teklifler ve ders notları için ideal.
+                PDF'lerinizi tek bir dosyada toplayın ve paylaşmayı kolaylaştırın.
+            </div>
+            <div class="side-list">
+                <div class="side-item">
+                    <div class="side-dot">1</div>
+                    <div>Dosyalarınız sadece geçici olarak işlenir, kalıcı olarak
+                        saklanmaz.</div>
+                </div>
+                <div class="side-item">
+                    <div class="side-dot">2</div>
+                    <div>Birleştirme işlemi tarayıcı & sunucu arasında şifreli (HTTPS)
+                        olarak yapılır.</div>
+                </div>
+                <div class="side-item">
+                    <div class="side-dot">3</div>
+                    <div>Kaliteli çıktı için orijinal PDF’leriniz bozulmadan
+                        birleştirilir.</div>
+                </div>
+            </div>
+        </aside>
     </main>
+
+    <footer class="footer">
+        Botlab Teknoloji — Yapay Zeka Destekli Dosya Araçları
+    </footer>
 </div>
 
-<footer>
-    <div class="footer-inner">
-        <span>Botlab Teknoloji — PDF ve Görsel Araçları</span>
-        <span>İşlem kredisi: Vektörleştirici ile aynı sayaç kullanılır.</span>
-    </div>
-</footer>
-
-
-
 <script>
-    const fileInput = document.getElementById("fileInput");
     const dropzone = document.getElementById("dropzone");
-    const fileList = document.getElementById("fileList");
-    const submitBtn = document.getElementById("submitBtn");
+    const pdfInput = document.getElementById("pdfInput");
+    const btnSelect = document.getElementById("btnSelect");
+    const btnMerge = document.getElementById("btnMerge");
+    const fileListEl = document.getElementById("fileList");
+    const mergeInfoEl = document.getElementById("mergeInfo");
+    const progressInner = document.getElementById("progressInner");
+    const statusText = document.getElementById("statusText");
 
-    function formatSize(bytes) {
-        if (bytes < 1024) return bytes + " B";
-        const kb = bytes / 1024;
-        if (kb < 1024) return kb.toFixed(1) + " KB";
-        const mb = kb / 1024;
-        return mb.toFixed(1) + " MB";
+    let selectedFiles = [];
+
+    function bytesToSize(bytes) {
+        if (bytes === 0) return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
     }
 
-    function updateFileList() {
-        const files = fileInput.files;
-        fileList.innerHTML = "";
-
-        if (!files || files.length === 0) {
-            fileList.innerHTML = '<div class="file-list-empty">Henüz dosya seçmediniz. En az 2 PDF eklemeniz gerekiyor.</div>';
-            submitBtn.disabled = true;
+    function renderFileList() {
+        if (selectedFiles.length === 0) {
+            fileListEl.style.display = "none";
+            mergeInfoEl.textContent =
+                "Henüz dosya seçilmedi. En az 2 PDF eklemeniz gerekiyor.";
+            btnMerge.disabled = true;
             return;
         }
 
-        const ul = document.createElement("div");
+        fileListEl.style.display = "block";
+        fileListEl.innerHTML = "";
 
-        Array.from(files).forEach((file) => {
+        selectedFiles.forEach((file, index) => {
             const row = document.createElement("div");
             row.className = "file-row";
 
-            const left = document.createElement("span");
-            left.className = "name";
-            left.textContent = file.name;
-
-            const size = document.createElement("span");
-            size.className = "size";
-            size.textContent = formatSize(file.size);
-
-            row.appendChild(left);
-            row.appendChild(size);
-            ul.appendChild(row);
+            row.innerHTML = `
+                <div class="file-name">
+                    <span class="file-index">${index + 1}.</span>${file.name}
+                </div>
+                <div class="file-actions">
+                    <span class="file-size">${bytesToSize(file.size)}</span>
+                    <button class="btn-remove" data-index="${index}" title="Kaldır">✕</button>
+                </div>
+            `;
+            fileListEl.appendChild(row);
         });
 
-        fileList.appendChild(ul);
-        submitBtn.disabled = files.length < 2;
+        mergeInfoEl.textContent = `${selectedFiles.length} dosya seçildi. İlk sıradaki dosya birleşik PDF'in başına gelir.`;
+        btnMerge.disabled = selectedFiles.length < 2;
+
+        // Kaldır butonu event'leri
+        fileListEl.querySelectorAll(".btn-remove").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const idx = parseInt(e.target.dataset.index, 10);
+                selectedFiles.splice(idx, 1);
+                renderFileList();
+            });
+        });
     }
 
-    dropzone.addEventListener("click", () => fileInput.click());
+    function setProgress(percent, text, type = "info") {
+        progressInner.style.width = percent + "%";
+        statusText.textContent = text;
+        statusText.className = "status";
 
+        if (type === "error") {
+            statusText.classList.add("status-error");
+        } else if (type === "success") {
+            statusText.classList.add("status-success");
+        } else {
+            statusText.classList.add("status-muted");
+        }
+    }
+
+    function handleFiles(files) {
+        const pdfs = Array.from(files).filter((f) => f.type === "application/pdf");
+        if (pdfs.length === 0) return;
+        selectedFiles = selectedFiles.concat(pdfs);
+        renderFileList();
+    }
+
+    // Drag & drop olayları
     dropzone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropzone.classList.add("dragover");
@@ -469,126 +592,63 @@
     dropzone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropzone.classList.remove("dragover");
-
-        const files = Array.from(e.dataTransfer.files || []);
-        const pdfFiles = files.filter(f =>
-            f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-        );
-
-        if (pdfFiles.length === 0) return;
-
-        // DataTransfer ile input'a set et
-        const dt = new DataTransfer();
-        pdfFiles.forEach(f => dt.items.add(f));
-        fileInput.files = dt.files;
-
-        updateFileList();
+        handleFiles(e.dataTransfer.files);
     });
 
-    fileInput.addEventListener("change", updateFileList);
+    // Butonla dosya seç
+    btnSelect.addEventListener("click", () => pdfInput.click());
+    pdfInput.addEventListener("change", (e) => handleFiles(e.target.files));
 
-   
-
-</script>
-         <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const fileInput   = document.getElementById("pdf-files");
-    const mergeBtn    = document.getElementById("pdf-merge-btn");
-    const statusEl    = document.getElementById("pdf-merge-status");
-    const progressWrap= document.getElementById("pdf-merge-progress-wrapper");
-    const progressBar = document.getElementById("pdf-merge-progress-bar");
-
-    if (!mergeBtn) return; // bu sayfada değilsek sessizce çık
-
-    function setStatus(text, color) {
-        statusEl.textContent = text;
-        statusEl.style.color = color || "#ccc";
-    }
-
-    function setProgress(percent) {
-        progressBar.style.width = percent + "%";
-    }
-
-    mergeBtn.addEventListener("click", function () {
-        const files = fileInput.files;
-        if (!files || files.length < 2) {
-            setStatus("Lütfen en az 2 PDF seçin.", "#f87171");
-            return;
-        }
+    // Birleştir & indir
+    btnMerge.addEventListener("click", async () => {
+        if (selectedFiles.length < 2) return;
 
         const formData = new FormData();
-        for (let i = 0; i < files.length; i++) {
-            formData.append("files", files[i]);
+        selectedFiles.forEach((file) => formData.append("files", file));
+
+        btnMerge.disabled = true;
+        setProgress(5, "Dosyalar gönderiliyor...");
+
+        try {
+            const response = await fetch("/api/pdf/merge", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                setProgress(0, "Sunucu hatası: " + response.status, "error");
+                btnMerge.disabled = false;
+                return;
+            }
+
+            setProgress(40, "PDF'ler birleştiriliyor...");
+
+            const data = await response.json();
+
+            if (!data.success) {
+                setProgress(0, data.message || "Birleştirme başarısız oldu.", "error");
+                btnMerge.disabled = false;
+                return;
+            }
+
+            setProgress(80, "Dosya hazırlanıyor...");
+
+            // Base64'ten indirilebilir link oluştur
+            const link = document.createElement("a");
+            link.href = "data:application/pdf;base64," + data.file;
+            link.download = data.filename || "birlesik.pdf";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setProgress(100, "Birleştirme tamamlandı 🎉 Dosya başarıyla indirildi.", "success");
+        } catch (err) {
+            console.error(err);
+            setProgress(0, "Birleştirme sırasında beklenmeyen bir hata oluştu.", "error");
+        } finally {
+            btnMerge.disabled = selectedFiles.length < 2;
         }
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/pdf/merge", true);
-        xhr.responseType = "blob";  // PDF blob gelecek
-
-        progressWrap.style.display = "block";
-        setProgress(0);
-        setStatus("Dosyalar yükleniyor...", "#cbd5f5");
-        mergeBtn.disabled = true;
-
-        // --- Gerçek upload progress (%0 - %80 arası) ---
-        xhr.upload.onprogress = function (e) {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 80); // 0–80
-                setProgress(percent);
-            }
-        };
-
-        // --- İstek tamamlandığında ---
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== 4) return;
-
-            mergeBtn.disabled = false;
-
-            if (xhr.status === 200) {
-                // Upload %80'e kadar geldi, sunucu işleyip bitirdiğinde 100'e çek
-                setProgress(100);
-                setStatus("Birleştirme tamamlandı. Dosya indiriliyor ✅", "#34d399");
-
-                // Gelen blob'u indir
-                const blob = xhr.response;
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "birlesik.pdf";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-            } else {
-                setProgress(0);
-
-                // Sunucu JSON hata döndürüyorsa okuyalım
-                try {
-                    const reader = new FileReader();
-                    reader.onload = function () {
-                        try {
-                            const json = JSON.parse(reader.result);
-                            setStatus(json.message || "Birleştirme sırasında hata oluştu.", "#f87171");
-                        } catch (e) {
-                            setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", "#f87171");
-                        }
-                    };
-                    reader.readAsText(xhr.response);
-                } catch (e) {
-                    setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", "#f87171");
-                }
-            }
-        };
-
-        xhr.onerror = function () {
-            mergeBtn.disabled = false;
-            setProgress(0);
-            setStatus("Sunucuya bağlanırken hata oluştu.", "#f87171");
-        };
-
-        xhr.send(formData);
     });
-});
 </script>
 </body>
 </html>
