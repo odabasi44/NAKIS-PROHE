@@ -22,4 +22,4 @@ COPY . .
 EXPOSE 5000
 
 # Uygulamayı başlat
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "main:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:5001", "main:app"]
