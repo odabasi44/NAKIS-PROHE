@@ -447,6 +447,108 @@
     });
 
     fileInput.addEventListener("change", updateFileList);
+
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const fileInput   = document.getElementById("pdf-files");
+    const mergeBtn    = document.getElementById("pdf-merge-btn");
+    const statusEl    = document.getElementById("pdf-merge-status");
+    const progressWrap= document.getElementById("pdf-merge-progress-wrapper");
+    const progressBar = document.getElementById("pdf-merge-progress-bar");
+
+    if (!mergeBtn) return; // bu sayfada değilsek sessizce çık
+
+    function setStatus(text, color) {
+        statusEl.textContent = text;
+        statusEl.style.color = color || "#ccc";
+    }
+
+    function setProgress(percent) {
+        progressBar.style.width = percent + "%";
+    }
+
+    mergeBtn.addEventListener("click", function () {
+        const files = fileInput.files;
+        if (!files || files.length < 2) {
+            setStatus("Lütfen en az 2 PDF seçin.", "#f87171");
+            return;
+        }
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]);
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/pdf/merge", true);
+        xhr.responseType = "blob";  // PDF blob gelecek
+
+        progressWrap.style.display = "block";
+        setProgress(0);
+        setStatus("Dosyalar yükleniyor...", "#cbd5f5");
+        mergeBtn.disabled = true;
+
+        // --- Gerçek upload progress (%0 - %80 arası) ---
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 80); // 0–80
+                setProgress(percent);
+            }
+        };
+
+        // --- İstek tamamlandığında ---
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+
+            mergeBtn.disabled = false;
+
+            if (xhr.status === 200) {
+                // Upload %80'e kadar geldi, sunucu işleyip bitirdiğinde 100'e çek
+                setProgress(100);
+                setStatus("Birleştirme tamamlandı. Dosya indiriliyor ✅", "#34d399");
+
+                // Gelen blob'u indir
+                const blob = xhr.response;
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "birlesik.pdf";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } else {
+                setProgress(0);
+
+                // Sunucu JSON hata döndürüyorsa okuyalım
+                try {
+                    const reader = new FileReader();
+                    reader.onload = function () {
+                        try {
+                            const json = JSON.parse(reader.result);
+                            setStatus(json.message || "Birleştirme sırasında hata oluştu.", "#f87171");
+                        } catch (e) {
+                            setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", "#f87171");
+                        }
+                    };
+                    reader.readAsText(xhr.response);
+                } catch (e) {
+                    setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", "#f87171");
+                }
+            }
+        };
+
+        xhr.onerror = function () {
+            mergeBtn.disabled = false;
+            setProgress(0);
+            setStatus("Sunucuya bağlanırken hata oluştu.", "#f87171");
+        };
+
+        xhr.send(formData);
+    });
+});
+</script>
+
 </script>
 </body>
 </html>
