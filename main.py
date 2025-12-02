@@ -1,3 +1,4 @@
+from flask_cors import CORS 
 import os
 import cv2
 import numpy as np
@@ -9,6 +10,8 @@ from PyPDF2 import PdfMerger
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
+CORS(app)  # <-- BU SATIRI EKLE (3. madde)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # <-- BU SATIRI EKLE (4. madde, 50MB limit)
 
 # ============================================================
 # YARDIMCI FONKSİYONLAR
@@ -145,60 +148,88 @@ def index():
 # ============================================================
 
 
-@app.route("/pdf/merge")
-def pdf_merge_page():
-    return render_template("pdf_merge.html")
-
-
-
-@app.route("/api/pdf/merge", methods=["POST"])
+@app.route("/api/pdf/merge", methods=["POST", "OPTIONS"])
 def api_pdf_merge():
-    """
-    Birden fazla PDF dosyasını tek PDF'te birleştirir.
-    Çıktıyı base64 olarak JSON içinde döner.
-    """
+    if request.method == "OPTIONS":
+        # CORS preflight için
+        response = jsonify({"status": "ok"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        return response
+    
     try:
-        files = request.files.getlist("pdf_files")
-        pdf_files = [f for f in files if f and f.filename.lower().endswith(".pdf")]
-
-        if len(pdf_files) < 2:
-            return (
-                jsonify({
-                    "success": False,
-                    "message": "En az iki PDF dosyası seçmelisiniz.",
-                }),
-                400,
-            )
-
-        r = Pdfr()
-
-        for f in pdf_files:
-            r.append(io.BytesIO(f.read()))
-
-        out_buffer = io.BytesIO()
-        r.write(out_buffer)
-        r.close()
-        out_buffer.seek(0)
-
-        pdf_bytes = out_buffer.read()
-        encoded = base64.b64encode(pdf_bytes).decode("utf-8")
-
-        return jsonify({
-            "success": True,
-            "file": encoded,          # base64 içerik
-            "filename": "birlesik.pdf",
-        })
-
-    except Exception as e:
-        print("api_pdf_ error:", e)
-        return (
-            jsonify({
+        # Debug için header bilgileri
+        print("PDF Merge: Content-Type:", request.content_type)
+        print("PDF Merge: Headers:", dict(request.headers))
+        
+        if 'pdf_files' not in request.files:
+            print("PDF Merge: 'pdf_files' form alanı bulunamadı")
+            return jsonify({
                 "success": False,
-                "message": "Birleştirme sırasında sunucu hatası oluştu.",
-            }),
-            500,
-        )
-
+                "message": "Lütfen PDF dosyaları seçin.",
+            }), 400
+        
+        files = request.files.getlist("pdf_files")
+        print(f"PDF Merge: Toplam dosya: {len(files)}")
+        
+        if len(files) == 0:
+            return jsonify({
+                "success": False,
+                "message": "Dosya seçilmedi.",
+            }), 400
+        
+        pdf_files = []
+        for f in files:
+            if f and f.filename:
+                filename_lower = f.filename.lower()
+                if filename_lower.endswith('.pdf'):
+                    pdf_files.append(f)
+                    print(f"PDF Merge: Geçerli PDF: {f.filename}")
+                else:
+                    print(f"PDF Merge: Geçersiz dosya formatı: {f.filename}")
+        
+        if len(pdf_files) < 2:
+            return jsonify({
+                "success": False,
+                "message": f"En az 2 PDF dosyası gerekiyor (seçilen: {len(pdf_files)}).",
+            }), 400
+        
+        merger = PdfMerger()
+        
+        for pdf in pdf_files:
+            pdf.seek(0)  # Reset file pointer
+            merger.append(io.BytesIO(pdf.read()))
+        
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        output.seek(0)
+        
+        pdf_data = output.read()
+        pdf_base64 = base64.b64encode(pdf_data).decode('utf-8')
+        
+        response = jsonify({
+            "success": True,
+            "file": pdf_base64,
+            "filename": "birlesik.pdf",
+            "message": f"{len(pdf_files)} PDF dosyası başarıyla birleştirildi."
+        })
+        
+        # CORS headers
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        
+        return response
+        
+    except Exception as e:
+        print("PDF Merge Error:", str(e))
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "success": False,
+            "message": f"Birleştirme hatası: {str(e)}"
+        }), 500
 
 
 # ============================================================
@@ -259,6 +290,7 @@ def vectorize_with_style():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
