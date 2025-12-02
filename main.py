@@ -140,6 +140,10 @@ def index():
 # PDF BİRLEŞTİRME ARAÇLARI
 # ============================================================
 
+@# ============================================================
+# PDF ARAÇLARI API
+# ============================================================
+
 @app.route("/api/pdf/merge", methods=["POST"])
 def api_pdf_merge():
     """
@@ -152,18 +156,15 @@ def api_pdf_merge():
 
         if len(pdf_files) < 2:
             return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "En az iki PDF dosyası seçmelisiniz.",
-                    }
-                ),
+                jsonify({
+                    "success": False,
+                    "message": "En az iki PDF dosyası seçmelisiniz.",
+                }),
                 400,
             )
 
         merger = PdfMerger()
 
-        # her dosyayı memory'den oku
         for f in pdf_files:
             merger.append(io.BytesIO(f.read()))
 
@@ -175,25 +176,22 @@ def api_pdf_merge():
         pdf_bytes = out_buffer.read()
         encoded = base64.b64encode(pdf_bytes).decode("utf-8")
 
-        return jsonify(
-            {
-                "success": True,
-                "file": encoded,          # base64 içerik
-                "filename": "birlesik.pdf",
-            }
-        )
+        return jsonify({
+            "success": True,
+            "file": encoded,          # base64 içerik
+            "filename": "birlesik.pdf",
+        })
 
     except Exception as e:
         print("api_pdf_merge error:", e)
         return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "Birleştirme sırasında sunucu hatası oluştu.",
-                }
-            ),
+            jsonify({
+                "success": False,
+                "message": "Birleştirme sırasında sunucu hatası oluştu.",
+            }),
             500,
         )
+
 
 
 # ============================================================
@@ -254,4 +252,5 @@ def vectorize_with_style():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
