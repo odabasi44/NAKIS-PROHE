@@ -332,7 +332,44 @@
             </p>
         </div>
 
-        <form id="mergeForm" action="/api/pdf_merge" method="POST" enctype="multipart/form-data" target="_blank">
+       <!-- PDF Birleştir Aracı -->
+<div class="tool-card" id="pdf-merge-tool">
+    <h2>PDF Birleştir</h2>
+    <p style="font-size: 0.9rem; color: #cbd5f5;">
+        Birden fazla PDF dosyasını seçin, tek bir PDF haline getirelim.
+    </p>
+
+    <label class="file-label" style="display:block; margin-top:12px;">
+        PDF Dosyaları Seç (birden fazla)
+        <input type="file"
+               id="pdf-files"
+               accept="application/pdf"
+               multiple
+               style="margin-top:6px;">
+    </label>
+
+    <button id="pdf-merge-btn"
+            class="primary-btn"
+            style="margin-top:16px;">
+        PDF'leri Birleştir
+    </button>
+
+    <!-- Durum metni -->
+    <div id="pdf-merge-status"
+         style="margin-top:10px; font-size:0.9rem; color:#ccc;">
+        Henüz işlem yapılmadı.
+    </div>
+
+    <!-- Progress bar -->
+    <div id="pdf-merge-progress-wrapper"
+         style="margin-top:8px; display:none;">
+        <div style="background:#2d3748; border-radius:999px; overflow:hidden; height:8px;">
+            <div id="pdf-merge-progress-bar"
+                 style="width:0%; height:100%; background:#48bb78; transition:width 0.2s;"></div>
+        </div>
+    </div>
+</div>
+
             <input id="fileInput" type="file" name="files" accept="application/pdf" multiple style="display: none;" />
 
             <div id="dropzone" class="dropzone">
