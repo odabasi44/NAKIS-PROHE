@@ -56,6 +56,13 @@ def api_pdf_merge():
     try:
         print("PDF Merge endpoint çağrıldı")
         
+        # Kullanıcı kontrolü (basit implementasyon)
+        # Gerçek implementasyonda session/cookie/database kontrolü
+        user_email = request.cookies.get('user_email') or 'guest'
+        is_premium = check_if_premium(user_email)
+        
+        print(f"Kullanıcı: {user_email}, Premium: {is_premium}")
+        
         if 'pdf_files' not in request.files:
             return jsonify({
                 "success": False,
@@ -65,11 +72,69 @@ def api_pdf_merge():
         files = request.files.getlist("pdf_files")
         print(f"Toplam dosya: {len(files)}")
         
+        # LIMIT KONTROLLERİ
+        if not is_premium:
+            # ÜCRETSİZ KULLANICI LİMİTLERİ
+            MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB
+            MAX_FILES = 10
+            MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB per file
+            
+            # TODO: Günlük 2 kullanım limiti için database gerekli
+            # daily_usage = get_daily_usage(user_email)
+            # if daily_usage >= 2:
+            #     return jsonify({
+            #         "success": False,
+            #         "message": "Günlük ücretsiz limitiniz doldu (2/2). Premium'a yükseltin.",
+            #         "upgrade_url": "/premium"
+            #     }), 403
+        else:
+            # PREMIUM KULLANICI LİMİTLERİ
+            MAX_TOTAL_SIZE = 150 * 1024 * 1024  # 150MB
+            MAX_FILES = 25
+            MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB per file
+        
+        # Dosya sayısı kontrolü
+        if len(files) > MAX_FILES:
+            return jsonify({
+                "success": False,
+                "message": f"Çok fazla dosya seçtiniz. {'Premium' if not is_premium else ''} maksimum {MAX_FILES} dosya destekleniyor.",
+                "upgrade_url": "/premium" if not is_premium else None
+            }), 400
+        
         pdf_files = []
+        total_size = 0
+        
         for f in files:
-            if f and f.filename and f.filename.lower().endswith('.pdf'):
+            if f and f.filename:
+                # Dosya uzantısı kontrolü
+                if not f.filename.lower().endswith('.pdf'):
+                    continue
+                
+                # Tek dosya boyutu kontrolü
+                f.seek(0, 2)  # Sona git
+                file_size = f.tell()
+                f.seek(0)  # Başa dön
+                
+                if file_size > MAX_FILE_SIZE:
+                    size_mb = MAX_FILE_SIZE / (1024 * 1024)
+                    return jsonify({
+                        "success": False,
+                        "message": f"{f.filename} çok büyük. Tek dosya limiti: {size_mb}MB",
+                        "upgrade_url": "/premium" if not is_premium else None
+                    }), 413
+                
+                # Toplam boyut kontrolü
+                total_size += file_size
+                if total_size > MAX_TOTAL_SIZE:
+                    total_mb = MAX_TOTAL_SIZE / (1024 * 1024)
+                    return jsonify({
+                        "success": False,
+                        "message": f"Toplam boyut limiti aşıldı. {'Premium' if not is_premium else ''} maksimum: {total_mb}MB",
+                        "upgrade_url": "/premium" if not is_premium else None
+                    }), 413
+                
                 pdf_files.append(f)
-                print(f"Geçerli PDF: {f.filename}")
+                print(f"Geçerli PDF: {f.filename} ({file_size/1024:.1f} KB)")
         
         if len(pdf_files) < 2:
             return jsonify({
@@ -77,6 +142,9 @@ def api_pdf_merge():
                 "message": f"En az 2 PDF dosyası gerekiyor (seçilen: {len(pdf_files)}).",
             }), 400
         
+        print(f"İşlenecek PDF'ler: {len(pdf_files)} dosya, Toplam: {total_size/1024/1024:.2f} MB")
+        
+        # BİRLEŞTİRME İŞLEMİ
         merger = PdfMerger()
         
         for pdf in pdf_files:
@@ -95,7 +163,12 @@ def api_pdf_merge():
             "success": True,
             "file": pdf_base64,
             "filename": "birlesik.pdf",
-            "message": f"{len(pdf_files)} PDF dosyası başarıyla birleştirildi."
+            "message": f"{len(pdf_files)} PDF dosyası başarıyla birleştirildi.",
+            "limits": {
+                "is_premium": is_premium,
+                "max_size_mb": MAX_TOTAL_SIZE / (1024 * 1024),
+                "max_files": MAX_FILES
+            }
         })
         
         response.headers.add("Access-Control-Allow-Origin", "*")
@@ -176,3 +249,4 @@ if __name__ == '__main__':
     
     print(f"Server starting on http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=True)
+
