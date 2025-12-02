@@ -497,99 +497,127 @@
 </div>
 
 <script>
-  const dropZone = document.getElementById("dropZone");
+  // Elementleri doğru ID'lerle seç
+  const dropZone = document.getElementById("dropzone"); // lowercase
   const pdfInput = document.getElementById("pdfInput");
   const fileList = document.getElementById("fileList");
-  const mergeButton = document.getElementById("mergeButton");
+  const btnMerge = document.getElementById("btnMerge");
   const statusText = document.getElementById("statusText");
-  const statusLabel = document.getElementById("statusLabel");
+  const mergeInfo = document.getElementById("mergeInfo");
+  const progressInner = document.getElementById("progressInner");
 
   let selectedFiles = [];
 
-  function setProgress(percent, text) {
-    const bar = document.getElementById("progressBar");
-    if (!bar) return;
-    bar.style.width = percent + "%";
-    bar.setAttribute("aria-valuenow", percent);
-    bar.textContent = text || percent + "%";
+  // Progress bar güncelle
+  function setProgress(percent, text = "") {
+    if (progressInner) {
+      progressInner.style.width = percent + "%";
+    }
+    if (statusText) {
+      statusText.textContent = text || "İşleniyor...";
+      statusText.className = percent === 100 ? "status status-success" : 
+                            percent === 0 ? "status status-muted" : "status";
+    }
   }
 
-  function resetProgress() {
-    setProgress(0, "Hazır");
-  }
-
+  // Dosya listesini güncelle
   function updateFileList() {
-    fileList.innerHTML = "";
+    if (!fileList) return;
 
     if (!selectedFiles.length) {
-      fileList.innerHTML = `<li class="file-empty">4 dosya seçildi. İlk sıradaki dosya birleşik PDF'in başına gelir.</li>`;
+      fileList.style.display = "none";
+      mergeInfo.textContent = "Henüz dosya seçilmedi. En az 2 PDF eklemeniz gerekiyor.";
+      btnMerge.disabled = true;
       return;
     }
 
+    fileList.style.display = "block";
+    fileList.innerHTML = "";
+    
     selectedFiles.forEach((file, index) => {
-      const li = document.createElement("li");
-      li.className = "file-item";
-      li.innerHTML = `
-        <span>${index + 1}. ${file.name}</span>
-        <button type="button" class="file-remove" data-index="${index}">
-          <span class="icon">✕</span>
-        </button>
+      const size = (file.size / 1024).toFixed(1);
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.innerHTML = `
+        <div>
+          <span class="file-index">${index + 1}.</span>
+          <span class="file-name" title="${file.name}">${file.name}</span>
+        </div>
+        <div class="file-actions">
+          <span class="chip">${size} KB</span>
+          <button type="button" class="btn-remove" data-index="${index}">×</button>
+        </div>
       `;
-      fileList.appendChild(li);
+      fileList.appendChild(row);
     });
 
-    fileList.querySelectorAll(".file-remove").forEach(btn => {
-      btn.addEventListener("click", () => {
+    // Silme butonlarına event listener ekle
+    fileList.querySelectorAll(".btn-remove").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
         const idx = parseInt(btn.getAttribute("data-index"), 10);
         selectedFiles.splice(idx, 1);
         updateFileList();
       });
     });
+
+    // Bilgi ve butonu güncelle
+    mergeInfo.textContent = `${selectedFiles.length} dosya seçildi.`;
+    btnMerge.disabled = selectedFiles.length < 2;
   }
 
+  // Dosya seçme işlemi
   function handleFiles(files) {
-    const arr = Array.from(files).filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
-    selectedFiles = selectedFiles.concat(arr);
-    updateFileList();
-  }
+    const validFiles = Array.from(files).filter(f => 
+      f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+    );
 
-  dropZone.addEventListener("click", () => pdfInput.click());
-
-  dropZone.addEventListener("dragover", function (e) {
-    e.preventDefault();
-    dropZone.classList.add("drag-over");
-  });
-
-  dropZone.addEventListener("dragleave", function (e) {
-    e.preventDefault();
-    dropZone.classList.remove("drag-over");
-  });
-
-  dropZone.addEventListener("drop", function (e) {
-    e.preventDefault();
-    dropZone.classList.remove("drag-over");
-    handleFiles(e.dataTransfer.files);
-  });
-
-  pdfInput.addEventListener("change", function (e) {
-    handleFiles(e.target.files);
-    pdfInput.value = "";
-  });
-
-  function setStatus(text, isError = false) {
-    statusText.textContent = text;
-    statusText.classList.toggle("status-error", isError);
-  }
-
-  async function handleMerge() {
-    if (selectedFiles.length < 2) {
-      setStatus("En az iki PDF dosyası seçmelisiniz.", true);
+    if (validFiles.length === 0) {
+      alert("Lütfen PDF dosyası seçin!");
       return;
     }
 
-    mergeButton.disabled = true;
-    setStatus("Sunucuya gönderiliyor...");
-    setProgress(10, "Gönderiliyor...");
+    selectedFiles.push(...validFiles);
+    updateFileList();
+  }
+
+  // Event listener'lar
+  if (dropZone) {
+    dropZone.addEventListener("click", () => pdfInput.click());
+    
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      handleFiles(e.dataTransfer.files);
+    });
+  }
+
+  if (pdfInput) {
+    pdfInput.addEventListener("change", (e) => {
+      handleFiles(e.target.files);
+      pdfInput.value = ""; // Reset input
+    });
+  }
+
+  // Birleştirme işlemi
+  async function handleMerge() {
+    if (selectedFiles.length < 2) {
+      alert("En az iki PDF dosyası seçmelisiniz.");
+      return;
+    }
+
+    btnMerge.disabled = true;
+    setProgress(10, "Dosyalar sunucuya gönderiliyor...");
 
     const formData = new FormData();
     selectedFiles.forEach(f => formData.append("pdf_files", f));
@@ -600,32 +628,31 @@
         body: formData
       });
 
-      if (!response.ok) {
-        setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", true);
-        setProgress(0, "Hata");
-        mergeButton.disabled = false;
-        return;
-      }
+      setProgress(50, "Sunucu işlem yapıyor...");
 
-      setProgress(60, "İşleniyor...");
+      if (!response.ok) {
+        throw new Error("Sunucu hatası");
+      }
 
       const data = await response.json();
+      
       if (!data.success) {
-        setStatus(data.message || "Birleştirme başarısız.", true);
-        setProgress(0, "Hata");
-        mergeButton.disabled = false;
+        setProgress(0, "Hata: " + (data.message || "Bilinmeyen hata"));
+        btnMerge.disabled = false;
         return;
       }
 
-      setProgress(90, "İndirme hazırlanıyor...");
+      setProgress(90, "Dosya indirilmeye hazırlanıyor...");
 
-      // --- base64'ten Blob oluştur ve indir ---
+      // Base64'i PDF'ye çevir ve indir
       const pdfBase64 = data.file;
       const byteCharacters = atob(pdfBase64);
       const byteNumbers = new Array(byteCharacters.length);
+      
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
+      
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
@@ -638,21 +665,30 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setProgress(100, "Tamamlandı 🎉");
-      setStatus("Birleştirme tamamlandı, dosya indiriliyor.");
+      setProgress(100, "İndirme tamamlandı! 🎉");
+      
+      // 3 saniye sonra resetle
+      setTimeout(() => {
+        setProgress(0, "Hazır. Yeni dosya seçebilirsiniz.");
+        btnMerge.disabled = false;
+      }, 3000);
 
-    } catch (err) {
-      console.error(err);
-      setStatus("Sunucu hatası: Birleştirme yapılamadı.", true);
-      setProgress(0, "Hata");
-    } finally {
-      mergeButton.disabled = false;
+    } catch (error) {
+      console.error("Merge error:", error);
+      setProgress(0, "Hata: " + error.message);
+      alert("Birleştirme başarısız oldu. Lütfen tekrar deneyin.");
+      btnMerge.disabled = false;
     }
   }
 
-  mergeButton.addEventListener("click", handleMerge);
-  resetProgress();
-</script>
+  // Merge butonuna event listener ekle
+  if (btnMerge) {
+    btnMerge.addEventListener("click", handleMerge);
+  }
 
+  // İlk yükleme
+  updateFileList();
+  setProgress(0, "Hazır. PDF dosyalarınızı bekliyorum.");
+</script>
 </body>
 </html>
