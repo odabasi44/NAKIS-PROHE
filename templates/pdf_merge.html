@@ -387,6 +387,153 @@
             text-align: center;
             font-size: 11px;
             color: var(--text-muted);
+            /* ESKİ CSS'İN EN SONUNA EKLEYİN */
+
+/* Limits Container */
+.limits-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+    .limits-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.limits-card {
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid;
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.free-limits {
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.premium-limits {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: linear-gradient(135deg, rgba(30, 64, 175, 0.1), rgba(15, 23, 42, 0.9));
+    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.15);
+}
+
+.limits-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.limits-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.limits-badge.free {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.limits-badge.premium {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: none;
+}
+
+.limits-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.limits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.limit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.limit-icon {
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: rgba(79, 141, 255, 0.1);
+    color: #4f8dff;
+}
+
+.premium-limits .limit-icon {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.limit-text {
+    flex: 1;
+}
+
+.limit-label {
+    display: block;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 2px;
+}
+
+.limit-value {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.premium-limits .limit-value {
+    color: #fbbf24;
+}
+
+.limits-footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.upgrade-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.upgrade-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+}
         }
     </style>
 </head>
@@ -490,15 +637,90 @@
             </div>
             <div class="limits-info" style="margin-top: 12px; padding: 10px; background: rgba(79, 141, 255, 0.1); border-radius: 8px; border-left: 4px solid #4f8dff;">
     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-        <span style="font-size: 14px;">📋 Limitler</span>
+        <div class="limits-container" style="margin-top: 20px;">
+    <div class="limits-card free-limits">
+        <div class="limits-header">
+            <span class="limits-badge free">ÜCRETSİZ</span>
+            <span class="limits-title">Sınırlı Kullanım</span>
+        </div>
+        <div class="limits-list">
+            <div class="limit-item">
+                <span class="limit-icon">📄</span>
+                <div class="limit-text">
+                    <span class="limit-label">Birleştirme Hakkı:</span>
+                    <span class="limit-value"><strong>Günde 2 kez</strong></span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">📏</span>
+                <div class="limit-text">
+                    <span class="limit-label">Toplam Boyut:</span>
+                    <span class="limit-value"><strong>50MB</strong> / işlem</span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">🔢</span>
+                <div class="limit-text">
+                    <span class="limit-label">PDF Sayısı:</span>
+                    <span class="limit-value"><strong>10 dosya</strong> / işlem</span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">⚡</span>
+                <div class="limit-text">
+                    <span class="limit-label">İşlem Hızı:</span>
+                    <span class="limit-value">Normal kuyruk</span>
+                </div>
+            </div>
+        </div>
+        <div class="limits-footer">
+            <small>Fatura, ders notu gibi küçük dosyalar için ideal</small>
+        </div>
     </div>
-    <div style="font-size: 11px; color: #9ca3af; line-height: 1.4;">
-        • <strong>Toplam boyut:</strong> Maksimum 100MB<br>
-        • <strong>Tek dosya:</strong> En fazla 30MB<br>
-        • <strong>Dosya sayısı:</strong> En fazla 20 PDF<br>
-        • <strong>Desteklenen:</strong> .pdf uzantılı dosyalar<br>
-        • <strong>İşlem süresi:</strong> ~10-30 saniye (dosya boyutuna göre)
+
+    <div class="limits-card premium-limits">
+        <div class="limits-header">
+            <span class="limits-badge premium">PREMIUM</span>
+            <span class="limits-title">Sınırsız Özellikler</span>
+        </div>
+        <div class="limits-list">
+            <div class="limit-item">
+                <span class="limit-icon">🎯</span>
+                <div class="limit-text">
+                    <span class="limit-label">Birleştirme Hakkı:</span>
+                    <span class="limit-value"><strong>Sınırsız</strong> kullanım</span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">🚀</span>
+                <div class="limit-text">
+                    <span class="limit-label">Toplam Boyut:</span>
+                    <span class="limit-value"><strong>150MB</strong> / işlem</span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">📈</span>
+                <div class="limit-text">
+                    <span class="limit-label">PDF Sayısı:</span>
+                    <span class="limit-value"><strong>25 dosya</strong> / işlem</span>
+                </div>
+            </div>
+            <div class="limit-item">
+                <span class="limit-icon">⚡</span>
+                <div class="limit-text">
+                    <span class="limit-label">İşlem Hızı:</span>
+                    <span class="limit-value"><strong>Öncelikli</strong> işlem</span>
+                </div>
+            </div>
+        </div>
+        <div class="limits-footer">
+            <small>Profesyonel dokümanlar, kitap, katalog için ideal</small>
+            <a href="/premium" class="upgrade-button" style="display: inline-block; margin-top: 8px;">
+                Premium'a Yükselt →
+            </a>
+        </div>
     </div>
+</div>
 </div>
         </aside>
     </main>
