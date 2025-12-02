@@ -497,158 +497,162 @@
 </div>
 
 <script>
-    const dropzone = document.getElementById("dropzone");
-    const pdfInput = document.getElementById("pdfInput");
-    const btnSelect = document.getElementById("btnSelect");
-    const btnMerge = document.getElementById("btnMerge");
-    const fileListEl = document.getElementById("fileList");
-    const mergeInfoEl = document.getElementById("mergeInfo");
-    const progressInner = document.getElementById("progressInner");
-    const statusText = document.getElementById("statusText");
+  const dropZone = document.getElementById("dropZone");
+  const pdfInput = document.getElementById("pdfInput");
+  const fileList = document.getElementById("fileList");
+  const mergeButton = document.getElementById("mergeButton");
+  const statusText = document.getElementById("statusText");
+  const statusLabel = document.getElementById("statusLabel");
 
-    let selectedFiles = [];
+  let selectedFiles = [];
 
-    function bytesToSize(bytes) {
-        if (bytes === 0) return "0 B";
-        const k = 1024;
-        const sizes = ["B", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  function setProgress(percent, text) {
+    const bar = document.getElementById("progressBar");
+    if (!bar) return;
+    bar.style.width = percent + "%";
+    bar.setAttribute("aria-valuenow", percent);
+    bar.textContent = text || percent + "%";
+  }
+
+  function resetProgress() {
+    setProgress(0, "Hazır");
+  }
+
+  function updateFileList() {
+    fileList.innerHTML = "";
+
+    if (!selectedFiles.length) {
+      fileList.innerHTML = `<li class="file-empty">4 dosya seçildi. İlk sıradaki dosya birleşik PDF'in başına gelir.</li>`;
+      return;
     }
 
-    function renderFileList() {
-        if (selectedFiles.length === 0) {
-            fileListEl.style.display = "none";
-            mergeInfoEl.textContent =
-                "Henüz dosya seçilmedi. En az 2 PDF eklemeniz gerekiyor.";
-            btnMerge.disabled = true;
-            return;
-        }
+    selectedFiles.forEach((file, index) => {
+      const li = document.createElement("li");
+      li.className = "file-item";
+      li.innerHTML = `
+        <span>${index + 1}. ${file.name}</span>
+        <button type="button" class="file-remove" data-index="${index}">
+          <span class="icon">✕</span>
+        </button>
+      `;
+      fileList.appendChild(li);
+    });
 
-        fileListEl.style.display = "block";
-        fileListEl.innerHTML = "";
+    fileList.querySelectorAll(".file-remove").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.getAttribute("data-index"), 10);
+        selectedFiles.splice(idx, 1);
+        updateFileList();
+      });
+    });
+  }
 
-        selectedFiles.forEach((file, index) => {
-            const row = document.createElement("div");
-            row.className = "file-row";
+  function handleFiles(files) {
+    const arr = Array.from(files).filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    selectedFiles = selectedFiles.concat(arr);
+    updateFileList();
+  }
 
-            row.innerHTML = `
-                <div class="file-name">
-                    <span class="file-index">${index + 1}.</span>${file.name}
-                </div>
-                <div class="file-actions">
-                    <span class="file-size">${bytesToSize(file.size)}</span>
-                    <button class="btn-remove" data-index="${index}" title="Kaldır">✕</button>
-                </div>
-            `;
-            fileListEl.appendChild(row);
-        });
+  dropZone.addEventListener("click", () => pdfInput.click());
 
-        mergeInfoEl.textContent = `${selectedFiles.length} dosya seçildi. İlk sıradaki dosya birleşik PDF'in başına gelir.`;
-        btnMerge.disabled = selectedFiles.length < 2;
+  dropZone.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    dropZone.classList.add("drag-over");
+  });
 
-        // Kaldır butonu event'leri
-        fileListEl.querySelectorAll(".btn-remove").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                const idx = parseInt(e.target.dataset.index, 10);
-                selectedFiles.splice(idx, 1);
-                renderFileList();
-            });
-        });
+  dropZone.addEventListener("dragleave", function (e) {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+  });
+
+  dropZone.addEventListener("drop", function (e) {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    handleFiles(e.dataTransfer.files);
+  });
+
+  pdfInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files);
+    pdfInput.value = "";
+  });
+
+  function setStatus(text, isError = false) {
+    statusText.textContent = text;
+    statusText.classList.toggle("status-error", isError);
+  }
+
+  async function handleMerge() {
+    if (selectedFiles.length < 2) {
+      setStatus("En az iki PDF dosyası seçmelisiniz.", true);
+      return;
     }
 
-    function setProgress(percent, text, type = "info") {
-        progressInner.style.width = percent + "%";
-        statusText.textContent = text;
-        statusText.className = "status";
+    mergeButton.disabled = true;
+    setStatus("Sunucuya gönderiliyor...");
+    setProgress(10, "Gönderiliyor...");
 
-        if (type === "error") {
-            statusText.classList.add("status-error");
-        } else if (type === "success") {
-            statusText.classList.add("status-success");
-        } else {
-            statusText.classList.add("status-muted");
-        }
+    const formData = new FormData();
+    selectedFiles.forEach(f => formData.append("pdf_files", f));
+
+    try {
+      const response = await fetch("/api/pdf/merge", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        setStatus("Birleştirme sırasında beklenmeyen bir hata oluştu.", true);
+        setProgress(0, "Hata");
+        mergeButton.disabled = false;
+        return;
+      }
+
+      setProgress(60, "İşleniyor...");
+
+      const data = await response.json();
+      if (!data.success) {
+        setStatus(data.message || "Birleştirme başarısız.", true);
+        setProgress(0, "Hata");
+        mergeButton.disabled = false;
+        return;
+      }
+
+      setProgress(90, "İndirme hazırlanıyor...");
+
+      // --- base64'ten Blob oluştur ve indir ---
+      const pdfBase64 = data.file;
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename || "birlesik.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setProgress(100, "Tamamlandı 🎉");
+      setStatus("Birleştirme tamamlandı, dosya indiriliyor.");
+
+    } catch (err) {
+      console.error(err);
+      setStatus("Sunucu hatası: Birleştirme yapılamadı.", true);
+      setProgress(0, "Hata");
+    } finally {
+      mergeButton.disabled = false;
     }
+  }
 
-    function handleFiles(files) {
-        const pdfs = Array.from(files).filter((f) => f.type === "application/pdf");
-        if (pdfs.length === 0) return;
-        selectedFiles = selectedFiles.concat(pdfs);
-        renderFileList();
-    }
-
-    // Drag & drop olayları
-    dropzone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropzone.classList.add("dragover");
-    });
-
-    dropzone.addEventListener("dragleave", (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("dragover");
-    });
-
-    dropzone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("dragover");
-        handleFiles(e.dataTransfer.files);
-    });
-
-    // Butonla dosya seç
-    btnSelect.addEventListener("click", () => pdfInput.click());
-    pdfInput.addEventListener("change", (e) => handleFiles(e.target.files));
-
-    // Birleştir & indir
-    btnMerge.addEventListener("click", async () => {
-        if (selectedFiles.length < 2) return;
-
-        const formData = new FormData();
-        selectedFiles.forEach((file) => formData.append("files", file));
-
-        btnMerge.disabled = true;
-        setProgress(5, "Dosyalar gönderiliyor...");
-
-        try {
-            const response = await fetch("/api/pdf/merge", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) {
-                setProgress(0, "Sunucu hatası: " + response.status, "error");
-                btnMerge.disabled = false;
-                return;
-            }
-
-            setProgress(40, "PDF'ler birleştiriliyor...");
-
-            const data = await response.json();
-
-            if (!data.success) {
-                setProgress(0, data.message || "Birleştirme başarısız oldu.", "error");
-                btnMerge.disabled = false;
-                return;
-            }
-
-            setProgress(80, "Dosya hazırlanıyor...");
-
-            // Base64'ten indirilebilir link oluştur
-            const link = document.createElement("a");
-            link.href = "data:application/pdf;base64," + data.file;
-            link.download = data.filename || "birlesik.pdf";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            setProgress(100, "Birleştirme tamamlandı 🎉 Dosya başarıyla indirildi.", "success");
-        } catch (err) {
-            console.error(err);
-            setProgress(0, "Birleştirme sırasında beklenmeyen bir hata oluştu.", "error");
-        } finally {
-            btnMerge.disabled = selectedFiles.length < 2;
-        }
-    });
+  mergeButton.addEventListener("click", handleMerge);
+  resetProgress();
 </script>
+
 </body>
 </html>
