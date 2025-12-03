@@ -321,7 +321,53 @@ def api_pdf_merge():
         "filename": "birlesik.pdf"
     })
 
+# ============================================================
+# U2NET BACKGROUND REMOVER – MODEL LOAD
+# ============================================================
+import torch
+from torchvision import transforms
+from PIL import Image
+import numpy as np
 
+MODEL_PATH = "/app/models/u2net.pth"
+
+# U2NET model tanımı
+from model import U2NET # repo içinde varsa
+# Eğer model.py içinde U2NET değilse, sınıf adını bana yaz kirvem
+
+
+def load_u2net_model():
+    model = U2NET(3, 1)
+    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    model.eval()
+    return model
+
+u2net = load_u2net_model()
+
+
+def preprocess_image(img):
+    transform = transforms.Compose([
+        transforms.Resize((320, 320)),
+        transforms.ToTensor(),
+    ])
+    return transform(img).unsqueeze(0)
+
+def remove_background_u2net(image_pil):
+    input_tensor = preprocess_image(image_pil)
+
+    with torch.no_grad():
+        d1, *_ = u2net(input_tensor)
+
+    mask = d1.squeeze().cpu().numpy()
+    mask = (mask - mask.min()) / (mask.max() - mask.min())
+    mask = (mask * 255).astype("uint8")
+
+    mask = Image.fromarray(mask).resize(image_pil.size)
+    image_rgba = image_pil.convert("RGBA")
+    image_np = np.array(image_rgba)
+    image_np[:, :, 3] = mask
+
+    return Image.fromarray(image_np)
 
 # ============================================================
 # VEKTÖR API
@@ -366,3 +412,41 @@ if __name__ == "__main__":
     print("BOTLAB SUITE BACKEND STARTING...")
     app.run(host="0.0.0.0", port=port, debug=True)
 
+
+# ============================================================
+# API: BACKGROUND REMOVE (U2NET)
+# ============================================================
+@app.route("/api/remove_bg", methods=["POST"])
+def api_remove_bg():
+
+    email = request.form.get("email", "guest")
+
+    # LIMIT / PREMIUM kontrolü
+    status = check_user_status(email, "image", "remove_bg")
+    if not status["allowed"]:
+        return jsonify({
+            "success": False,
+            "reason": status["reason"],
+            "left": status["left"]
+        }), 403
+
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "Resim seçilmedi"}), 400
+
+    file = request.files["image"]
+    img = Image.open(file.stream).convert("RGB")
+
+    result = remove_background_u2net(img)
+
+    # PNG BASE64 output
+    buffer = io.BytesIO()
+    result.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode()
+
+    increase_usage(email, "image", "remove_bg")
+
+    return jsonify({
+        "success": True,
+        "file": encoded,
+        "filename": "arka_plan_silindi.png"
+    })
