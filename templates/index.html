@@ -33,86 +33,11 @@
             padding: 24px 16px 60px;
         }
 
-        /* HEADER */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 26px;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-        }
-
-        .brand-logo {
-            width: 38px;
-            height: 38px;
-            border-radius: 11px;
-            background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 40%, #181f3a 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: #020617;
-        }
-
-        .brand-text-main { font-size: 18px; font-weight: 700; }
-        .brand-text-sub { font-size: 11px; color: var(--text-muted); }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border-radius: 999px;
-            font-size: 13px;
-            cursor: pointer;
-            border: none;
-        }
-
-        .btn-ghost {
-            background: rgba(15,23,42,0.8);
-            border: 1px solid rgba(148,163,255,0.35);
-            color: var(--text-main);
-        }
-
-        .btn-premium {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: #fff;
-            font-weight: 600;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #4f8dff, #7c3aed);
-            color: white;
-        }
-
-        /* PREMIUM POPUP */
-        #premium-popup {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .premium-modal {
-            background: var(--bg-card-soft);
-            width: 340px;
-            padding: 24px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
+        /* BUTTON */
+        .btn { padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor: pointer; border: none; }
+        .btn-ghost { background: rgba(15,23,42,0.8); border: 1px solid rgba(148,163,255,0.35); color: white; }
+        .btn-premium { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600; }
+        .btn-primary { background: linear-gradient(135deg, #4f8dff, #7c3aed); color: white; }
 
         /* WHATSAPP */
         .whatsapp-btn {
@@ -143,51 +68,108 @@
 
 <body>
 
-<!-- PREMIUM POPUP -->
-<div id="premium-popup">
-    <div class="premium-modal">
-        <h3 style="font-size:18px; margin-bottom:8px;">✨ Premium Paket</h3>
-        <p style="font-size:13px; margin-bottom:14px; color:var(--text-muted);">
-            Daha büyük dosya, hızlı işlem ve sınırsız kullanım hakkı için Premium’a geçin.
-        </p>
+<!-- ========================================================= -->
+<!-- USER LOGIN POPUP -->
+<!-- ========================================================= -->
+<div id="userLogin" style="
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:none; justify-content:center; align-items:center; z-index:99999;
+">
+    <div style="
+        width:330px; background:#0f172a; padding:22px;
+        border-radius:14px; border:1px solid rgba(255,255,255,0.08);
+    ">
+        <h3 style="font-size:18px; margin-bottom:10px;">🔐 Giriş Yap</h3>
 
-        <button class="btn btn-premium"
-                style="width:100%; padding:10px;"
-                onclick="window.open('https://wa.me/905335620807?text=Merhaba%2C+Premium+paketi+satın+almak+istiyorum.', '_blank')">
-            WhatsApp’tan Satın Al
-        </button>
+        <label style="font-size:13px;">E-posta adresiniz</label>
+        <input id="userLoginEmail" type="email" placeholder="email@example.com"
+               style="width:100%; margin-top:6px; margin-bottom:16px;
+               padding:10px; border-radius:10px; border:1px solid #334155;
+               background:#1e293b; color:white;">
 
-        <button class="btn btn-ghost"
-                style="width:100%; margin-top:10px;"
-                onclick="document.getElementById('premium-popup').style.display='none'">
-            Kapat
-        </button>
+        <button onclick="submitUserLogin()" style="
+            width:100%; padding:10px; border-radius:10px;
+            background:#4f8dff; color:white; font-weight:600; border:none;
+        ">Giriş Yap</button>
+
+        <button onclick="closeUserLogin()" style="
+            width:100%; margin-top:10px; background:none;
+            border:none; color:#94a3b8; font-size:12px; cursor:pointer;
+        ">Kapat</button>
     </div>
 </div>
 
-<!-- HEADER -->
-<header class="header">
-    <div class="brand" onclick="window.location.href='/'">
-        <div class="brand-logo">B</div>
-        <div>
-            <div class="brand-text-main">Botlab Tools</div>
-            <div class="brand-text-sub">PDF • Görsel • Vektör</div>
-        </div>
-    </div>
+<script>
+function openUserLogin() {
+    document.getElementById("userLogin").style.display = "flex";
+}
+function closeUserLogin() {
+    document.getElementById("userLogin").style.display = "none";
+}
+async function submitUserLogin() {
+    const email = document.getElementById("userLoginEmail").value.trim();
+    if (!email) return alert("Mail adresi yazın");
 
-    <div class="header-right">
-        <button class="btn btn-premium" onclick="openPremium()">Premium Satın Al</button>
-        <button class="btn btn-ghost" onclick="window.location.href='/admin_login'">Giriş Yap</button>
-        <button class="btn btn-primary" onclick="window.location.href='/pdf/merge'">Hemen Başla</button>
+    const res = await fetch("/user_login", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (data.status === "admin") {
+        window.location.href = "/admin";
+    } else if (data.status === "premium") {
+        alert("Giriş başarılı! Premium hesabınız aktif.");
+        closeUserLogin();
+        location.reload();
+    } else {
+        alert("Premium hesabınız bulunamadı.");
+    }
+}
+</script>
+
+<!-- ========================================================= -->
+<!-- HEADER (GENİŞLİK DÜZELTİLMİŞ) -->
+<!-- ========================================================= -->
+<header style="width:100%; display:flex; justify-content:center;">
+    <div style="width:1180px; display:flex; justify-content:space-between; align-items:center; padding:20px 16px;">
+
+        <div class="brand" onclick="window.location.href='/'" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <div class="brand-logo" style="
+                width:38px; height:38px; border-radius:11px;
+                background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 40%, #181f3a 100%);
+                display:flex; align-items:center; justify-content:center;
+                font-weight:700; color:#020617;
+            ">B</div>
+            <div>
+                <div style="font-size:18px; font-weight:700;">Botlab Tools</div>
+                <div style="font-size:11px; color:var(--text-muted);">PDF • Görsel • Vektör</div>
+            </div>
+        </div>
+
+        <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+            <button class="btn btn-premium" onclick="openPremium()">Premium Satın Al</button>
+            <button class="btn btn-ghost" onclick="openUserLogin()">Giriş Yap</button>
+            <button class="btn btn-primary" onclick="window.location.href='/pdf/merge'">Hemen Başla</button>
+        </div>
+
     </div>
 </header>
 
 <!-- WHATSAPP BUTTON -->
 <div class="whatsapp-btn"
-     onclick="window.open('https://wa.me/905335620807?text=Merhaba%2C+Premium+paket+satin+almak+istiyorum.', '_blank')">💬</div>
+     onclick="window.open('https://wa.me/905335620807?text=Merhaba%2C+Premium+paket+satin+almak+istiyorum.', '_blank')">💬
+</div>
 
+
+<!-- ========================================================= -->
+<!-- ANA SAYFA İÇERİĞİ BAŞLANGIÇ -->
+<!-- ========================================================= -->
 <div class="page-shell">
-  <!-- HERO -->
+
+<!-- ====================== HERO ========================== -->
 <section class="hero" style="
     display:grid;
     grid-template-columns:minmax(0,3fr) minmax(0,2.6fr);
@@ -195,7 +177,7 @@
     margin-bottom:32px;
 ">
 
-    <!-- LEFT -->
+    <!-- HERO SOL -->
     <div style="
         background: radial-gradient(circle at top left, rgba(79,141,255,0.16) 0, transparent 55%),
                     linear-gradient(135deg, rgba(15,23,42,0.96), rgba(10,14,30,0.96));
@@ -240,32 +222,9 @@
                 Vektörleştiriciyi keşfet
             </button>
         </div>
-
-        <div style="display:flex; gap:20px; font-size:12px; color:var(--text-muted);">
-            <div>
-                <strong style="display:block; font-size:14px; color:var(--accent-strong);">
-                    PDF Araçları
-                </strong>
-                Birleştir, böl, dönüştür, imzala…
-            </div>
-
-            <div>
-                <strong style="display:block; font-size:14px; color:var(--accent-strong);">
-                    Görsel Araçlar
-                </strong>
-                Sıkıştır, yeniden boyutlandır, düzenle.
-            </div>
-
-            <div>
-                <strong style="display:block; font-size:14px; color:var(--accent-strong);">
-                    Vektörleştirici
-                </strong>
-                AI destekli avatar üret.
-            </div>
-        </div>
     </div>
 
-    <!-- RIGHT -->
+    <!-- HERO SAĞ (KATEGORİLER) -->
     <aside style="
         border-radius:16px;
         background:linear-gradient(145deg, rgba(15,23,42,0.98), #020617);
@@ -274,19 +233,14 @@
         box-shadow:0 22px 45px rgba(0,0,0,0.45);
         display:flex; flex-direction:column; gap:12px;
     ">
-        <div>
-            <div style="font-size:13px; color:var(--text-muted); margin-bottom:6px;">
-                Sık kullanılan <span style="color:var(--accent-strong);">3 kategori</span>
-            </div>
-
-            <div style="display:flex; gap:6px; margin-bottom:10px;">
-                <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">PDF Araçları</button>
-                <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">Görsel Araçlar</button>
-                <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">Vektörleştirme</button>
-            </div>
-        </div>
 
         <!-- Mini Cards -->
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">PDF Araçları</button>
+            <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">Görsel Araçlar</button>
+            <button class="btn-ghost" style="flex:1; font-size:11px; padding:6px;">Vektör</button>
+        </div>
+
         <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">
 
             <div onclick="window.location.href='/pdf/merge'" style="
@@ -296,589 +250,169 @@
                 padding:10px;
                 cursor:pointer;
             ">
-                <span style="
-                    display:inline-flex; width:24px; height:24px;
-                    border-radius:8px; background:rgba(79,141,255,0.18);
-                    justify-content:center; align-items:center;
-                    margin-bottom:4px; border:1px solid rgba(129,140,248,0.7);
-                ">📎</span>
-                <h4 style="font-size:12px; margin-bottom:2px;">PDF Birleştir</h4>
-                <p style="font-size:10px; color:var(--text-muted);">Birden fazla PDF’yi tek dosyada birleştir.</p>
+                <h4 style="font-size:12px;">📎 PDF Birleştir</h4>
+                <p style="font-size:10px; color:var(--text-muted);">Tek dosyada birleştir.</p>
             </div>
 
-            <div style="
+            <div onclick="window.location.href='/pdf/split'" style="
                 border-radius:14px; background:var(--bg-card);
                 border:1px solid rgba(255,255,255,0.06);
-                padding:10px;
+                padding:10px; cursor:pointer;
             ">
-                <span style="
-                    display:inline-flex; width:24px; height:24px;
-                    border-radius:8px; background:rgba(79,141,255,0.18);
-                    justify-content:center; align-items:center;
-                    margin-bottom:4px; border:1px solid rgba(129,140,248,0.7);
-                ">✂️</span>
-                <h4 style="font-size:12px;">PDF Böl</h4>
-                <p style="font-size:10px; color:var(--text-muted);">Sayfaları ayır, otomatik böl.</p>
+                <h4 style="font-size:12px;">✂️ PDF Böl</h4>
+                <p style="font-size:10px; color:var(--text-muted);">Sayfaları ayır.</p>
             </div>
 
-            <div style="
+            <div onclick="window.location.href='/image/compress'" style="
                 border-radius:14px; background:var(--bg-card);
                 border:1px solid rgba(255,255,255,0.06);
-                padding:10px;
+                padding:10px; cursor:pointer;
             ">
-                <span style="display:inline-flex; width:24px; height:24px;
-                    border-radius:8px; background:rgba(79,141,255,0.18);
-                    justify-content:center; align-items:center;
-                    margin-bottom:4px; border:1px solid rgba(129,140,248,0.7);
-                ">🗜</span>
-                <h4 style="font-size:12px;">PDF Sıkıştır</h4>
-                <p style="font-size:10px; color:var(--text-muted);">Boyutu küçült, kaliteyi koru.</p>
+                <h4 style="font-size:12px;">🗜 Görsel Sıkıştır</h4>
+                <p style="font-size:10px; color:var(--text-muted);">Boyutu küçült.</p>
             </div>
 
-            <div style="
+            <div onclick="window.location.href='/vektor'" style="
                 border-radius:14px; background:var(--bg-card);
                 border:1px solid rgba(255,255,255,0.06);
-                padding:10px;
+                padding:10px; cursor:pointer;
             ">
-                <span style="display:inline-flex; width:24px; height:24px;
-                    border-radius:8px; background:rgba(79,141,255,0.18);
-                    justify-content:center; align-items:center;
-                    margin-bottom:4px; border:1px solid rgba(129,140,248,0.7);
-                ">📝</span>
-                <h4 style="font-size:12px;">Word ↔ PDF</h4>
-                <p style="font-size:10px; color:var(--text-muted);">Ofis dosyalarını dönüştür.</p>
+                <h4 style="font-size:12px;">🎨 Vektörleştirici</h4>
+                <p style="font-size:10px; color:var(--text-muted);">AI ile avatar oluştur.</p>
             </div>
+
         </div>
 
-        <!-- Vektör Highlight -->
-        <div style="
-            border-radius:14px;
-            padding:12px;
-            background: radial-gradient(circle at top left, rgba(79,141,255,0.35), rgba(15,23,42,1) 60%);
-            border:1px solid rgba(96,165,250,0.9);
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-        ">
-            <div>
-                <h4 style="font-size:12px;">Akıllı Vektörleştirici</h4>
-                <p style="font-size:10px; color:var(--text-muted);">
-                    Fotoğrafını yükle, cartoon avatar oluştur.
-                </p>
-            </div>
-
-            <button class="btn-primary btn" style="padding:6px 10px;"
-                    onclick="window.location.href='/vektor'">
-                Hemen dene
-            </button>
-        </div>
     </aside>
-
 </section>
+
+<!-- ========================================================= -->
 <!-- PDF ARAÇLARI -->
-<section class="section" id="pdf-tools" style="margin-bottom:32px;">
+<!-- ========================================================= -->
+<section id="pdf-tools" style="margin-bottom:32px;">
 
-    <div class="section-header" style="
-        display:flex; justify-content:space-between;
-        align-items:baseline; gap:10px; margin-bottom:12px;
-    ">
-        <h2 class="section-title" style="font-size:18px; font-weight:600;">
-            PDF Araçları
-            <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">
-                Belgelerinizi düzenleyin, dönüştürün ve paylaşmaya hazır hale getirin.
-            </span>
-        </h2>
+    <h2 style="font-size:18px; font-weight:600; margin-bottom:12px;">
+        PDF Araçları
+    </h2>
 
-        <div class="section-link" style="font-size:12px; color:var(--accent-strong); cursor:pointer;">
-            Tüm PDF araçlarını gör (yakında)
-        </div>
-    </div>
-
-    <div class="tool-grid" style="
-        display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
-    ">
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
 
         <!-- PDF MERGE -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">➕</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">PDF Birleştir</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Farklı PDF dosyalarını sürükleyip bırakarak tek dosyada birleştirin.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Çok dosya</span>
-
-                <span class="tool-primary-link" onclick="window.location.href='/pdf/merge';"
-                    style="color:var(--accent-strong); cursor:pointer;">
-                    Aç
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>➕ PDF Birleştir</h4>
+            <p style="font-size:12px; color:var(--text-muted);">PDF’leri tek dosyada birleştir.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/pdf/merge'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
         <!-- PDF SPLIT -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">✂</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">PDF Böl</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Sayfa aralıklarını seçin, otomatik olarak yeni PDF’ler oluşturun.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Sayfa yönetimi</span>
-                <span class="tool-primary-link" style="color:var(--accent-strong); cursor:not-allowed;">
-                    Yakında
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>✂ PDF Böl</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Sayfa aralıklarını böl.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/pdf/split'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
         <!-- WORD → PDF -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">📝</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Word → PDF</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                DOC/DOCX belgelerinizi bozulmadan PDF formatına dönüştürün.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Ofis dosyaları</span>
-                <span class="tool-primary-link" style="color:var(--accent-strong); cursor:not-allowed;">
-                    Yakında
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>📝 Word → PDF</h4>
+            <p style="font-size:12px; color:var(--text-muted);">DOC/DOCX dönüştür.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/pdf/word2pdf'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
     </div>
 </section>
 
+<!-- ========================================================= -->
 <!-- GÖRSEL ARAÇLAR -->
-<section class="section" id="image-tools" style="margin-bottom:32px;">
+<!-- ========================================================= -->
+<section id="image-tools" style="margin-bottom:32px;">
+    <h2 style="font-size:18px; font-weight:600; margin-bottom:12px;">
+        Görsel Araçlar
+    </h2>
 
-    <div class="section-header" style="
-        display:flex; justify-content:space-between;
-        align-items:baseline; gap:10px; margin-bottom:12px;
-    ">
-        <h2 class="section-title" style="font-size:18px; font-weight:600;">
-            Görsel Araçlar
-            <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">
-                Sosyal medya, web sitesi ve baskı için görsellerinizi düzenleyin.
-            </span>
-        </h2>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
 
-        <div class="section-link" style="font-size:12px; color:var(--accent-strong); cursor:pointer;">
-            Tüm görsel araçları gör (yakında)
-        </div>
-    </div>
-
-    <div class="tool-grid" style="
-        display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
-    ">
-
-        <!-- IMAGE COMPRESS -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">🗜</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Görsel Sıkıştır</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                JPG/PNG görsellerinizi kaliteyi koruyarak küçültün.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Web için</span>
-                <span class="tool-primary-link" style="color:var(--accent-strong); cursor:not-allowed;">
-                    Yakında
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>🗜 Görsel Sıkıştır</h4>
+            <p style="font-size:12px; color:var(--text-muted);">JPG/PNG sıkıştır.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/image/compress'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
-        <!-- RESIZE -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">📐</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Yeniden Boyutlandır</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Piksel, oran veya şablonlara göre görsellerinizi yeniden boyutlandırın.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Şablonlu</span>
-                <span class="tool-primary-link" style="color:var(--accent-strong); cursor:not-allowed;">
-                    Yakında
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>📐 Boyutlandır</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Görseli yeniden boyutlandır.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/image/resize'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
-        <!-- BG REMOVE -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">✨</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Arka Plan Kaldır</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Ürün veya portre fotoğraflarınızın arka planını tek tıkla silin.
-            </p>
-
-            <div class="tool-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Studio görünümü</span>
-                <span class="tool-badge-beta" style="color:#facc15; font-size:11px;">Plan</span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>✨ Arka Plan Kaldır</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Arka planı kaldır.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/image/remove_bg'"
+                    style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
     </div>
 </section>
 
-  <!-- VEKTÖR ARAÇLARI -->
-<section class="section" id="vector-tools" style="margin-bottom:38px;">
+<!-- ========================================================= -->
+<!-- VEKTÖR ARAÇLARI -->
+<!-- ========================================================= -->
+<section id="vector-tools" style="margin-bottom:38px;">
+    <h2 style="font-size:18px; font-weight:600; margin-bottom:12px;">
+        Akıllı Vektörleştirici
+    </h2>
 
-    <div class="section-header" style="
-        display:flex; justify-content:space-between;
-        align-items:baseline; gap:10px; margin-bottom:12px;
-    ">
-        <h2 class="section-title" style="font-size:18px; font-weight:600;">
-            Akıllı Vektörleştirici
-            <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">
-                Fotoğraflarınızı baskıya hazır vektör dosyalarına dönüştürün.
-            </span>
-        </h2>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
 
-        <div class="section-link" onclick="window.location.href='/vektor';"
-            style="font-size:12px; color:var(--accent-strong); cursor:pointer;">
-            Vektör aracına git →
-        </div>
-    </div>
-
-    <div class="tool-grid" style="
-        display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
-    ">
-
-        <!-- NORMAL VECTOR -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">🎨</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Normal Vektör</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Renk sayısını azaltarak sade, baskıya hazır logolar oluşturun.
-            </p>
-
-            <div class="tool-meta" style="
-                display:flex; justify-content:space-between; align-items:center;
-                font-size:11px; color:var(--text-muted);
-            ">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Aktif</span>
-
-                <span class="tool-primary-link" onclick="window.location.href='/vektor';"
-                    style="color:var(--accent-strong); cursor:pointer;">
-                    Hemen dene
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>🎨 Normal Vektör</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Sade vektör.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/vektor'" style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
-        <!-- CARTOON VECTOR -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">✏</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Çizgi / Cartoon</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Fotoğrafları çizgi film tarzında vektör avatar haline getirin.
-            </p>
-
-            <div class="tool-meta" style="
-                display:flex; justify-content:space-between; align-items:center;
-                font-size:11px; color:var(--text-muted);
-            ">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Aktif</span>
-
-                <span class="tool-primary-link" onclick="window.location.href='/vektor';"
-                    style="color:var(--accent-strong); cursor:pointer;">
-                    Hemen dene
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>✏ Cartoon</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Çizgi avatar.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/vektor'" style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
-        <!-- OUTLINE ONLY -->
-        <article class="tool-card" style="
-            border-radius:16px; padding:14px;
-            background:var(--bg-card-soft);
-            border:1px solid var(--border-subtle);
-            box-shadow:var(--shadow-card);
-            display:flex; flex-direction:column; gap:8px;
-        ">
-            <div class="tool-card-header" style="display:flex; align-items:center; gap:8px;">
-                <div class="tool-icon" style="
-                    width:28px; height:28px; border-radius:10px;
-                    background:rgba(30,64,175,0.85);
-                    display:flex; align-items:center; justify-content:center;
-                    font-size:15px;
-                ">🖊</div>
-                <div class="tool-title" style="font-size:14px; font-weight:600;">Sadece Çizgi</div>
-            </div>
-
-            <p class="tool-desc" style="font-size:12px; color:var(--text-muted);">
-                Renkleri kaldırarak minimalist siyah-beyaz bir tasarım elde edin.
-            </p>
-
-            <div class="tool-meta" style="
-                display:flex; justify-content:space-between; align-items:center;
-                font-size:11px; color:var(--text-muted);
-            ">
-                <span class="tool-tag" style="
-                    padding:4px 8px; border-radius:999px;
-                    background:rgba(15,23,42,0.8);
-                    border:1px solid rgba(148,163,255,0.5);
-                ">Aktif</span>
-
-                <span class="tool-primary-link" onclick="window.location.href='/vektor';"
-                    style="color:var(--accent-strong); cursor:pointer;">
-                    Hemen dene
-                </span>
+        <article style="border-radius:16px; padding:14px; background:var(--bg-card-soft);">
+            <h4>🖊 Sadece Çizgi</h4>
+            <p style="font-size:12px; color:var(--text-muted);">Minimal siyah-beyaz çizgi.</p>
+            <div style="text-align:right;">
+                <span onclick="window.location.href='/vektor'" style="color:var(--accent-strong); cursor:pointer;">Aç</span>
             </div>
         </article>
 
     </div>
 </section>
 
-<!-- PREMIUM POPUP -->
-<div id="premiumPopup" style="
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6);
-    display: none; 
-    align-items: center; justify-content: center;
-    z-index: 9999;
-">
-    <div style="
-        width: 420px;
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        border-radius: 18px;
-        padding: 24px;
-        border: 1px solid rgba(148,163,255,0.25);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-    ">
-        <h2 id="premiumTitle" style="font-size:20px; font-weight:700; margin-bottom:10px; color:white;">
-            Premium Avantajları
-        </h2>
 
-        <p id="premiumDesc" style="font-size:13px; color:#94a3b8; margin-bottom:14px;">
-            Daha yüksek limitler, hızlı işlem ve sınırsız kullanım.
-        </p>
+</div> <!-- page-shell end -->
 
-        <ul id="premiumBenefits" style="font-size:13px; line-height:1.6; color:#cbd5e1; margin-bottom:16px;">
-            <li>• 150MB PDF yükleme</li>
-            <li>• Sınırsız kullanım</li>
-            <li>• Premium hız modu</li>
-        </ul>
-
-        <a id="premiumWhatsappBtn" href="https://wa.me/905335620807?text=Premium%20paket%20almak%20istiyorum"
-           style="
-                display:block; text-align:center;
-                padding:10px 14px;
-                background:linear-gradient(135deg,#f59e0b,#d97706);
-                border-radius:12px;
-                color:white; font-size:14px; font-weight:600;
-                text-decoration:none;
-                box-shadow:0 6px 14px rgba(245,158,11,0.35);
-            ">
-            WhatsApp ile Satın Al →
-        </a>
-
-        <button onclick="closePremiumPopup()" style="
-            width:100%; margin-top:14px;
-            background:none; border:none;
-            color:#6b7280; font-size:12px;
-            cursor:pointer;
-        ">Kapat</button>
-    </div>
-</div>
-<!-- WHATSAPP FLOATING BUTTON -->
-<a id="globalPremiumBtn"
-   href="https://wa.me/905335620807?text=Premium%20paket%20almak%20istiyorum"
-   style="
-        position: fixed; right:22px; bottom:24px;
-        background:linear-gradient(135deg,#f59e0b,#d97706);
-        padding:12px 22px;
-        border-radius:999px;
-        color:white; font-weight:600;
-        font-size:14px;
-        text-decoration:none;
-        z-index:9998;
-        box-shadow:0 10px 25px rgba(245,158,11,0.4);
-   ">
-    🚀 Premium Satın Al
-</a>
-<script>
-async function loadPremiumPopup() {
-    try {
-        const res = await fetch("/get_settings");
-        const s = await res.json();
-
-        document.getElementById("premiumTitle").innerText = s.popup.title;
-        document.getElementById("premiumDesc").innerText = s.popup.desc;
-
-        let listHTML = "";
-        s.popup.benefits.forEach(b => {
-            listHTML += `<li>• ${b}</li>`;
-        });
-
-        document.getElementById("premiumBenefits").innerHTML = listHTML;
-
-        document.getElementById("premiumWhatsappBtn").href =
-            "https://wa.me/" + s.popup.phone + "?text=Premium%20paket%20almak%20istiyorum";
-
-        document.getElementById("globalPremiumBtn").href =
-            "https://wa.me/" + s.popup.phone + "?text=Premium%20paket%20almak%20istiyorum";
-
-    } catch (err) {
-        console.log("Popup load error:", err);
-    }
-}
-
-function openPremiumPopup() {
-    document.getElementById("premiumPopup").style.display = "flex";
-}
-
-function closePremiumPopup() {
-    document.getElementById("premiumPopup").style.display = "none";
-}
-
-loadPremiumPopup();
-</script>
+<!-- ========================================================= -->
+<!-- FOOTER -->
+<!-- ========================================================= -->
 <footer style="
     margin-top:auto; padding:20px 0;
     background:rgba(15,23,42,0.9);
@@ -893,3 +427,6 @@ loadPremiumPopup();
         <span><strong style="color:var(--accent-strong);">WhatsApp</strong> üzerinden bize ulaşabilirsiniz.</span>
     </div>
 </footer>
+
+</body>
+</html>
