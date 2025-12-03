@@ -1,234 +1,229 @@
 <!DOCTYPE html>
 <html lang="tr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arka Plan Kaldır · Botlab Tools</title>
-
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arka Plan Kaldır • Botlab Tools</title>
 
     <style>
-        body {
-            background: radial-gradient(circle at top, #1a1f36, #0c0f1f 60%);
-            font-family: 'Inter', sans-serif;
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            font-family:system-ui, sans-serif;
+            background:radial-gradient(circle at top,#1a2043 0,#050814 55%,#020308 100%);
+            color:#f5f7ff;
+        }
+        :root{
+            --bg-card:#11172f;
+            --bg-soft:#181f3a;
+            --text-muted:#9ca4c8;
+            --accent:#67e8f9;
+        }
+        .page-shell{max-width:1180px;margin:auto;padding:24px 16px 60px;}
+
+        /* HEADER */
+        .header{
+            display:flex;justify-content:space-between;align-items:center;
+            margin-bottom:30px;
+        }
+        .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
+        .brand-logo{
+            width:38px;height:38px;border-radius:11px;
+            background:radial-gradient(circle at 25% 0,#67e8f9 0,#4f8dff 40%,#181f3a 100%);
+            display:flex;align-items:center;justify-content:center;
+            font-weight:700;color:#020617;font-size:18px;
+        }
+        .brand-text-main{font-size:18px;font-weight:700;}
+        .brand-text-sub{font-size:11px;color:var(--text-muted);}
+        .header-right{display:flex;align-items:center;gap:12px;}
+        .btn{
+            padding:8px 16px;border-radius:999px;font-size:13px;cursor:pointer;border:none;
+        }
+        .btn-ghost{background:rgba(15,23,42,0.8);border:1px solid rgba(148,163,255,0.35);color:white;}
+        .btn-premium{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;}
+        .btn-primary{background:linear-gradient(135deg,#4f8dff,#7c3aed);color:white;}
+
+        /* DROPZONE */
+        .dropzone{
+            margin-top:30px;padding:40px;border:2px dashed rgba(255,255,255,0.2);
+            border-radius:16px;text-align:center;background:rgba(15,23,42,0.55);
+            cursor:pointer;
+            transition:0.25s ease;
+        }
+        .dropzone.drag{border-color:#67e8f9;background:rgba(103,232,249,0.12);}
+        .dropzone p{font-size:14px;color:var(--text-muted);}
+        .dropzone input{display:none;}
+
+        .submit-btn{
+            margin-top:26px;padding:12px 22px;border-radius:999px;
+            font-size:15px;font-weight:600;
+            background:linear-gradient(135deg,#4f8dff,#7c3aed);
+            color:white;border:none;cursor:pointer;
         }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.07);
+        /* RESULT */
+        .result{
+            margin-top:32px;padding:20px;border-radius:14px;
+            background:var(--bg-soft);display:none;text-align:center;
+        }
+        .result img{
+            max-width:300px;border-radius:12px;margin-bottom:16px;
+        }
+        .result a{
+            color:var(--accent);font-size:14px;font-weight:600;
+            display:inline-block;margin-top:6px;
         }
 
-        .neon-border {
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 0 18px rgba(0, 119, 255, 0.25);
+        /* POPUP */
+        #premiumPopup{
+            position:fixed;inset:0;background:rgba(0,0,0,0.55);
+            display:none;align-items:center;justify-content:center;z-index:9999;
+        }
+        #premiumPopup .modal{
+            width:360px;background:var(--bg-soft);
+            padding:20px;border-radius:16px;
+            border:1px solid rgba(255,255,255,0.1);
         }
 
-        .neon-btn {
-            background: linear-gradient(to right, #ff8a00, #ffb347);
-            box-shadow: 0 0 15px rgba(255, 157, 0, 0.65);
-            color: #1a1a1a;
-        }
-
-        .upload-hover {
-            border-color: #4dabff !important;
-            box-shadow: 0 0 15px rgba(77, 171, 255, 0.5);
+        /* LOADING */
+        #loading{
+            display:none;margin-top:20px;font-size:14px;color:var(--accent);
         }
     </style>
-</head>
 
-<body class="text-gray-200">
-
-
-    <!-- ███ GLOBAL HEADER ███ -->
-    <header class="w-full glass border-b border-white/10 shadow-lg">
-        <div class="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
-
-            <a href="index.html" class="flex items-center space-x-2">
-                <img src="logo.png" alt="Botlab Tools" class="h-10">
-                <span class="text-white text-xl font-bold">Botlab Tools</span>
-            </a>
-
-            <div class="flex items-center space-x-4">
-
-                <button onclick="openPremiumPopup()"
-                    class="px-5 py-2 rounded-lg font-semibold neon-btn hover:opacity-90 transition">
-                    Premium Satın Al
-                </button>
-
-                <a href="admin_login.html"
-                    class="px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white shadow-lg hover:bg-blue-500 transition">
-                    Giriş Yap
-                </a>
-
-            </div>
-
-        </div>
-    </header>
-
-
-
-    <!-- ███ ARKA PLAN SİLME TOOL ███ -->
-    <main class="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-        <!-- LEFT CARD -->
-        <section class="glass neon-border rounded-2xl p-8 lg:col-span-2">
-
-            <h2 class="text-3xl font-bold mb-3 text-white">Arka Planı Kaldır</h2>
-            <p class="text-gray-400 mb-6">
-                Görselinizin arka planını yapay zekâ ile otomatik temizleyin. PNG formatında çıktıyı indirin.
-            </p>
-
-            <!-- UPLOAD BOX -->
-            <div id="uploadArea"
-                class="border-2 border-dashed border-gray-600 rounded-xl p-12 text-center cursor-pointer hover:border-blue-400 transition">
-                <p class="text-lg text-gray-300">Görseli buraya sürükle veya tıkla</p>
-                <input type="file" id="imageFile" accept="image/*" class="hidden">
-            </div>
-
-            <p class="text-xs text-gray-400 mt-3">Ücretsiz kullanıcılar 2MP’e kadar işlem yapabilir.</p>
-
-            <!-- REMOVE BACKGROUND -->
-            <button id="removeBtn"
-                class="mt-6 w-full neon-btn py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                Arka Planı Kaldır
-            </button>
-
-            <!-- RESULT -->
-            <div id="resultBox" class="mt-6 hidden">
-                <h3 class="font-bold text-lg mb-3">İşlenmiş Görsel</h3>
-                <img id="previewImage" src="" class="rounded-lg border border-gray-700 w-full mb-4">
-                <a id="downloadLink" href="#" download
-                    class="text-blue-300 underline font-semibold"></a>
-            </div>
-
-        </section>
-
-
-        <!-- RIGHT PREMIUM BOX -->
-        <aside class="glass neon-border rounded-2xl p-8">
-
-            <h3 class="text-2xl font-bold text-orange-400 mb-4">Premium Avantajları</h3>
-
-            <ul class="space-y-3 text-gray-300">
-                <li>⚡ 4000×4000 çözünürlüğe kadar işleme</li>
-                <li>🧠 Gelişmiş kenar temizleme AI</li>
-                <li>🚀 2× daha hızlı işleme süresi</li>
-                <li>✨ Arka planı tamamen temizleme garantisi</li>
-                <li>🔓 Tüm görsel araçları sınırsız</li>
-            </ul>
-
-            <button onclick="openPremiumPopup()"
-                class="mt-6 w-full neon-btn py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                Premium’a Geç
-            </button>
-
-        </aside>
-
-    </main>
-
-
-
-    <!-- ███ PREMIUM POPUP ███ -->
-    <div id="premiumPopup"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
-
-        <div class="glass neon-border w-full max-w-lg rounded-2xl p-8 shadow-2xl">
-
-            <h2 class="text-2xl font-bold text-orange-400 mb-4">Premium Paketler</h2>
-
-            <div class="space-y-4 text-gray-300">
-
-                <div>
-                    <h3 class="text-lg font-semibold text-blue-300">Ücretsiz Plan</h3>
-                    <ul class="text-sm space-y-1">
-                        <li>• 2MP’e kadar işlem</li>
-                        <li>• Günlük 5 işlem</li>
-                        <li>• Normal hız</li>
-                    </ul>
-                </div>
-
-                <div class="mt-6">
-                    <h3 class="text-lg font-semibold text-orange-300">Premium Plan</h3>
-                    <ul class="text-sm space-y-1">
-                        <li>• 4000×4000 çözünürlük</li>
-                        <li>• Kenarları daha iyi temizleyen AI</li>
-                        <li>• Öncelikli hız</li>
-                        <li>• Tüm araçlar sınırsız</li>
-                    </ul>
-                </div>
-
-            </div>
-
-            <a href="https://wa.me/905335620807?text=Premium%20Paket%20satın%20almak%20istiyorum"
-                class="block mt-6 w-full neon-btn py-3 rounded-lg font-semibold text-gray-900 hover:opacity-90 transition">
-                WhatsApp Premium Satın Al
-            </a>
-
-            <button onclick="closePremiumPopup()"
-                class="mt-4 w-full text-gray-400 hover:text-gray-200 text-sm underline">
-                Kapat
-            </button>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- ███ JS LOGIC ███ -->
     <script>
-        // Upload logic
-        const uploadArea = document.getElementById("uploadArea");
-        const imageInput = document.getElementById("imageFile");
+        let imageFile = null;
+        let processedBlob = null;
 
-        uploadArea.addEventListener("click", () => imageInput.click());
-        uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("upload-hover"); });
-        uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("upload-hover"));
-        uploadArea.addEventListener("drop", (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove("upload-hover");
-            imageInput.files = e.dataTransfer.files;
-        });
+        function openPremiumPopup(){document.getElementById("premiumPopup").style.display="flex";}
+        function closePremiumPopup(){document.getElementById("premiumPopup").style.display="none";}
 
-        // Background remove logic
-        document.getElementById("removeBtn").addEventListener("click", async () => {
+        async function loadPremiumSettings(){
+            try{
+                const r = await fetch("/get_settings");
+                const s = await r.json();
+                document.getElementById("premiumWhatsappBtn").href =
+                    "https://wa.me/"+s.popup.phone+"?text=Premium%20paket%20almak%20istiyorum";
+            }catch(e){}
+        }
+        document.addEventListener("DOMContentLoaded", loadPremiumSettings);
 
-            const file = imageInput.files[0];
-            if (!file) return alert("Lütfen bir görsel seçin.");
+        function allowDrop(ev){ev.preventDefault();document.getElementById("dz").classList.add("drag");}
+        function leaveDrop(){document.getElementById("dz").classList.remove("drag");}
+        function dropFile(ev){
+            ev.preventDefault();leaveDrop();
+            imageFile = ev.dataTransfer.files[0];
+            document.getElementById("fileName").innerText = imageFile.name;
+        }
+        function pickFile(){document.getElementById("fileInput").click();}
+         
+        function handleFile(e){
+            imageFile = e.target.files[0];
+            document.getElementById("fileName").innerText = imageFile.name;
+        }
 
-            const form = new FormData();
-            form.append("file", file);
+        async function removeBG(){
+            if(!imageFile){alert("Lütfen bir görsel yükleyin.");return;}
 
-            const res = await fetch("/background_remove", {
-                method: "POST",
-                body: form
+            document.getElementById("loading").style.display = "block";
+
+            const fd = new FormData();
+            fd.append("image", imageFile);
+
+            const res = await fetch("/api/image/remove_bg", {
+                method:"POST",
+                body:fd
             });
 
-            if (!res.ok) return alert("İşlem başarısız!");
+            document.getElementById("loading").style.display = "none";
+
+            if(!res.ok){
+                alert("İşlem başarısız veya Premium gerekli.");
+                return;
+            }
 
             const blob = await res.blob();
+            processedBlob = blob;
+
             const url = URL.createObjectURL(blob);
 
-            document.getElementById("previewImage").src = url;
-
-            const link = document.getElementById("downloadLink");
-            link.href = url;
-            link.textContent = "PNG olarak indir";
-
-            document.getElementById("resultBox").classList.remove("hidden");
-        });
-
-        // Popup
-        function openPremiumPopup() {
-            document.getElementById("premiumPopup").classList.remove("hidden");
-        }
-        function closePremiumPopup() {
-            document.getElementById("premiumPopup").classList.add("hidden");
+            document.getElementById("preview").src = url;
+            document.getElementById("downloadBtn").href = url;
+            document.getElementById("result").style.display = "block";
         }
     </script>
+</head>
+
+<body>
+
+<!-- PREMIUM POPUP -->
+<div id="premiumPopup">
+    <div class="modal">
+        <h3 style="font-size:18px;margin-bottom:8px;">Premium Gerekli</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Bu özellik Premium kullanıcılar için aktiftir.
+        </p>
+
+        <a id="premiumWhatsappBtn" href="#" target="_blank"
+           style="display:block;padding:10px;text-align:center;
+           background:linear-gradient(135deg,#f59e0b,#d97706);
+           border-radius:10px;color:white;font-weight:600;">
+            WhatsApp ile Satın Al →
+        </a>
+
+        <button onclick="closePremiumPopup()" style="
+            width:100%;margin-top:10px;background:none;border:none;
+            color:#888;font-size:12px;cursor:pointer;">Kapat</button>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="brand" onclick="window.location.href='/'">
+        <div class="brand-logo">B</div>
+        <div>
+            <div class="brand-text-main">Botlab Tools</div>
+            <div class="brand-text-sub">PDF • Görsel • Vektör</div>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <button class="btn btn-premium" onclick="openPremiumPopup()">Premium Al</button>
+        <button class="btn btn-ghost" onclick="window.location.href='/admin_login'">Giriş Yap</button>
+        <button class="btn btn-primary" onclick="window.location.href='/'">Ana Sayfa</button>
+    </div>
+</header>
+
+<div class="page-shell">
+
+    <h1 style="font-size:24px;font-weight:700;margin-bottom:14px;">Arka Plan Kaldır</h1>
+    <p style="font-size:14px;color:var(--text-muted);max-width:520px;margin-bottom:20px;">
+        Ürün, portre veya logo görsellerinizden arka planı otomatik kaldırın.
+    </p>
+
+    <!-- DROPZONE -->
+    <div id="dz" class="dropzone"
+         ondragover="allowDrop(event)"
+         ondragleave="leaveDrop()"
+         ondrop="dropFile(event)"
+         onclick="pickFile()">
+
+        <input id="fileInput" type="file" accept=".jpg,.jpeg,.png,.webp" onchange="handleFile(event)" />
+
+        <h3 style="font-size:18px;margin-bottom:6px;">Görsel Yükleyin</h3>
+        <p id="fileName">Sürükleyip bırakın veya tıklayın</p>
+    </div>
+
+    <button class="submit-btn" onclick="removeBG()">Arka Planı Kaldır</button>
+
+    <div id="loading">İşleniyor, lütfen bekleyin...</div>
+
+    <!-- RESULT -->
+    <div id="result" class="result">
+        <img id="preview" src="" alt="Sonuç" />
+        <a id="downloadBtn" href="#" download="arka_plansiz.png">PNG Olarak İndir</a>
+    </div>
+
+</div>
 
 </body>
-
 </html>
