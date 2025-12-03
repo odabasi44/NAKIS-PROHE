@@ -146,6 +146,14 @@ def admin_panel():
         return redirect("/admin_login")
     return render_template("admin.html")
 
+# ============================
+# GET SETTINGS – For Frontend
+# ============================
+@app.route("/get_settings")
+def get_settings():
+    return jsonify(load_settings())
+
+
 
 
 # ============================================================
@@ -357,3 +365,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     print("BOTLAB SUITE BACKEND STARTING...")
     app.run(host="0.0.0.0", port=port, debug=True)
+
