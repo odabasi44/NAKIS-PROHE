@@ -9,20 +9,22 @@ from datetime import datetime, timedelta
 from PyPDF2 import PdfMerger
 from flask import Flask, request, jsonify, render_template, session, redirect, send_file
 from flask_cors import CORS
+import onnxruntime as ort
+
 
 
 # ============================================================
 # FLASK APP
 # ============================================================
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__, static_folder=".", static_url_path="")
 app.secret_key = "BOTLAB_SECRET_123"
 CORS(app)
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
 
 
 # ============================================================
-# SETTINGS.JSON SYSTEM
+# SETTINGS SYSTEM
 # ============================================================
 def load_settings():
     with open("settings.json", "r", encoding="utf-8") as f:
@@ -52,12 +54,13 @@ def save_premium_users(data):
 
 
 # ============================================================
-# PREMIUM KONTROL MOTORU
+# PREMIUM / LIMIT CHECKER
 # ============================================================
 def check_user_status(email, tool, subtool):
     settings = load_settings()
     users = load_premium_users()
 
+    # PREMIUM mı?
     premium_user = None
     for u in users:
         if u["email"] == email:
@@ -75,12 +78,14 @@ def check_user_status(email, tool, subtool):
     else:
         return {"allowed": False, "reason": "invalid_tool"}
 
+    # PREMIUM
     if premium_user:
         left = limits["premium"] - premium_user["usage"]
         if left <= 0:
             return {"allowed": False, "reason": "premium_limit_full", "left": 0}
         return {"allowed": True, "premium": True, "left": left}
 
+    # FREE
     if "free_usage" not in session:
         session["free_usage"] = {}
     if tool not in session["free_usage"]:
@@ -101,12 +106,14 @@ def check_user_status(email, tool, subtool):
 def increase_usage(email, tool, subtool):
     users = load_premium_users()
 
+    # PREMIUM ise dosyada artar
     for u in users:
         if u["email"] == email:
             u["usage"] += 1
             save_premium_users(users)
             return
 
+    # FREE ise session içinde artar
     session["free_usage"][tool][subtool] += 1
 
 
@@ -146,18 +153,10 @@ def admin_panel():
         return redirect("/admin_login")
     return render_template("admin.html")
 
-# ============================
-# GET SETTINGS – For Frontend
-# ============================
-@app.route("/get_settings")
-def get_settings():
-    return jsonify(load_settings())
-
-
 
 
 # ============================================================
-# SETTINGS API (ADMIN PANEL İÇİN)
+# SETTINGS API
 # ============================================================
 @app.route("/get_settings")
 def api_get_settings():
@@ -171,10 +170,7 @@ def save_tool_limits_api():
     settings = load_settings()
 
     settings["limits"]["pdf"] = data["pdf"]
-    settings["limits"]["image"]["bg_free"] = data["image"]["bg_free"]
-    settings["limits"]["image"]["bg_premium"] = data["image"]["bg_premium"]
-    settings["limits"]["image"]["convert_free"] = data["image"]["convert_free"]
-    settings["limits"]["image"]["convert_premium"] = data["image"]["convert_premium"]
+    settings["limits"]["image"] = data["image"]
     settings["limits"]["vector"] = data["vector"]
 
     save_settings(settings)
@@ -186,10 +182,7 @@ def save_popup():
     data = request.get_json()
     settings = load_settings()
 
-    settings["popup"]["title"] = data["title"]
-    settings["popup"]["desc"] = data["desc"]
-    settings["popup"]["benefits"] = data["benefits"]
-    settings["popup"]["phone"] = data["phone"]
+    settings["popup"] = data
 
     save_settings(settings)
     return jsonify({"status": "ok"})
@@ -217,62 +210,6 @@ def save_admin():
         settings["admin"]["password"] = data["password"]
 
     save_settings(settings)
-    return jsonify({"status": "ok"})
-
-
-
-# ============================================================
-# PREMIUM USER API
-# ============================================================
-@app.route("/get_premium_users")
-def get_premium_users():
-    return jsonify(load_premium_users())
-
-
-@app.route("/add_premium_user", methods=["POST"])
-def add_premium_user():
-    data = request.get_json()
-    email = data["email"]
-    days = int(data["days"])
-
-    users = load_premium_users()
-
-    end = datetime.now() + timedelta(days=days)
-
-    users.append({
-        "email": email,
-        "start": datetime.now().strftime("%Y-%m-%d"),
-        "end": end.strftime("%Y-%m-%d"),
-        "usage": 0
-    })
-
-    save_premium_users(users)
-    return jsonify({"status": "ok"})
-
-
-@app.route("/delete_premium_user", methods=["POST"])
-def delete_premium_user():
-    data = request.get_json()
-    email = data["email"]
-
-    users = load_premium_users()
-    users = [u for u in users if u["email"] != email]
-
-    save_premium_users(users)
-    return jsonify({"status": "ok"})
-
-
-@app.route("/reset_usage", methods=["POST"])
-def reset_usage():
-    data = request.get_json()
-    email = data["email"]
-
-    users = load_premium_users()
-    for u in users:
-        if u["email"] == email:
-            u["usage"] = 0
-
-    save_premium_users(users)
     return jsonify({"status": "ok"})
 
 
@@ -321,69 +258,88 @@ def api_pdf_merge():
         "filename": "birlesik.pdf"
     })
 
-# ============================================================
-# U2NET BACKGROUND REMOVER – MODEL LOAD
-# ============================================================
-import torch
-from torchvision import transforms
-from PIL import Image
-import numpy as np
 
-MODEL_PATH = "/app/models/u2net.pth"
-
-# U2NET model tanımı
-from model import U2NET # repo içinde varsa
-# Eğer model.py içinde U2NET değilse, sınıf adını bana yaz kirvem
-
-
-def load_u2net_model():
-    model = U2NET(3, 1)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
-    model.eval()
-    return model
-
-u2net = load_u2net_model()
-
-
-def preprocess_image(img):
-    transform = transforms.Compose([
-        transforms.Resize((320, 320)),
-        transforms.ToTensor(),
-    ])
-    return transform(img).unsqueeze(0)
-
-def remove_background_u2net(image_pil):
-    input_tensor = preprocess_image(image_pil)
-
-    with torch.no_grad():
-        d1, *_ = u2net(input_tensor)
-
-    mask = d1.squeeze().cpu().numpy()
-    mask = (mask - mask.min()) / (mask.max() - mask.min())
-    mask = (mask * 255).astype("uint8")
-
-    mask = Image.fromarray(mask).resize(image_pil.size)
-    image_rgba = image_pil.convert("RGBA")
-    image_np = np.array(image_rgba)
-    image_np[:, :, 3] = mask
-
-    return Image.fromarray(image_np)
 
 # ============================================================
-# VEKTÖR API
+# BACKGROUND REMOVER (ONNX)
+# ============================================================
+print("Loading U2Net ONNX model...")
+U2NET_MODEL = "/app/models/u2net.onnx"
+
+u2net_session = ort.InferenceSession(
+    U2NET_MODEL,
+    providers=["CPUExecutionProvider"]
+)
+
+def preprocess_bg(img):
+    img = img.convert("RGB")
+    img = img.resize((320, 320))
+    arr = np.array(img).astype(np.float32) / 255.0
+    arr = np.transpose(arr, (2, 0, 1))
+    return arr.reshape(1, 3, 320, 320)
+
+def postprocess_bg(mask, size):
+    mask = mask.squeeze()
+    mask = cv2.resize(mask, size, interpolation=cv2.INTER_LINEAR)
+    mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
+    return mask
+
+
+
+@app.route("/api/remove_bg", methods=["POST"])
+def api_remove_bg():
+
+    email = request.form.get("email", "guest")
+
+    status = check_user_status(email, "image", "remove_bg")
+    if not status["allowed"]:
+        return jsonify({
+            "success": False,
+            "reason": status["reason"],
+            "left": status["left"]
+        }), 403
+
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "Resim seçilmedi"}), 400
+
+    file = request.files["image"]
+    img = Image.open(file.stream)
+
+    ow, oh = img.size
+
+    inp = preprocess_bg(img)
+    output = u2net_session.run(None, {"input": inp})[0]
+
+    mask = postprocess_bg(output, (ow, oh))
+
+    rgba = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2RGBA)
+    rgba[:, :, 3] = (mask * 255).astype(np.uint8)
+
+    out = Image.fromarray(rgba)
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+
+    encoded = base64.b64encode(buf.getvalue()).decode()
+
+    increase_usage(email, "image", "remove_bg")
+
+    return jsonify({
+        "success": True,
+        "file": encoded,
+        "filename": "arka_plan_silindi.png"
+    })
+
+
+
+# ============================================================
+# VECTOR API (Şimdilik Fake)
 # ============================================================
 @app.route("/vectorize_style", methods=["POST"])
 def vectorize_with_style():
-    try:
-        if "image" not in request.files:
-            return jsonify({"success": False, "error": "Resim yok"}), 400
-
-        fake = base64.b64encode(b"FAKE_VECTOR").decode()
-
-        return jsonify({"success": True, "image_data": fake})
-
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({
+        "success": True,
+        "image_data": base64.b64encode(b"FAKE_VECTOR").decode()
+    })
 
 
 
@@ -402,6 +358,10 @@ def vektor_page():
 def pdf_merge_page():
     return render_template("pdf_merge.html")
 
+@app.route("/remove-bg")
+def remove_bg_page():
+    return render_template("background_remove.html")
+
 
 
 # ============================================================
@@ -411,42 +371,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     print("BOTLAB SUITE BACKEND STARTING...")
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-# ============================================================
-# API: BACKGROUND REMOVE (U2NET)
-# ============================================================
-@app.route("/api/remove_bg", methods=["POST"])
-def api_remove_bg():
-
-    email = request.form.get("email", "guest")
-
-    # LIMIT / PREMIUM kontrolü
-    status = check_user_status(email, "image", "remove_bg")
-    if not status["allowed"]:
-        return jsonify({
-            "success": False,
-            "reason": status["reason"],
-            "left": status["left"]
-        }), 403
-
-    if "image" not in request.files:
-        return jsonify({"success": False, "message": "Resim seçilmedi"}), 400
-
-    file = request.files["image"]
-    img = Image.open(file.stream).convert("RGB")
-
-    result = remove_background_u2net(img)
-
-    # PNG BASE64 output
-    buffer = io.BytesIO()
-    result.save(buffer, format="PNG")
-    encoded = base64.b64encode(buffer.getvalue()).decode()
-
-    increase_usage(email, "image", "remove_bg")
-
-    return jsonify({
-        "success": True,
-        "file": encoded,
-        "filename": "arka_plan_silindi.png"
-    })
