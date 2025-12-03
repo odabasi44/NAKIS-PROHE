@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arka Plan Kaldır • Botlab Tools</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, sans-serif;
+            background: radial-gradient(circle at top, #1a2043 0, #050814 55%, #020308 100%);
+            color: #f8fafc;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .tool-box {
+            background: rgba(15,23,42,0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 28px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 0 18px rgba(0,0,0,0.35);
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(148,163,255,0.3);
+            border-radius: 16px;
+            padding: 40px;
+            cursor: pointer;
+            background: rgba(30,41,59,0.4);
+            transition: .2s;
+        }
+
+        .upload-area:hover {
+            background: rgba(51,65,85,0.4);
+        }
+
+        #preview {
+            margin-top: 20px;
+            max-width: 100%;
+            display: none;
+            border-radius: 12px;
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg,#4f8dff,#7c3aed);
+            color: #fff;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg,#22c55e,#15803d);
+            color: #fff;
+        }
+
+        .btn-disabled {
+            background: rgba(148,163,255,0.2);
+            color: rgba(255,255,255,0.4);
+            cursor: not-allowed;
+        }
+
+        #result-img {
+            display: none;
+            margin-top: 20px;
+            max-width: 100%;
+            border-radius: 14px;
+        }
+
+        .go-home {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .go-home a {
+            color: #67e8f9;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+    <h1 style="text-align:center; margin-bottom:20px;">✨ Arka Plan Kaldır</h1>
+
+    <div class="tool-box">
+
+        <div class="upload-area" onclick="document.getElementById('file').click()">
+            <p>📤 Bir resim yükleyin (PNG, JPG)</p>
+            <input type="file" id="file" accept="image/*" style="display:none" onchange="previewImage(event)">
+        </div>
+
+        <img id="preview">
+
+        <button id="removeBtn" class="btn btn-primary btn-disabled" onclick="removeBackground()" disabled>
+            Arka Planı Kaldır
+        </button>
+
+        <a id="downloadBtn" class="btn btn-success" style="display:none;" download="arka_plan_silindi.png">
+            İndir
+        </a>
+
+        <img id="result-img">
+
+        <div class="go-home">
+            <a href="/">← Ana Sayfaya Dön</a>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFile = null;
+
+function previewImage(event) {
+    selectedFile = event.target.files[0];
+    if (!selectedFile) return;
+
+    let img = document.getElementById("preview");
+    img.src = URL.createObjectURL(selectedFile);
+    img.style.display = "block";
+
+    document.getElementById("removeBtn").disabled = false;
+    document.getElementById("removeBtn").classList.remove("btn-disabled");
+}
+
+async function removeBackground() {
+    if (!selectedFile) return;
+
+    let form = new FormData();
+    form.append("image", selectedFile);
+    form.append("email", localStorage.getItem("botlab_email") || "guest");
+
+    let btn = document.getElementById("removeBtn");
+    btn.innerText = "İşleniyor...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetch("/api/remove_bg", {
+            method: "POST",
+            body: form
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            alert("Hata: " + data.reason);
+            btn.innerText = "Arka Planı Kaldır";
+            btn.disabled = false;
+            return;
+        }
+
+        let imgBase64 = "data:image/png;base64," + data.file;
+
+        // Preview result
+        let resultImg = document.getElementById("result-img");
+        resultImg.src = imgBase64;
+        resultImg.style.display = "block";
+
+        let downloadBtn = document.getElementById("downloadBtn");
+        downloadBtn.href = imgBase64;
+        downloadBtn.style.display = "inline-block";
+
+        btn.innerText = "Arka Planı Kaldır";
+    }
+    catch(err) {
+        alert("Bir hata oluştu: " + err);
+        btn.innerText = "Arka Planı Kaldır";
+    }
+}
+</script>
+
+</body>
+</html>
