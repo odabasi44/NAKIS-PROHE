@@ -11,20 +11,14 @@ from flask import Flask, request, jsonify, render_template, session, redirect
 from flask_cors import CORS
 import onnxruntime as ort
 
-# ============================================================
-# FLASK AYARLARI
-# ============================================================
 app = Flask(__name__, static_folder=".", static_url_path="")
-app.secret_key = "BOTLAB_SECRET_123" 
+app.secret_key = "BOTLAB_SECRET_123"
 CORS(app)
-app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024 
+app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
-# ============================================================
-# AYARLAR SİSTEMİ
-# ============================================================
+# --- AYARLAR ---
 def load_settings():
     if not os.path.exists("settings.json"):
-        # Varsayılan ayarlar
         return {"admin": {"email": "admin@botlab.com", "password": "admin"}, "limits": {"pdf": {}, "image": {}, "vector": {}}, "site": {}, "tool_status": {}}
     with open("settings.json", "r", encoding="utf-8") as f:
         return json.load(f)
@@ -33,11 +27,8 @@ def save_settings(data):
     with open("settings.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ============================================================
-# KULLANICI SİSTEMİ
-# ============================================================
-# Admin paneliyle uyum için "users.json" kullanıyoruz
-PREMIUM_FILE = "users.json" 
+# --- KULLANICI SİSTEMİ ---
+PREMIUM_FILE = "users.json"
 
 def load_premium_users():
     if not os.path.exists(PREMIUM_FILE): return []
@@ -55,14 +46,13 @@ def get_user_data_by_email(email):
         if u.get("email", "").lower() == email.lower(): return u
     return None
 
-# ============================================================
-# OTURUM KONTROLÜ
-# ============================================================
+# --- OTURUM ---
 @app.before_request
 def check_session_status():
     if request.path.startswith("/admin") and request.path != "/admin_login":
         if not session.get("admin_logged"): return redirect("/admin_login")
 
+    # Kullanıcı oturumu kontrolü
     if "user_email" in session:
         user = get_user_data_by_email(session["user_email"])
         if user:
@@ -70,18 +60,20 @@ def check_session_status():
                 end_date = datetime.strptime(user.get("end_date", "1970-01-01"), "%Y-%m-%d")
                 session["is_premium"] = (end_date >= datetime.now())
              except: session["is_premium"] = False
-        else: session["is_premium"] = False
+        else: 
+            # Kullanıcı veritabanından silinmişse oturumu düşür
+            session.pop("user_email", None)
+            session["is_premium"] = False
     
     if "is_premium" not in session: session["is_premium"] = False
 
-# ============================================================
-# LİMİT KONTROLÜ
-# ============================================================
+# --- LİMİT KONTROL ---
 def check_user_status(email, tool, subtool):
     settings = load_settings()
     users = load_premium_users()
     premium_user = None
     
+    # Premium Kullanıcı Kontrolü
     for u in users:
         if u.get("email", "").lower() == email.lower():
             end_date_str = u.get("end_date")
@@ -99,7 +91,7 @@ def check_user_status(email, tool, subtool):
     if tool_status.get("maintenance", False):
         return {"allowed": False, "reason": "maintenance", "left": 0, "premium": session.get("is_premium", False)}
     
-    # Premium Kullanıcı
+    # Premium Limit Mantığı
     if premium_user:
         if tool_status.get("premium_only", False) or limits.get("premium", 9999) > 0:
             premium_limit = limits.get("premium", 9999)
@@ -114,8 +106,9 @@ def check_user_status(email, tool, subtool):
     if tool_status.get("premium_only", False):
          return {"allowed": False, "reason": "premium_only", "left": 0, "premium": False}
 
-    # Ücretsiz Kullanıcı
+    # Ücretsiz (Misafir) Limit Mantığı
     free_limit = limits.get("free", 0)
+    
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     
@@ -129,6 +122,8 @@ def check_user_status(email, tool, subtool):
 
 def increase_usage(email, tool, subtool):
     users = load_premium_users()
+    
+    # Premium ise DB'ye kaydet
     for u in users:
         if u.get("email", "").lower() == email.lower():
             if "usage_stats" not in u: u["usage_stats"] = {}
@@ -137,13 +132,12 @@ def increase_usage(email, tool, subtool):
             save_premium_users(users)
             return
 
+    # Değilse Session'a kaydet
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
 
-# ============================================================
-# API ENDPOINTLERİ
-# ============================================================
+# --- API ENDPOINTLERİ ---
 @app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
 def check_tool_status_endpoint(tool, subtool):
     email = session.get("user_email", "guest")
@@ -158,6 +152,82 @@ def check_tool_status_endpoint(tool, subtool):
         "premium": status.get("premium", False),
         "usage": usage
     })
+
+# --- REMOVE BG (AKILLI MODEL YÜKLEYİCİ) ---
+u2net_session = None
+model_input_name = "input" # Varsayılan
+
+print("--- MODEL YÜKLEME BAŞLIYOR ---")
+possible_paths = [
+    "/data/ai-models/u2net.onnx", # Senin yüklediğin yol
+    "u2net.onnx",
+    "models/u2net.onnx",
+    "/app/models/u2net.onnx",
+    "/app/u2net.onnx"
+]
+
+found_path = None
+for path in possible_paths:
+    if os.path.exists(path):
+        found_path = path
+        print(f"✅ Model bulundu: {path}")
+        break
+
+if found_path:
+    try:
+        u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
+        # Modelin giriş ismini (input name) otomatik bul
+        model_input_name = u2net_session.get_inputs()[0].name
+        print(f"🚀 ONNX Modeli Yüklendi! Giriş Parametresi: {model_input_name}")
+    except Exception as e:
+        print(f"❌ Model Yükleme Hatası: {e}")
+else:
+    print("⚠️ UYARI: u2net.onnx modeli bulunamadı.")
+
+def preprocess_bg(img):
+    img = img.convert("RGB").resize((320, 320))
+    arr = np.array(img).astype(np.float32) / 255.0
+    arr = np.transpose(arr, (2, 0, 1))
+    return arr.reshape(1, 3, 320, 320)
+
+def postprocess_bg(mask, size):
+    mask = mask.squeeze()
+    mask = cv2.resize(mask, size)
+    mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
+    return mask
+
+@app.route("/api/remove_bg", methods=["POST"])
+def api_remove_bg():
+    if not u2net_session: 
+        return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı."}), 503
+        
+    # Session'dan email al (daha güvenli)
+    email = session.get("user_email", "guest")
+    
+    status = check_user_status(email, "image", "remove_bg")
+    if not status["allowed"]: return jsonify(status), 403
+
+    if "image" not in request.files: return jsonify({"success": False, "message": "Resim yok"}), 400
+    
+    try:
+        img = Image.open(request.files["image"].stream)
+        ow, oh = img.size
+        
+        # Dinamik input ismini kullanıyoruz
+        output = u2net_session.run(None, {model_input_name: preprocess_bg(img)})[0]
+        mask = postprocess_bg(output, (ow, oh))
+        
+        rgba = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2RGBA)
+        rgba[:, :, 3] = (mask * 255).astype(np.uint8)
+        
+        buf = io.BytesIO()
+        Image.fromarray(rgba).save(buf, format="PNG")
+        
+        increase_usage(email, "image", "remove_bg")
+        return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
+    except Exception as e:
+        print(f"Processing Error: {e}")
+        return jsonify({"success": False, "message": f"İşlem hatası: {str(e)}"}), 500
 
 # --- PDF MERGE ---
 @app.route("/api/pdf/merge", methods=["POST"])
@@ -182,79 +252,7 @@ def api_pdf_merge():
     increase_usage(email, "pdf", "merge")
     return jsonify({"success": True, "file": base64.b64encode(output.getvalue()).decode("utf-8")})
 
-# --- REMOVE BG (AKILLI MODEL YÜKLEYİCİ) ---
-u2net_session = None
-print("--- MODEL YÜKLEME BAŞLIYOR ---")
-
-# Modelin olabileceği tüm olası yollar (FileZilla yolu dahil)
-possible_paths = [
-    "/data/ai-models/u2net.onnx",  # Senin yüklediğin yol
-    "u2net.onnx",
-    "models/u2net.onnx",
-    "/app/models/u2net.onnx",
-    "/app/u2net.onnx"
-]
-
-found_path = None
-for path in possible_paths:
-    if os.path.exists(path):
-        found_path = path
-        print(f"✅ Model bulundu: {path}")
-        break
-
-if found_path:
-    try:
-        u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
-        print("🚀 ONNX Modeli Başarıyla Yüklendi!")
-    except Exception as e:
-        print(f"❌ Model Yükleme Hatası (Dosya var ama bozuk olabilir): {e}")
-else:
-    print("⚠️ UYARI: u2net.onnx modeli hiçbir klasörde bulunamadı. Lütfen '/data/ai-models/' içine yükleyin.")
-
-def preprocess_bg(img):
-    img = img.convert("RGB").resize((320, 320))
-    arr = np.array(img).astype(np.float32) / 255.0
-    arr = np.transpose(arr, (2, 0, 1))
-    return arr.reshape(1, 3, 320, 320)
-
-def postprocess_bg(mask, size):
-    mask = mask.squeeze()
-    mask = cv2.resize(mask, size)
-    mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
-    return mask
-
-@app.route("/api/remove_bg", methods=["POST"])
-def api_remove_bg():
-    if not u2net_session: 
-        return jsonify({"success": False, "reason": "AI Modeli Bulunamadı. Sistem Yöneticisine Başvurun."}), 503
-        
-    email = session.get("user_email", "guest")
-    
-    status = check_user_status(email, "image", "remove_bg")
-    if not status["allowed"]: return jsonify(status), 403
-
-    if "image" not in request.files: return jsonify({"success": False, "message": "Resim yok"}), 400
-    
-    try:
-        img = Image.open(request.files["image"].stream)
-        ow, oh = img.size
-        
-        output = u2net_session.run(None, {"input": preprocess_bg(img)})[0]
-        mask = postprocess_bg(output, (ow, oh))
-        
-        rgba = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2RGBA)
-        rgba[:, :, 3] = (mask * 255).astype(np.uint8)
-        
-        buf = io.BytesIO()
-        Image.fromarray(rgba).save(buf, format="PNG")
-        
-        increase_usage(email, "image", "remove_bg")
-        return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
-    except Exception as e:
-        print(f"Processing Error: {e}")
-        return jsonify({"success": False, "message": f"İşlem hatası: {str(e)}"}), 500
-
-# --- SAYFA ROTALARI ---
+# --- SAYFALAR ---
 @app.route("/")
 def home(): return render_template("index.html")
 @app.route("/remove-bg")
@@ -273,7 +271,7 @@ def dashboard_page():
 @app.route("/vektor")
 def vektor_page(): return render_template("vektor.html")
 
-# --- GİRİŞ / ÇIKIŞ ---
+# --- AUTH ---
 @app.route("/admin_login", methods=["POST"])
 def admin_login_post():
     data = request.get_json()
