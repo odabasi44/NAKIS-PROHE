@@ -6,40 +6,255 @@
 {% block admin_subtitle %}Sistem İstatistikleri ve Özet Durum.{% endblock admin_subtitle %}
 
 {% block admin_content %}
+
+<!-- ========================================================= -->
+<!-- 1. DASHBOARD SEKMESİ -->
+<!-- ========================================================= -->
 <div id="tab-dashboard" class="space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- İstatistik Kartları -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="card p-5 border-l-4 border-blue-500">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Toplam Ziyaret</p>
-            <h3 class="text-2xl font-bold text-white">12,405</h3>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Toplam Kullanıcı</p>
+            <h3 id="stat-total-users" class="text-2xl font-bold text-white">0</h3>
         </div>
+        <div class="card p-5 border-l-4 border-green-500">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aktif Premium</p>
+            <h3 id="stat-active-premium" class="text-2xl font-bold text-white">0</h3>
         </div>
+        <div class="card p-5 border-l-4 border-amber-500">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Toplam Görsel İşlem</p>
+            <h3 id="stat-total-images" class="text-2xl font-bold text-white">0</h3>
+        </div>
+        <div class="card p-5 border-l-4 border-red-500">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Açık Destek Talebi</p>
+            <h3 id="stat-open-tickets" class="text-2xl font-bold text-white">0</h3>
+        </div>
+    </div>
     
-    <div class="card">
+    <div class="card p-5">
         <h3 class="text-lg font-bold text-white mb-4">Son Aktiviteler</h3>
-        <p class="text-gray-400">Veriler backend'den (main.py) çekilecektir.</p>
+        <p class="text-gray-400 text-sm">Sistem logları ve son kullanıcı hareketleri burada listelenecektir.</p>
     </div>
 </div>
 
-<script>
-    // Bu script admin_layout.html'deki showTab() fonksiyonunu tetiklemek için burada kalmalıdır.
-    document.addEventListener('DOMContentLoaded', () => {
-        // İlk açılışta dashboard sekmesini aktif et
-        showTab('dashboard'); 
-    });
-    
-    // showTab fonksiyonu admin_layout.html'de tanımlıdır (Çalışma mantığı için burada tekrar tanımlandı).
-    function showTab(tabName) {
-        document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-        
-        const tabElement = document.getElementById('tab-' + tabName);
-        if(tabElement) tabElement.classList.remove('hidden');
+<!-- ========================================================= -->
+<!-- 2. KULLANICILAR & ÜYELİK SEKMESİ -->
+<!-- ========================================================= -->
+<div id="tab-users" class="hidden space-y-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white">Kullanıcı Yönetimi</h2>
+        <button onclick="openModal('addUserModal')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            + Yeni Üye Ekle
+        </button>
+    </div>
 
-        const navElement = document.getElementById('nav-' + tabName);
-        if(navElement) navElement.classList.add('active');
+    <div class="card p-0 overflow-hidden">
+        <table class="w-full text-sm text-left text-gray-400">
+            <thead class="text-xs text-gray-200 uppercase bg-[#080b16] border-b border-white/5">
+                <tr>
+                    <th scope="col" class="px-6 py-3">E-posta</th>
+                    <th scope="col" class="px-6 py-3">Kullanım (Adet)</th>
+                    <th scope="col" class="px-6 py-3">Bitiş Tarihi</th>
+                    <th scope="col" class="px-6 py-3 text-right">İşlem</th>
+                </tr>
+            </thead>
+            <tbody id="user-table-body">
+                <!-- JavaScript ile doldurulacak -->
+                <tr><td colspan="4" class="px-6 py-4 text-center">Yükleniyor...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- 3. ARAÇ YÖNETİMİ SEKMESİ -->
+<!-- ========================================================= -->
+<div id="tab-tools" class="hidden space-y-6">
+    <h2 class="text-xl font-bold text-white mb-4">Araç Bakım ve Limit Ayarları</h2>
+    <div class="card p-6">
+        <p class="text-gray-400 mb-4">Şu an için araç ayarları config dosyasından yönetilmektedir. Arayüz entegrasyonu sonraki aşamada eklenecektir.</p>
+        <div class="p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg text-yellow-200 text-sm">
+            ⚠️ Bakım modunu aktif etmek için <code>settings.json</code> dosyasını düzenleyin.
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- 4. DİĞER SEKMELER (Şimdilik Boş) -->
+<!-- ========================================================= -->
+<div id="tab-tickets" class="hidden space-y-6">
+    <h2 class="text-xl font-bold text-white">Destek Talepleri</h2>
+    <p class="text-gray-400">Henüz aktif destek talebi bulunmuyor.</p>
+</div>
+
+<div id="tab-reports" class="hidden space-y-6">
+    <h2 class="text-xl font-bold text-white">Raporlar</h2>
+    <p class="text-gray-400">Detaylı analizler yakında eklenecek.</p>
+</div>
+
+<div id="tab-settings" class="hidden space-y-6">
+    <h2 class="text-xl font-bold text-white">Site Ayarları</h2>
+    <p class="text-gray-400">Genel site yapılandırması.</p>
+</div>
+
+
+<!-- ========================================================= -->
+<!-- MODALLER -->
+<!-- ========================================================= -->
+
+<!-- MODAL: YENİ ÜYE EKLE -->
+<div id="addUserModal" class="modal-overlay hidden items-center justify-center fixed inset-0 bg-black/80 z-50">
+    <div class="modal-content p-8 w-full max-w-md relative animate-fade-in shadow-2xl bg-[#0c1120] rounded-2xl border border-white/10">
+        <button onclick="closeModal('addUserModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">✕</button>
+        <h2 class="text-xl font-bold text-white mb-6">Yeni Premium Üye Ekle</h2>
         
-        // Bu kısım AJAX/fetch ile içerik değiştirecek. Şimdilik sadece görünümü değiştiriyor.
-        // Örn: fetch('/api/admin/users').then(response => ...)
+        <form id="addUserForm" onsubmit="event.preventDefault(); handleAddUser();">
+            <label class="block text-sm text-gray-400 mb-1">E-posta</label>
+            <input type="email" id="new-user-email" placeholder="kullanici@mail.com" class="input-dark w-full text-sm mb-4" required>
+
+            <label class="block text-sm text-gray-400 mb-1">Bitiş Tarihi (YYYY-MM-DD)</label>
+            <input type="text" id="new-user-end-date" placeholder="Örn: 2026-12-31" class="input-dark w-full text-sm mb-6" required>
+            
+            <p id="addUserMessage" class="text-sm text-green-400 mb-3 hidden"></p>
+
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-sm transition">
+                Üye Ekle
+            </button>
+        </form>
+    </div>
+</div>
+
+
+<!-- ========================================================= -->
+<!-- JAVASCRIPT (Veri İşlemleri) -->
+<!-- ========================================================= -->
+<script>
+    // DASHBOARD VERİLERİNİ ÇEK
+    async function fetchDashboardData() {
+        try {
+            const res = await fetch("/api/admin/users");
+            const users = await res.json();
+            
+            const totalUsers = users.length;
+            // end_date kontrolü (güvenli tarih ayrıştırma)
+            const activePremium = users.filter(u => {
+                if(!u.end_date) return false;
+                return new Date(u.end_date) >= new Date();
+            }).length;
+            
+            document.getElementById('stat-total-users').textContent = totalUsers;
+            document.getElementById('stat-active-premium').textContent = activePremium;
+            
+            // Toplam kullanım hesapla (güvenli erişim)
+            const totalImages = users.reduce((acc, user) => {
+                const stats = user.usage_stats || {};
+                return acc + (stats.remove_bg || 0);
+            }, 0);
+            
+            document.getElementById('stat-total-images').textContent = totalImages;
+
+        } catch(e) {
+            console.error("Dashboard verileri çekilemedi:", e);
+        }
+    }
+
+    // KULLANICI LİSTESİNİ ÇEK VE TABLOYA YAZ
+    async function fetchUsers() {
+        const tbody = document.getElementById('user-table-body');
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">Yükleniyor...</td></tr>';
+        
+        try {
+            const res = await fetch("/api/admin/users");
+            const users = await res.json();
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Kayıtlı premium üye bulunmamaktadır.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => {
+                const endDate = new Date(user.end_date);
+                const isActive = endDate >= new Date();
+                const statusClass = isActive ? 'text-green-400' : 'text-red-400';
+                const statusText = isActive ? 'Aktif' : 'Süresi Dolmuş';
+                
+                // İstatistikleri güvenli al
+                const stats = user.usage_stats || {};
+                const usageTotal = (stats.remove_bg || 0) + (stats.pdf_merge || 0);
+
+                return `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                        <th scope="row" class="px-6 py-4 font-medium text-white whitespace-nowrap">
+                            ${user.email}
+                        </th>
+                        <td class="px-6 py-4">
+                            ${usageTotal}
+                        </td>
+                        <td class="px-6 py-4 ${statusClass}">
+                            ${user.end_date} <span class="text-xs">(${statusText})</span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="handleDeleteUser('${user.email}')" class="text-red-500 hover:text-red-400 font-medium ml-2 text-xs border border-red-500/30 px-2 py-1 rounded">Sil</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-red-400">Sunucu bağlantı hatası.</td></tr>';
+            console.error("Kullanıcı listesi hatası:", e);
+        }
+    }
+
+    // YENİ ÜYE EKLE
+    async function handleAddUser() {
+        const email = document.getElementById('new-user-email').value;
+        const endDate = document.getElementById('new-user-end-date').value;
+        const msgEl = document.getElementById('addUserMessage');
+        
+        msgEl.classList.add('hidden');
+        msgEl.classList.remove('text-red-400', 'text-green-400');
+
+        try {
+            const res = await fetch("/api/admin/add_user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email, end_date: endDate })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                msgEl.textContent = data.message;
+                msgEl.classList.add('text-green-400');
+                document.getElementById('addUserForm').reset();
+                fetchUsers(); // Listeyi yenile
+                setTimeout(() => closeModal('addUserModal'), 1500);
+            } else {
+                msgEl.textContent = data.message || "Hata oluştu.";
+                msgEl.classList.add('text-red-400');
+            }
+        } catch (e) {
+            msgEl.textContent = "Sunucu hatası.";
+            msgEl.classList.add('text-red-400');
+        }
+        msgEl.classList.remove('hidden');
+    }
+
+    // ÜYE SİL
+    async function handleDeleteUser(email) {
+        if (!confirm(`${email} kullanıcısını silmek istediğinize emin misiniz?`)) return;
+
+        try {
+            const res = await fetch(`/api/admin/delete_user/${email}`, { method: "DELETE" });
+            if (res.ok) {
+                fetchUsers(); // Listeyi yenile
+            } else {
+                alert("Silme başarısız.");
+            }
+        } catch (e) {
+            alert("Sunucu hatası.");
+        }
     }
 </script>
+
 {% endblock admin_content %}
