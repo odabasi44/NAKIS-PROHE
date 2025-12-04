@@ -1,9 +1,29 @@
-
 {
-    "admin_email": "odabasiaiteknoloji@gmail.com",
-    "admin_password": "280494Odabasi.",
-    "whatsapp_number": "905555555555",
-
-    "free_usage_limit": 5,
-    "premium_duration_days": 365
+    "admin": {
+        "email": "odabasiaiteknoloji@gmail.com",
+        "password": "280494Odabasi."
+    },
+    "site": {
+        "whatsapp_number": "905335620807",
+        "title": "Botlab Tools | Premium Suite",
+        "announcement_bar": ""
+    },
+    "limits": {
+        "global_free_count": 2,
+        "pdf": {
+            "merge": { "free": 2, "premium": 9999 },
+            "split": { "free": 2, "premium": 9999 },
+            "compress": { "free": 2, "premium": 9999 },
+            "word2pdf": { "free": 2, "premium": 9999 }
+        },
+        "image": {
+            "remove_bg": { "free": 2, "premium": 9999 },
+            "compress": { "free": 2, "premium": 9999 },
+            "resize": { "free": 2, "premium": 9999 }
+        }
+    },
+    "tool_status": {
+        "remove_bg": { "maintenance": false, "premium_only": false },
+        "pdf_merge": { "maintenance": false, "premium_only": false }
+    }
 }
