@@ -1,155 +1,121 @@
 {% extends "base.html" %}
 
-{% block title %}Ana Sayfa{% endblock title %}
+{% block title %}PDF, Görsel ve Vektör Araçları{% endblock title %}
 
 {% block content %}
-<div class="text-center mb-16">
-    
-    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-500/20 bg-blue-500/5 mb-6 animate-float">
-        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span class="text-xs font-semibold text-blue-300 tracking-wide uppercase">Kredi Kartı Gerekmez • Anında Dene</span>
+<div class="max-w-7xl mx-auto px-4 py-8 w-full">
+
+<!-- ====================== HERO ========================== -->
+<section class="hero grid grid-cols-1 lg:grid-cols-[3fr_2.6fr] gap-6 mb-8">
+
+    <!-- HERO SOL -->
+    <div class="bg-gradient-to-br from-gray-900/90 to-black/90 p-6 rounded-2xl border border-white/10 shadow-2xl">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs px-3 py-1 rounded-full bg-green-700/30 text-green-400 border border-green-700">Yeni</span>
+            <span class="text-xs px-3 py-1 rounded-full bg-purple-700/30 text-purple-400 border border-purple-700 border-dashed">PDF + Görsel + Vektör tek panel</span>
+        </div>
+
+        <h1 class="text-4xl font-extrabold leading-tight mb-3">
+            Tüm Dijital İşleriniz<br>
+            <span class="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">Tek Bir Panelde.</span>
+        </h1>
+
+        <p class="text-gray-400 mb-6 max-w-lg text-sm">
+            Yapay zeka destekli görsel işleme, profesyonel PDF araçları ve günlük dijital ihtiyaçlarınız için geliştirildi. Günlük ücretsiz hakkınızla hemen başlayın.
+        </p>
+
+        <div class="flex items-center gap-4">
+            <a href="/remove-bg" class="px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-lg shadow-blue-900/50">
+                Hemen Başla (Ücretsiz)
+            </a>
+            <a onclick="openModal('premiumModal')" class="px-6 py-3 rounded-full bg-white/10 text-white font-bold hover:bg-white/20 transition cursor-pointer">
+                Paketleri İncele
+            </a>
+        </div>
     </div>
 
-    <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
-        Tüm Dijital İşleriniz <br>
-        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">Tek Bir Panelde.</span>
-    </h1>
-    <p class="text-gray-400 max-w-2xl mx-auto text-lg mb-8">
-        Yapay zeka destekli görsel işleme, profesyonel PDF araçları ve günlük dijital ihtiyaçlarınız için geliştirildi. <span class="text-white font-medium">Günlük ücretsiz hakkınızla hemen başlayın.</span>
-    </p>
-
-    <div class="flex flex-wrap justify-center gap-4">
-        <button onclick="window.location.href='/remove-bg'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            Hemen Başla (Ücretsiz)
-        </button>
-        <button onclick="openModal('premiumModal')" class="px-8 py-3.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium transition">
-            Paketleri İncele
-        </button>
-    </div>
-</div>
-
-<section class="mb-16">
-    <div class="section-title">
-        <span class="w-2 h-8 bg-blue-500 rounded-full"></span>
-        Görsel Araçlar & AI
-    </div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- HERO SAĞ (KATEGORİLER) -->
+    <aside class="p-5 rounded-2xl bg-gray-900/50 border border-white/10 shadow-xl flex flex-col gap-3">
+        <h3 class="text-lg font-semibold text-white mb-2 border-b border-white/10 pb-2">Hızlı Erişim</h3>
         
-        <div onclick="window.location.href='/remove-bg'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-green-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Arka Plan Silici</h3>
-            <p class="text-xs text-gray-400 leading-relaxed mb-3">AI ile arka planı saniyeler içinde şeffaf yapın.</p>
-            
-            <div class="flex items-center gap-2">
-                <span class="bg-green-500/20 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded border border-green-500/20">AKTİF</span>
-                <span class="text-[10px] text-gray-500 font-medium">Ücretsiz Dene</span>
-            </div>
+        <div class="grid grid-cols-2 gap-3">
+            {% for item in [
+                ('PDF Birleştir', '/pdf/merge', 'file-text'),
+                ('Arka Plan Sil', '/remove-bg', 'image-plus'),
+                ('Görsel Sıkıştır', '#', 'compress'),
+                ('Akıllı Vektör', '/vektor', 'pen-tool')
+            ] %}
+            <a href="{{ item[1] }}" class="p-3 rounded-xl bg-gray-800/50 hover:bg-gray-700/50 transition border border-gray-700/50 flex flex-col gap-1">
+                <span class="text-xs font-semibold text-white">{{ item[0] }}</span>
+                <span class="text-[10px] text-gray-400">Hemen dene &rarr;</span>
+            </a>
+            {% endfor %}
         </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">AI Nakış Vektör</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Görselleri Wilcom uyumlu vektör formatına çevirin.</p>
-            <span class="absolute top-4 right-4 badge-soon">ÇOK YAKINDA</span>
-        </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">Görsel Sıkıştır</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Kaliteden ödün vermeden boyutu küçültün.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-        </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">Format Çevirici</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">WebP, HEIC dosyalarını JPG/PNG'ye dönüştürün.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-        </div>
-    </div>
+    </aside>
 </section>
 
+<!-- ========================================================= -->
+<!-- ARAÇ LİSTESİ -->
+<!-- ========================================================= -->
 
-<section class="mb-16">
-    <div class="section-title">
-        <span class="w-2 h-8 bg-red-500 rounded-full"></span>
-        PDF Araçları
-    </div>
+<section id="tools" class="mt-12">
+    <h2 class="text-2xl font-bold text-white mb-6">Tüm Araçlarımız</h2>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+    <div class="space-y-8">
+        <!-- PDF ARAÇLARI -->
+        <div class="border-b border-white/10 pb-4">
+            <h3 class="text-xl font-semibold text-blue-400 mb-4">PDF Araçları</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for tool in [
+                    ('PDF Birleştir', 'PDF dosyalarını tek bir belgede birleştirir.', '/pdf/merge'),
+                    ('PDF Böl', 'Seçilen sayfa aralıklarına göre PDF\'i parçalara ayırır.', '#'),
+                    ('Word → PDF', 'DOCX dosyalarını profesyonel PDF formatına çevirir.', '#'),
+                    ('PDF → JPG', 'Her sayfayı yüksek çözünürlüklü görsellere dönüştürür.', '#')
+                ] %}
+                <a href="{{ tool[2] }}" class="p-4 rounded-xl bg-gray-900/50 hover:bg-gray-800/50 transition border border-white/5">
+                    <h4 class="text-base font-medium text-white">{{ tool[0] }}</h4>
+                    <p class="text-xs text-gray-400 mt-1">{{ tool[1] }}</p>
+                </a>
+                {% endfor %}
             </div>
-            <h3 class="text-lg font-bold text-white mb-1">PDF Birleştir</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Birden fazla dosyayı tek PDF yapın.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
         </div>
 
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
+        <!-- GÖRSEL ARAÇLAR -->
+        <div class="border-b border-white/10 pb-4">
+            <h3 class="text-xl font-semibold text-green-400 mb-4">Görsel İşleme Araçları</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for tool in [
+                    ('Arka Plan Kaldır', 'Tek tıkla fotoğrafın arka planını şeffaf yapar.', '/remove-bg'),
+                    ('Görsel Sıkıştır', 'Kaliteden ödün vermeden dosya boyutunu küçültür.', '#'),
+                    ('Boyutlandırıcı', 'Görselin çözünürlüğünü ve boyutunu ayarlar.', '#'),
+                    ('Görsel Çevirici', 'WEBP, HEIC gibi formatları JPG veya PNG\'ye dönüştürür.', '#')
+                ] %}
+                <a href="{{ tool[2] }}" class="p-4 rounded-xl bg-gray-900/50 hover:bg-gray-800/50 transition border border-white/5">
+                    <h4 class="text-base font-medium text-white">{{ tool[0] }}</h4>
+                    <p class="text-xs text-gray-400 mt-1">{{ tool[1] }}</p>
+                </a>
+                {% endfor %}
             </div>
-            <h3 class="text-lg font-bold text-white mb-1">PDF Böl</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Sayfaları ayıklayın veya PDF'i parçalara bölün.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
         </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        
+        <!-- VEKTÖR ARAÇLARI -->
+        <div>
+            <h3 class="text-xl font-semibold text-purple-400 mb-4">Yapay Zeka Vektör Araçları</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for tool in [
+                    ('Akıllı Vektör', 'Görseli basit, temiz vektör formuna dönüştürür.', '/vektor'),
+                    ('Cartoon Vektör', 'Görseli çizgi film tarzı vektör avatara dönüştürür.', '/vektor'),
+                    ('Çizgi Eskiz', 'Sadece siyah beyaz minimalist çizgi eskiz oluşturur.', '/vektor')
+                ] %}
+                <a href="{{ tool[2] }}" class="p-4 rounded-xl bg-gray-900/50 hover:bg-gray-800/50 transition border border-white/5">
+                    <h4 class="text-base font-medium text-white">{{ tool[0] }}</h4>
+                    <p class="text-xs text-gray-400 mt-1">{{ tool[1] }}</p>
+                </a>
+                {% endfor %}
             </div>
-            <h3 class="text-lg font-bold text-white mb-1">PDF Sıkıştır</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">PDF dosya boyutunu %80'e kadar düşürün.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-        </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">Word to PDF</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">DOCX dosyalarını bozulmadan PDF yapın.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-        </div>
-    </div>
-</section>
-
-
-<section class="mb-16">
-    <div class="section-title">
-        <span class="w-2 h-8 bg-amber-500 rounded-full"></span>
-        Dijital & Pratik Araçlar
-    </div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 6h4v4H6V6zm0 8h4v4H6v-4zm8-8h4v4h-4V6z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">QR Kod Oluştur</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Wi-Fi, Link veya Metin için QR kod üretin.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-        </div>
-
-        <div class="tool-card disabled rounded-2xl p-5 relative">
-            <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">Şifre Oluşturucu</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Kırılması imkansız, güvenli şifreler yaratın.</p>
-            <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
         </div>
     </div>
 </section>
+
+</div>
 {% endblock content %}
