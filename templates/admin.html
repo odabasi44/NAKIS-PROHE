@@ -1,653 +1,428 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Botlab Suite Admin Paneli</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botlab Admin Pro • Yönetim Paneli</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        dark: { 900: '#02040a', 800: '#0c1120', 700: '#161b2c' }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body {
-            background: radial-gradient(circle at top, #141829, #0b0e1b 70%);
-            font-family: 'Inter', sans-serif;
-        }
+        body { background: #02040a; color: #e2e8f0; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #02040a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-        }
+        .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #94a3b8; transition: all 0.2s; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+        .sidebar-link:hover, .sidebar-link.active { background: #1e293b; color: white; }
+        .sidebar-link.active { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+        
+        .card { background: #0c1120; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; }
+        
+        .input-dark { background: #02040a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; padding: 10px 14px; width: 100%; outline: none; transition: border-color 0.2s; }
+        .input-dark:focus { border-color: #3b82f6; }
 
-        .neon-border {
-            border: 1px solid rgba(35, 120, 255, 0.35);
-            box-shadow: 0 0 18px rgba(35, 120, 255, 0.4);
-        }
-
-        .neon-btn {
-            background: linear-gradient(to right, #ff8a00, #ffc45c);
-            color: #1a1a1a;
-            font-weight: 600;
-            box-shadow: 0 0 14px rgba(255, 166, 0, 0.7);
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .menu-item:hover {
-            background: rgba(255, 255, 255, 0.07);
-        }
-
-        .menu-item.active {
-            background: rgba(35, 120, 255, 0.2);
-            border: 1px solid rgba(35, 120, 255, 0.4);
-            box-shadow: 0 0 12px rgba(35, 120, 255, 0.4);
-        }
-
-        .input-box {
-            background: #1c2237;
-            border: 1px solid #4b5563;
-            padding: 12px;
-            border-radius: 8px;
-            width: 100%;
-            color: white;
-        }
+        /* Switch Toggle */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+        
+        /* Status Badge */
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .badge-danger { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .badge-warning { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
     </style>
 </head>
+<body class="h-screen flex overflow-hidden">
 
-<body class="text-gray-200">
-
-    <!-- HEADER -->
-    <header class="w-full glass border-b border-white/10 shadow-lg">
-        <div class="max-w-7xl mx-auto py-4 px-6 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-white tracking-wide">
-                💠 Botlab Suite · Admin Paneli
-            </h1>
-
-            <div class="flex items-center space-x-3">
-                <span id="adminEmail" class="text-gray-300 text-sm"></span>
-
-                <button onclick="logoutAdmin()" 
-                    class="px-5 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-500 transition">
-                    Çıkış Yap
-                </button>
+    <aside class="w-72 bg-[#0c1120] border-r border-white/5 flex flex-col justify-between hidden md:flex shrink-0">
+        <div>
+            <div class="h-20 flex items-center px-6 border-b border-white/5 bg-[#080b16]">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-900/20">B</div>
+                    <div>
+                        <span class="block font-bold tracking-tight text-white">Botlab Admin</span>
+                        <span class="block text-[10px] text-gray-500 uppercase tracking-widest">Pro Panel v2.0</span>
+                    </div>
+                </div>
             </div>
-        </div>
-    </header>
 
-
-    <!-- MAIN LAYOUT -->
-    <div class="max-w-7xl mx-auto py-10 px-6 grid grid-cols-1 lg:grid-cols-4 gap-8">
-
-        <!-- SIDEBAR -->
-        <aside class="glass neon-border rounded-2xl p-6 h-fit sticky top-6">
-
-            <h2 class="text-lg font-bold text-blue-400 mb-4">MENÜ</h2>
-
-            <div class="space-y-2">
-
-                <div class="menu-item active" onclick="showSection(event, 'premiumUsers')">
-                    <span>👤</span> <span>Premium Kullanıcılar</span>
+            <div class="p-4 space-y-1">
+                <p class="px-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2 mt-2">Yönetim</p>
+                <div onclick="showTab('dashboard')" id="nav-dashboard" class="sidebar-link active">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Genel Bakış
+                </div>
+                <div onclick="showTab('users')" id="nav-users" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Kullanıcılar & Üyelik
+                </div>
+                <div onclick="showTab('tools')" id="nav-tools" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Araç Yönetimi (Bakım)
                 </div>
 
-                <div class="menu-item" onclick="showSection(event, 'toolLimits')">
-                    <span>⚙</span> <span>Araç Limit Ayarları</span>
+                <p class="px-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2 mt-6">Müşteri İlişkileri</p>
+                <div onclick="showTab('tickets')" id="nav-tickets" class="sidebar-link flex justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                        Destek Talepleri
+                    </div>
+                    <span class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">2</span>
+                </div>
+                <div onclick="showTab('reports')" id="nav-reports" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Raporlar & Analiz
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-white/5 bg-[#080b16]">
+            <button class="w-full py-2.5 px-4 rounded-lg bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Güvenli Çıkış
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto bg-[#02040a] relative">
+        <div class="max-w-7xl mx-auto p-8">
+            
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Panel Genel Bakış</h1>
+                    <p class="text-sm text-gray-500 mt-1">Sistem durumu stabil. Bekleyen 2 yeni destek talebi var.</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="px-4 py-2 bg-[#0c1120] rounded-full border border-white/5 flex items-center gap-2 text-xs font-medium text-gray-400">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        Sunucu: <span class="text-white">Online</span>
+                    </div>
+                </div>
+            </header>
+
+            <div id="tab-dashboard" class="space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div class="card p-5 border-l-4 border-blue-500">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Toplam Kullanıcı</p>
+                        <h3 class="text-2xl font-bold text-white">12,405</h3>
+                    </div>
+                    <div class="card p-5 border-l-4 border-amber-500">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aktif Premium</p>
+                        <h3 class="text-2xl font-bold text-white">42</h3>
+                        <span class="text-xs text-green-400">+5 bu ay</span>
+                    </div>
+                    <div class="card p-5 border-l-4 border-violet-500">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">İşlenen Dosya</p>
+                        <h3 class="text-2xl font-bold text-white">856</h3>
+                    </div>
+                    <div class="card p-5 border-l-4 border-red-500">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Açık Ticket</p>
+                        <h3 class="text-2xl font-bold text-white">2</h3>
+                    </div>
                 </div>
 
-                <div class="menu-item" onclick="showSection(event, 'popupSettings')">
-                    <span>💎</span> <span>Premium Popup Ayarları</span>
+                <div class="card">
+                    <h3 class="text-lg font-bold text-white mb-4">Son Aktiviteler</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">Bg</div>
+                                <div>
+                                    <p class="text-sm text-white font-medium">Arka Plan Silme</p>
+                                    <p class="text-xs text-gray-500">ahmet@mail.com tarafından kullanıldı</p>
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-500">2 dk önce</span>
+                        </div>
+                         <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-xs">Pdf</div>
+                                <div>
+                                    <p class="text-sm text-white font-medium">PDF Birleştirme</p>
+                                    <p class="text-xs text-gray-500">Misafir kullanıcı</p>
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-500">5 dk önce</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-users" class="hidden space-y-6 animate-fade-in">
+                
+                <div class="card bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-500/30">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Hızlı Premium Tanımla</h3>
+                            <p class="text-sm text-gray-400">Kullanıcı sisteme giriş yaptığında otomatik aktif olur.</p>
+                        </div>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <input type="email" placeholder="musteri@sirket.com" class="input-dark w-full md:w-64">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition">Yetki Ver</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="menu-item" onclick="showSection(event, 'globalSettings')">
-                    <span>🌍</span> <span>Genel Site Ayarları</span>
+                <div class="card">
+                    <h3 class="text-lg font-bold text-white mb-4">Premium Üye Listesi</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-gray-400">
+                            <thead class="bg-white/5 text-gray-300 uppercase font-bold text-xs">
+                                <tr>
+                                    <th class="px-4 py-3 rounded-l-lg">Kullanıcı</th>
+                                    <th class="px-4 py-3">Paket Durumu</th>
+                                    <th class="px-4 py-3">Kalan Süre</th>
+                                    <th class="px-4 py-3">Kullanım (Ay)</th>
+                                    <th class="px-4 py-3 rounded-r-lg text-right">Yönetim</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-800">
+                                <tr class="group hover:bg-white/5 transition">
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold text-xs">A</div>
+                                            <div>
+                                                <p class="text-white font-medium">ahmet@ornek.com</p>
+                                                <p class="text-xs">Katılım: 12 Kas 2024</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3"><span class="badge badge-success">Aktif</span></td>
+                                    <td class="px-4 py-3 text-white">15 Gün</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                                <div class="h-full bg-blue-500 w-[45%]"></div>
+                                            </div>
+                                            <span class="text-xs">45/100</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-right flex justify-end gap-2">
+                                        <button class="text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/20">+30 Gün Uzat</button>
+                                        <button class="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded hover:bg-red-500/20">İptal</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-tools" class="hidden space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <div class="card relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-500 flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-white">Arka Plan Silici</h3>
+                                    <p class="text-xs text-gray-500">/remove-bg</p>
+                                </div>
+                            </div>
+                            <span class="badge badge-success">Online</span>
+                        </div>
+                        
+                        <div class="space-y-3 pt-3 border-t border-white/5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-400">Bakım Modu (Kapat)</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-400">Sadece Premium</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-white">PDF Araçları</h3>
+                                    <p class="text-xs text-gray-500">/pdf/*</p>
+                                </div>
+                            </div>
+                            <span class="badge badge-warning">Bakımda</span>
+                        </div>
+                        
+                        <div class="space-y-3 pt-3 border-t border-white/5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-400">Bakım Modu (Kapat)</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-400">Sadece Premium</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="tab-tickets" class="hidden h-[600px] flex gap-6 animate-fade-in">
+                <div class="w-1/3 card p-0 overflow-hidden flex flex-col">
+                    <div class="p-4 border-b border-white/5 bg-[#080b16]">
+                        <h3 class="font-bold text-white">Gelen Kutusu</h3>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="p-4 border-b border-white/5 bg-blue-500/10 cursor-pointer">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-bold text-white text-sm">Ali Yılmaz</span>
+                                <span class="text-[10px] text-gray-400">10dk</span>
+                            </div>
+                            <p class="text-xs text-gray-300 truncate">Vektör aracı hata veriyor, bakar mısın?</p>
+                            <span class="inline-block mt-2 px-2 py-0.5 bg-red-500/20 text-red-400 text-[9px] rounded font-bold">Yüksek Önem</span>
+                        </div>
+                        <div class="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-bold text-gray-300 text-sm">Ayşe Demir</span>
+                                <span class="text-[10px] text-gray-400">2sa</span>
+                            </div>
+                            <p class="text-xs text-gray-500 truncate">Premium ödemesi yaptım ama...</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="menu-item" onclick="showSection(event, 'adminSettings')">
-                    <span>🔐</span> <span>Admin Bilgileri</span>
+                <div class="w-2/3 card p-0 flex flex-col">
+                    <div class="p-4 border-b border-white/5 bg-[#080b16] flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-white">Ali Yılmaz (Premium)</h3>
+                            <p class="text-xs text-gray-500">Konu: Vektör Hatası</p>
+                        </div>
+                        <button class="text-xs bg-green-500/10 text-green-500 px-3 py-1 rounded border border-green-500/20">Çözüldü İşaretle</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#05080f]">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0"></div>
+                            <div class="bg-[#1e293b] p-3 rounded-r-xl rounded-bl-xl max-w-[80%]">
+                                <p class="text-sm text-gray-300">Merhaba, nakış vektör aracını kullanırken %90'da takılıyor. Acil yardım.</p>
+                                <span class="text-[10px] text-gray-500 mt-1 block">14:30</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 justify-end">
+                            <div class="bg-blue-600 p-3 rounded-l-xl rounded-br-xl max-w-[80%]">
+                                <p class="text-sm text-white">Merhaba Ali Bey, kontrol ediyorum. Dosya boyutu çok büyük olabilir mi?</p>
+                                <span class="text-[10px] text-blue-200 mt-1 block">14:35</span>
+                            </div>
+                             <div class="w-8 h-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center font-bold text-white text-xs">B</div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-white/5 bg-[#0c1120]">
+                        <div class="flex gap-2">
+                            <input type="text" placeholder="Yanıtınızı yazın..." class="input-dark flex-1">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-
             </div>
 
-        </aside>
+            <div id="tab-reports" class="hidden space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="card">
+                        <h3 class="text-lg font-bold text-white mb-4">Aylık Büyüme (Premium)</h3>
+                        <div class="h-48 flex items-end gap-2 px-2">
+                            <div class="w-1/6 bg-blue-900/30 h-[30%] rounded-t mx-auto relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-gray-400 opacity-0 group-hover:opacity-100">10</span></div>
+                            <div class="w-1/6 bg-blue-900/50 h-[45%] rounded-t mx-auto"></div>
+                            <div class="w-1/6 bg-blue-800/60 h-[40%] rounded-t mx-auto"></div>
+                            <div class="w-1/6 bg-blue-700/80 h-[65%] rounded-t mx-auto"></div>
+                            <div class="w-1/6 bg-blue-600 h-[85%] rounded-t mx-auto relative"><span class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-white font-bold">42</span></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-2 px-4">
+                            <span>Ağu</span><span>Eyl</span><span>Ekim</span><span>Kas</span><span>Ara</span>
+                        </div>
+                    </div>
 
-
-        <!-- MAIN CONTENT -->
-        <section id="panelContent" class="lg:col-span-3 glass neon-border rounded-2xl p-8">
-            Yükleniyor…
-        </section>
-
-    </div>
-
-
-<!-- ============================== -->
-<!-- PART 2 – TEMPLATES (PREMIUM / LIMITS / POPUP / GLOBAL / ADMIN) -->
-<!-- ============================== -->
-
-<script>
-
-// =========================
-// Premium Users Template
-// =========================
-const premiumUsersHTML = `
-    <h2 class="text-2xl font-bold mb-6 text-white">👤 Premium Kullanıcılar</h2>
-
-    <div class="flex justify-between items-center mb-4">
-        <p class="text-gray-400">Premium erişimi olan kullanıcıları görüntüleyin ve yönetin.</p>
-        <button onclick="openAddUserModal()"
-            class="px-5 py-2 neon-btn rounded-lg hover:opacity-90">
-            + Yeni Kullanıcı
-        </button>
-    </div>
-
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-gray-300 border border-gray-700 rounded-xl overflow-hidden">
-            <thead class="bg-[#1f253d] text-gray-200">
-                <tr>
-                    <th class="p-3">E-posta</th>
-                    <th class="p-3">Başlangıç</th>
-                    <th class="p-3">Bitiş</th>
-                    <th class="p-3">Durum</th>
-                    <th class="p-3">Kullanım</th>
-                    <th class="p-3">İşlem</th>
-                </tr>
-            </thead>
-            <tbody id="premiumUsersTable" class="divide-y divide-gray-700">
-                <tr><td colspan="6" class="p-4 text-gray-400">Yükleniyor…</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Add Modal -->
-    <div id="addUserModal"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
-
-        <div class="glass neon-border p-8 rounded-2xl w-full max-w-md">
-            <h3 class="text-xl font-bold mb-4 text-white">Yeni Premium Kullanıcı</h3>
-
-            <label>E-posta</label>
-            <input id="newEmail" class="input-box mb-4" placeholder="kullanici@mail.com">
-
-            <label>Süre (Gün)</label>
-            <input id="newDays" type="number" class="input-box mb-4" placeholder="30">
-
-            <button onclick="saveNewUser()" class="w-full neon-btn py-3 rounded-lg">Kaydet</button>
-
-            <button onclick="closeAddUserModal()" class="text-gray-400 mt-4 w-full underline text-sm">İptal</button>
-        </div>
-
-    </div>
-`;
-
-
-// =========================
-// Tool Limits Template
-// =========================
-const toolLimitsHTML = `
-    <h2 class="text-2xl font-bold mb-6 text-white">⚙ Araç Limit Ayarları</h2>
-
-    <div class="glass p-6 rounded-xl mb-6">
-
-        <h3 class="text-xl font-bold text-blue-300 mb-3">📄 PDF Araçları</h3>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label>PDF Bölme Ücretsiz Limit</label>
-                <input id="pdf_split_free" class="input-box mt-1">
-            </div>
-            <div>
-                <label>PDF Bölme Premium Limit</label>
-                <input id="pdf_split_premium" class="input-box mt-1">
+                    <div class="card">
+                        <h3 class="text-lg font-bold text-white mb-4">Araç Kullanım Dağılımı</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-300">Arka Plan Silici</span>
+                                    <span class="text-white font-bold">%65</span>
+                                </div>
+                                <div class="w-full bg-gray-700 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: 65%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-300">PDF Birleştirici</span>
+                                    <span class="text-white font-bold">%20</span>
+                                </div>
+                                <div class="w-full bg-gray-700 rounded-full h-2">
+                                    <div class="bg-red-500 h-2 rounded-full" style="width: 20%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-300">Vektör (Nakış)</span>
+                                    <span class="text-white font-bold">%15</span>
+                                </div>
+                                <div class="w-full bg-gray-700 rounded-full h-2">
+                                    <div class="bg-violet-500 h-2 rounded-full" style="width: 15%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label>PDF Birleştirme Ücretsiz Limit</label>
-                <input id="pdf_merge_free" class="input-box mt-1">
-            </div>
-            <div>
-                <label>PDF Birleştirme Premium Limit</label>
-                <input id="pdf_merge_premium" class="input-box mt-1">
-            </div>
-
-            <div>
-                <label>Maksimum PDF Boyutu (MB)</label>
-                <input id="pdf_max_size" class="input-box mt-1">
-            </div>
         </div>
-    </div>
-
-
-    <div class="glass p-6 rounded-xl mb-6">
-
-        <h3 class="text-xl font-bold text-blue-300 mb-3">🖼 Görsel Araçları</h3>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label>Arka Plan Silici Ücretsiz Çözünürlük</label>
-                <input id="bg_free" class="input-box mt-1">
-            </div>
-            <div>
-                <label>Arka Plan Silici Premium Çözünürlük</label>
-                <input id="bg_premium" class="input-box mt-1">
-            </div>
-
-            <div>
-                <label>Format Dönüştürücü Ücretsiz Limit</label>
-                <input id="format_free" class="input-box mt-1">
-            </div>
-            <div>
-                <label>Format Dönüştürücü Premium Limit</label>
-                <input id="format_premium" class="input-box mt-1">
-            </div>
-        </div>
-    </div>
-
-
-    <div class="glass p-6 rounded-xl mb-6">
-        <h3 class="text-xl font-bold text-blue-300 mb-3">✏ Vektör Aracı</h3>
-
-        <label>Ücretsiz Limit</label>
-        <input id="vector_free" class="input-box mt-1 mb-3">
-
-        <label>Premium Limit</label>
-        <input id="vector_premium" class="input-box mt-1 mb-3">
-    </div>
-
-    <button onclick="saveToolLimits()"
-        class="w-full neon-btn py-3 rounded-lg">Kaydet</button>
-`;
-
-
-// =========================
-// Popup Settings Template
-// =========================
-const popupHTML = `
-    <h2 class="text-2xl font-bold mb-6 text-white">💎 Premium Popup Ayarları</h2>
-
-    <div class="glass p-6 rounded-xl space-y-6">
-
-        <div>
-            <label>Başlık</label>
-            <input id="popup_title" class="input-box mt-1">
-        </div>
-
-        <div>
-            <label>Açıklama</label>
-            <textarea id="popup_desc" class="input-box mt-1 h-32"></textarea>
-        </div>
-
-        <div>
-            <label>Avantajlar (her satır bir madde)</label>
-            <textarea id="popup_benefits" class="input-box mt-1 h-40"></textarea>
-        </div>
-
-        <div>
-            <label>WhatsApp Numarası</label>
-            <input id="popup_phone" class="input-box mt-1" placeholder="905335620807">
-        </div>
-
-        <button onclick="savePopupSettings()"
-            class="w-full neon-btn py-3 rounded-lg">Kaydet</button>
-
-    </div>
-`;
-
-
-// =========================
-// Global Settings Template
-// =========================
-const globalHTML = `
-    <h2 class="text-2xl font-bold mb-6 text-white">🌍 Genel Site Ayarları</h2>
-
-    <div class="glass p-6 rounded-xl space-y-6">
-        <div>
-            <label>Site Başlığı</label>
-            <input id="site_title" class="input-box mt-1">
-        </div>
-
-        <div>
-            <label>Footer Yazısı</label>
-            <input id="footer_text" class="input-box mt-1">
-        </div>
-
-        <button onclick="saveGlobalSettings()" 
-            class="w-full neon-btn py-3 rounded-lg">Kaydet</button>
-    </div>
-`;
-
-
-// =========================
-// Admin Settings Template
-// =========================
-const adminSettingsHTML = `
-    <h2 class="text-2xl font-bold mb-6 text-white">🔐 Admin Bilgileri</h2>
-
-    <div class="glass p-6 rounded-xl space-y-6">
-
-        <div>
-            <label>Email</label>
-            <input id="admin_email_change" class="input-box mt-1">
-        </div>
-
-        <div>
-            <label>Yeni Şifre</label>
-            <input id="admin_password_change" type="password" class="input-box mt-1">
-        </div>
-
-        <button onclick="saveAdminSettings()" 
-            class="w-full neon-btn py-3 rounded-lg">Kaydet</button>
-
-    </div>
-`;
-
-</script>
-
-<!-- ============================== -->
-<!-- PART 3 – JAVASCRIPT FUNCTIONS -->
-<!-- ============================== -->
-
-<script>
-
-// ======================
-// Section Switcher
-// ======================
-function showSection(e, section) {
-    document.querySelectorAll(".menu-item").forEach(i => i.classList.remove("active"));
-    e.currentTarget.classList.add("active");
-
-    const panel = document.getElementById("panelContent");
-
-    if (section === "premiumUsers") {
-        panel.innerHTML = premiumUsersHTML;
-        loadPremiumUsers();
-    }
-
-    if (section === "toolLimits") {
-        panel.innerHTML = toolLimitsHTML;
-        loadToolLimits();
-    }
-
-    if (section === "popupSettings") {
-        panel.innerHTML = popupHTML;
-        loadPopupSettings();
-    }
-
-    if (section === "globalSettings") {
-        panel.innerHTML = globalHTML;
-        loadGlobalSettings();
-    }
-
-    if (section === "adminSettings") {
-        panel.innerHTML = adminSettingsHTML;
-        loadAdminSettings();
-    }
-}
-
-
-// ======================
-// Load Admin Header Info
-// ======================
-async function loadAdminInfo() {
-    try {
-        const res = await fetch("/get_settings");
-        const data = await res.json();
-        document.getElementById("adminEmail").innerText = data.admin.email;
-    } catch(e) {
-        console.log("Admin email yüklenemedi");
-    }
-}
-loadAdminInfo();
-
-
-// ======================
-// Load Premium Users
-// ======================
-async function loadPremiumUsers() {
-    const table = document.getElementById("premiumUsersTable");
-    if (!table) return;
-
-    const res = await fetch("/get_premium_users");
-    const users = await res.json();
-
-    if (!users.length) {
-        table.innerHTML = `<tr><td colspan="6" class="p-4 text-gray-400">Premium kullanıcı yok.</td></tr>`;
-        return;
-    }
-
-    table.innerHTML = users.map(u => `
-        <tr>
-            <td class="p-3">${u.email}</td>
-            <td class="p-3">${u.start}</td>
-            <td class="p-3">${u.end}</td>
-            <td class="p-3">${u.active ? "Aktif" : "Pasif"}</td>
-            <td class="p-3">${u.usage}</td>
-            <td class="p-3">
-                <button onclick="resetUsage('${u.email}')" class="text-blue-400 underline">Sıfırla</button> |
-                <button onclick="deleteUser('${u.email}')" class="text-red-400 underline">Sil</button>
-            </td>
-        </tr>
-    `).join("");
-}
-
-
-// ======================
-// Add New Premium User
-// ======================
-function openAddUserModal() {
-    document.getElementById("addUserModal").classList.remove("hidden");
-}
-
-function closeAddUserModal() {
-    document.getElementById("addUserModal").classList.add("hidden");
-}
-
-async function saveNewUser() {
-    const email = document.getElementById("newEmail").value.trim();
-    const days = parseInt(document.getElementById("newDays").value);
-
-    if (!email || !days) return alert("Tüm alanları doldurun.");
-
-    await fetch("/add_premium_user", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email, days})
-    });
-
-    closeAddUserModal();
-    showSection(event, 'premiumUsers');
-}
-
-
-// ======================
-// Delete User
-// ======================
-async function deleteUser(email) {
-    if (!confirm(`${email} silinsin mi?`)) return;
-
-    await fetch("/delete_premium_user", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email})
-    });
-
-    showSection(event, 'premiumUsers');
-}
-
-
-// ======================
-// Reset Usage
-// ======================
-async function resetUsage(email) {
-    await fetch("/reset_usage", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({email})
-    });
-
-    showSection(event, 'premiumUsers');
-}
-
-
-// ======================
-// Load Tool Limits
-// ======================
-async function loadToolLimits() {
-    const res = await fetch("/get_settings");
-    const s = await res.json();
-
-    document.getElementById("pdf_split_free").value = s.limits.pdf.split.free;
-    document.getElementById("pdf_split_premium").value = s.limits.pdf.split.premium;
-    document.getElementById("pdf_merge_free").value = s.limits.pdf.merge.free;
-    document.getElementById("pdf_merge_premium").value = s.limits.pdf.merge.premium;
-    document.getElementById("pdf_max_size").value = s.limits.pdf.max_size;
-
-    document.getElementById("bg_free").value = s.limits.image.bg_free;
-    document.getElementById("bg_premium").value = s.limits.image.bg_premium;
-
-    document.getElementById("format_free").value = s.limits.image.convert_free;
-    document.getElementById("format_premium").value = s.limits.image.convert_premium;
-
-    document.getElementById("vector_free").value = s.limits.vector.free;
-    document.getElementById("vector_premium").value = s.limits.vector.premium;
-}
-
-
-// ======================
-// Save Tool Limits
-// ======================
-async function saveToolLimits() {
-    const payload = {
-        pdf: {
-            split: {
-                free: document.getElementById("pdf_split_free").value,
-                premium: document.getElementById("pdf_split_premium").value
-            },
-            merge: {
-                free: document.getElementById("pdf_merge_free").value,
-                premium: document.getElementById("pdf_merge_premium").value
-            },
-            max_size: document.getElementById("pdf_max_size").value
-        },
-        image: {
-            bg_free: document.getElementById("bg_free").value,
-            bg_premium: document.getElementById("bg_premium").value,
-            convert_free: document.getElementById("format_free").value,
-            convert_premium: document.getElementById("format_premium").value
-        },
-        vector: {
-            free: document.getElementById("vector_free").value,
-            premium: document.getElementById("vector_premium").value
+    </main>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            const tabs = ['dashboard', 'users', 'tools', 'tickets', 'reports'];
+            tabs.forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                document.getElementById('nav-' + t).classList.remove('active');
+            });
+            
+            // Show selected
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.getElementById('nav-' + tabName).classList.add('active');
         }
-    };
-
-    await fetch("/save_tool_limits", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    alert("Limitler kaydedildi.");
-}
-
-
-// ======================
-// Popup Settings
-// ======================
-async function loadPopupSettings() {
-    const res = await fetch("/get_settings");
-    const s = await res.json();
-
-    document.getElementById("popup_title").value = s.popup.title;
-    document.getElementById("popup_desc").value = s.popup.desc;
-    document.getElementById("popup_benefits").value = s.popup.benefits.join("\n");
-    document.getElementById("popup_phone").value = s.popup.phone;
-}
-
-async function savePopupSettings() {
-    const payload = {
-        title: document.getElementById("popup_title").value,
-        desc: document.getElementById("popup_desc").value,
-        benefits: document.getElementById("popup_benefits").value.split("\n"),
-        phone: document.getElementById("popup_phone").value
-    };
-
-    await fetch("/save_popup", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    alert("Popup ayarları kaydedildi.");
-}
-
-
-// ======================
-// Global Settings
-// ======================
-async function loadGlobalSettings() {
-    const res = await fetch("/get_settings");
-    const s = await res.json();
-
-    document.getElementById("site_title").value = s.site.title;
-    document.getElementById("footer_text").value = s.site.footer;
-}
-
-async function saveGlobalSettings() {
-    const payload = {
-        title: document.getElementById("site_title").value,
-        footer: document.getElementById("footer_text").value
-    };
-
-    await fetch("/save_global_settings", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    alert("Genel ayarlar kaydedildi.");
-}
-
-
-// ======================
-// Admin Settings
-// ======================
-async function loadAdminSettings() {
-    const res = await fetch("/get_settings");
-    const s = await res.json();
-
-    document.getElementById("admin_email_change").value = s.admin.email;
-}
-
-async function saveAdminSettings() {
-    const payload = {
-        email: document.getElementById("admin_email_change").value,
-        password: document.getElementById("admin_password_change").value
-    };
-
-    await fetch("/save_admin", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    alert("Admin bilgileri güncellendi.");
-}
-
-
-// ======================
-// Logout
-// ======================
-function logoutAdmin() {
-    window.location.href = "/admin_logout";
-}
-
-</script>
-
+    </script>
 </body>
 </html>
