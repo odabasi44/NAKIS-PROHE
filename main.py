@@ -13,7 +13,7 @@ import onnxruntime as ort
 from functools import wraps 
 
 # ============================================================
-# FLASK APP SETUP
+# FLASK AYARLARI
 # ============================================================
 app = Flask(__name__, static_folder=".", static_url_path="")
 app.secret_key = "BOTLAB_SECRET_123" 
@@ -21,7 +21,7 @@ CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024 
 
 # ============================================================
-# SETTINGS SYSTEM
+# AYARLAR SİSTEMİ
 # ============================================================
 def load_settings():
     if not os.path.exists("settings.json"):
@@ -34,7 +34,7 @@ def save_settings(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 # ============================================================
-# PREMIUM USER SYSTEM
+# KULLANICI SİSTEMİ
 # ============================================================
 PREMIUM_FILE = "users.json" 
 
@@ -55,39 +55,32 @@ def get_user_data_by_email(email):
     return None
 
 # ============================================================
-# SESSION KONTROLÜ
+# OTURUM KONTROLÜ
 # ============================================================
 @app.before_request
 def check_session_status():
-    # Admin Panel Koruması
     if request.path.startswith("/admin") and request.path != "/admin_login":
         if not session.get("admin_logged"): return redirect("/admin_login")
 
-    # Premium Kullanıcı Kontrolü
     if "user_email" in session:
         user = get_user_data_by_email(session["user_email"])
         if user:
              try:
-                # end_date yoksa veya hatalıysa varsayılan eski tarih
-                end_date_str = user.get("end_date", "1970-01-01")
-                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                end_date = datetime.strptime(user.get("end_date", "1970-01-01"), "%Y-%m-%d")
                 session["is_premium"] = (end_date >= datetime.now())
-             except: 
-                 session["is_premium"] = False
-        else: 
-            session["is_premium"] = False
+             except: session["is_premium"] = False
+        else: session["is_premium"] = False
     
     if "is_premium" not in session: session["is_premium"] = False
 
 # ============================================================
-# LIMIT CHECKER (DÜZELTİLDİ)
+# LİMİT KONTROLÜ
 # ============================================================
 def check_user_status(email, tool, subtool):
     settings = load_settings()
     users = load_premium_users()
     premium_user = None
     
-    # Kullanıcıyı bul
     for u in users:
         if u.get("email", "").lower() == email.lower():
             end_date_str = u.get("end_date")
@@ -97,18 +90,16 @@ def check_user_status(email, tool, subtool):
             except: pass
             break
     
-    # Limit ayarlarını çek
     tool_limits = settings.get("limits", {}).get(tool, {})
     limits = tool_limits.get(subtool, {})
     tool_status = settings.get("tool_status", {}).get(subtool, {})
     
-    # 1. Bakım Modu Kontrolü
+    # Bakım Modu
     if tool_status.get("maintenance", False):
         return {"allowed": False, "reason": "maintenance", "left": 0, "premium": session.get("is_premium", False)}
     
-    # 2. Premium Kullanıcı Kontrolü
+    # Premium Kullanıcı
     if premium_user:
-        # Eğer sadece premium ise veya limit varsa
         if tool_status.get("premium_only", False) or limits.get("premium", 9999) > 0:
             premium_limit = limits.get("premium", 9999)
             tool_usage = premium_user.get("usage_stats", {}).get(subtool, 0)
@@ -116,17 +107,14 @@ def check_user_status(email, tool, subtool):
             left = premium_limit - tool_usage
             if left <= 0:
                 return {"allowed": False, "reason": "premium_limit_full", "left": 0, "premium": True}
-            
-            # BAŞARILI DURUMDA DA REASON BOŞ STRING OLARAK DÖNMELİ
             return {"allowed": True, "reason": "", "premium": True, "left": left}
         
-    # 3. Sadece Premium Araç Kontrolü
+    # Sadece Premium Araç
     if tool_status.get("premium_only", False):
          return {"allowed": False, "reason": "premium_only", "left": 0, "premium": False}
 
-    # 4. Ücretsiz Kullanıcı Kontrolü
+    # Ücretsiz Kullanıcı
     free_limit = limits.get("free", 0)
-    
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     
@@ -136,14 +124,10 @@ def check_user_status(email, tool, subtool):
     if left <= 0:
         return {"allowed": False, "reason": "free_limit_full", "left": 0, "premium": False}
 
-    # BAŞARILI DURUM
     return {"allowed": True, "reason": "", "premium": False, "left": left}
-
 
 def increase_usage(email, tool, subtool):
     users = load_premium_users()
-    
-    # Premium ise veritabanına kaydet
     for u in users:
         if u.get("email", "").lower() == email.lower():
             if "usage_stats" not in u: u["usage_stats"] = {}
@@ -152,26 +136,24 @@ def increase_usage(email, tool, subtool):
             save_premium_users(users)
             return
 
-    # Değilse session'a kaydet
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
 
 # ============================================================
-# API ROUTES
+# API ENDPOINTLERİ
 # ============================================================
 @app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
 def check_tool_status_endpoint(tool, subtool):
     email = session.get("user_email", "guest")
     status = check_user_status(email, tool, subtool)
-    
     user = get_user_data_by_email(email)
     usage = user.get("usage_stats", {}).get(subtool, 0) if user else 0
     
-    # KeyError hatasını önlemek için .get() kullanıyoruz
+    # .get() kullanarak KeyError hatasını önlüyoruz
     return jsonify({
         "allowed": status.get("allowed", False),
-        "reason": status.get("reason", ""), 
+        "reason": status.get("reason", ""),
         "left": status.get("left", 0),
         "premium": status.get("premium", False),
         "usage": usage
@@ -250,7 +232,7 @@ def api_remove_bg():
         print(f"Processing Error: {e}")
         return jsonify({"success": False, "message": "İşlem hatası"}), 500
 
-# --- PAGE ROUTES ---
+# --- SAYFA ROTALARI ---
 @app.route("/")
 def home(): return render_template("index.html")
 @app.route("/remove-bg")
@@ -269,7 +251,7 @@ def dashboard_page():
 @app.route("/vektor")
 def vektor_page(): return render_template("vektor.html")
 
-# --- LOGIN/LOGOUT ---
+# --- GİRİŞ / ÇIKIŞ ---
 @app.route("/admin_login", methods=["POST"])
 def admin_login_post():
     data = request.get_json()
@@ -319,10 +301,8 @@ def add_premium_user():
     if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
     data = request.get_json()
     users = load_premium_users()
-    # E-posta zaten var mı kontrolü
     if any(u["email"] == data["email"] for u in users):
          return jsonify({"status": "error", "message": "Bu e-posta zaten kayıtlı"}), 409
-         
     users.append({"email": data["email"], "end_date": data["end_date"], "usage_stats": {}})
     save_premium_users(users)
     return jsonify({"status": "ok", "message": "Kullanıcı eklendi"})
