@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Premium Dashboard{% endblock title %}
+
+{% block head_extra %}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botlab Premium • Kullanıcı Paneli</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        dark: { 900: '#02040a', 800: '#0c1120', 700: '#161b2c' }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+  
+<style>
+    /* Dashboard'a özel CSS'ler */
+    .card { background: #0c1120; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; }
+    body { background: #02040a; color: #e2e8f0; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #02040a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #94a3b8; transition: all 0.2s; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+        .sidebar-link:hover, .sidebar-link.active { background: #1e293b; color: white; }
+        .sidebar-link.active { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+        
+        .card { background: #0c1120; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; }
+        .input-dark { background: #02040a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; padding: 10px 14px; width: 100%; outline: none; transition: border-color 0.2s; }
+        .input-dark:focus { border-color: #3b82f6; }
+
+        .premium-gradient { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    
+    /* ... (Dashboard'un tüm özel CSS'leri buraya gelecek) */
+</style>
+{% endblock head_extra %}
+
+{% block content %}
+<div class="animate-fade-in space-y-8">
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 border border-blue-500/30 p-8 flex items-center justify-between">
+        <div class="relative z-10">
+            <h1 class="text-3xl font-bold text-white mb-2">Hoş geldin, [Kullanıcı Adı] 👋</h1>
+            <p class="text-blue-200">Sunucularımız emrinde. Limitsiz erişimin keyfini çıkar.</p>
+            </div>
+      </head>
+<body class="h-screen flex overflow-hidden">
+
+    <aside class="w-72 bg-[#0c1120] border-r border-white/5 flex flex-col justify-between hidden md:flex shrink-0">
+        <div>
+            <div class="h-24 flex items-center px-6 border-b border-white/5 bg-[#080b16]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 p-[2px]">
+                        <div class="w-full h-full rounded-full bg-[#0c1120] flex items-center justify-center text-amber-500 font-bold">
+                            A
+                        </div>
+                    </div>
+                    <div>
+                        <span class="block font-bold text-white text-sm">Ahmet Yılmaz</span>
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-bold uppercase">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            Premium
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 space-y-1 mt-4">
+                <div onclick="showTab('home')" id="nav-home" class="sidebar-link active">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Ana Sayfa
+                </div>
+                <div onclick="showTab('tools')" id="nav-tools" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    Araçlarım
+                </div>
+                <div onclick="showTab('history')" id="nav-history" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    İşlem Geçmişi
+                </div>
+                <div onclick="showTab('support')" id="nav-support" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Destek & Yardım
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-white/5 bg-[#080b16]">
+            <div class="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4 mb-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-amber-500 font-bold uppercase">Kalan Süre</span>
+                    <span class="text-xs text-amber-200">24 Gün</span>
+                </div>
+                <div class="w-full bg-[#02040a] rounded-full h-1.5">
+                    <div class="bg-amber-500 h-1.5 rounded-full" style="width: 70%"></div>
+                </div>
+            </div>
+            <button class="w-full py-2.5 px-4 rounded-lg bg-white/5 text-gray-400 text-sm font-medium hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Çıkış Yap
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto bg-[#02040a] relative">
+        <div class="max-w-7xl mx-auto p-6 md:p-10">
+            
+            <div class="md:hidden flex justify-between items-center mb-8">
+                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white">B</div>
+                <button class="text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg></button>
+            </div>
+
+            <div id="tab-home" class="animate-fade-in space-y-8">
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 border border-blue-500/30 p-8 flex items-center justify-between">
+                    <div class="relative z-10">
+                        <h1 class="text-3xl font-bold text-white mb-2">Hoş geldin, Ahmet 👋</h1>
+                        <p class="text-blue-200">Bugün harika işler çıkarmaya hazır mısın? Sunucularımız emrinde.</p>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="window.location.href='/remove-bg'" class="bg-white text-blue-900 font-bold px-6 py-2.5 rounded-full hover:bg-blue-50 transition shadow-lg shadow-white/10">Arka Plan Sil</button>
+                            <button onclick="showTab('tools')" class="bg-blue-800/50 text-white font-medium px-6 py-2.5 rounded-full hover:bg-blue-800 transition backdrop-blur-sm">Tüm Araçlar</button>
+                        </div>
+                    </div>
+                    <div class="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-blue-500/20 to-transparent"></div>
+                    <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-400/20 rounded-full blur-3xl"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="card p-5 border-l-4 border-amber-500 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Kalan Limit</p>
+                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                                ∞ Sınırsız
+                                <span class="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 rounded border border-amber-500/30">VIP</span>
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div class="card p-5 border-l-4 border-blue-500 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">İşlenen Görsel</p>
+                            <h3 class="text-xl font-bold text-white">128 Adet</h3>
+                        </div>
+                    </div>
+
+                    <div class="card p-5 border-l-4 border-green-500 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Kazandığın Zaman</p>
+                            <h3 class="text-xl font-bold text-white">~4 Saat</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-lg font-bold text-white mb-4">Son İşlemlerin</h2>
+                    <div class="bg-[#0c1120] border border-white/5 rounded-xl overflow-hidden">
+                        <div class="grid grid-cols-4 p-4 text-xs font-bold text-gray-500 uppercase bg-white/5 border-b border-white/5">
+                            <div class="col-span-2">Dosya Adı</div>
+                            <div>Araç</div>
+                            <div class="text-right">Tarih</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 p-4 text-sm text-gray-300 hover:bg-white/5 transition border-b border-white/5 items-center">
+                            <div class="col-span-2 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded bg-blue-900/50 flex items-center justify-center text-blue-400 text-xs font-bold">PNG</div>
+                                urun_cekimi_01.png
+                            </div>
+                            <div><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs">Bg Remover</span></div>
+                            <div class="text-right text-gray-500">Bugün, 14:20</div>
+                        </div>
+
+                         <div class="grid grid-cols-4 p-4 text-sm text-gray-300 hover:bg-white/5 transition items-center">
+                            <div class="col-span-2 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded bg-red-900/50 flex items-center justify-center text-red-400 text-xs font-bold">PDF</div>
+                                sozlesme_final.pdf
+                            </div>
+                            <div><span class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs">PDF Merge</span></div>
+                            <div class="text-right text-gray-500">Dün, 09:15</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-support" class="hidden animate-fade-in h-[600px] flex gap-6">
+                <div class="w-1/3 card p-0 overflow-hidden flex flex-col">
+                    <div class="p-4 border-b border-white/5 flex justify-between items-center">
+                        <h3 class="font-bold text-white">Taleplerim</h3>
+                        <button onclick="openNewTicketModal()" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">+ Yeni</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="p-4 border-b border-white/5 bg-blue-500/10 cursor-pointer">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-bold text-white text-sm">Vektör Hatası</span>
+                                <span class="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 rounded">Yanıtlandı</span>
+                            </div>
+                            <p class="text-xs text-gray-300 truncate">Admin: Merhaba Ali Bey, kontrol...</p>
+                        </div>
+                        <div class="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer opacity-60">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-bold text-gray-300 text-sm">Fatura İsteği</span>
+                                <span class="text-[10px] bg-green-500/20 text-green-500 px-1.5 rounded">Çözüldü</span>
+                            </div>
+                            <p class="text-xs text-gray-500 truncate">Faturanız mail adresinize...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-2/3 card p-0 flex flex-col">
+                    <div class="p-4 border-b border-white/5 bg-[#080b16]">
+                        <h3 class="font-bold text-white">#4025 - Vektör Hatası</h3>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#05080f]">
+                         <div class="flex gap-3 justify-end">
+                            <div class="bg-blue-600 p-3 rounded-l-xl rounded-br-xl max-w-[80%]">
+                                <p class="text-sm text-white">Merhaba, nakış vektör aracını kullanırken %90'da takılıyor. Dosya boyutu 4MB.</p>
+                                <span class="text-[10px] text-blue-200 mt-1 block">14:30</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-600 flex-shrink-0 flex items-center justify-center font-bold text-white text-xs">S</div>
+                            <div class="bg-[#1e293b] p-3 rounded-r-xl rounded-bl-xl max-w-[80%]">
+                                <p class="text-sm text-gray-300">Merhaba Ali Bey, kontrol ediyorum. Vektör motorumuzda kısa süreli bir yoğunluk vardı. Lütfen 5 dakika sonra tekrar dener misiniz?</p>
+                                <span class="text-[10px] text-gray-500 mt-1 block">14:35</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-white/5 bg-[#0c1120]">
+                        <div class="flex gap-2">
+                            <input type="text" placeholder="Yanıtınızı yazın..." class="input-dark flex-1">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg">Gönder</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-tools" class="hidden animate-fade-in">
+                <h2 class="text-xl font-bold text-white mb-6">Tüm Araçlar</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div onclick="window.location.href='/remove-bg'" class="card p-5 hover:border-blue-500/50 transition cursor-pointer group">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            </div>
+                            <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded">AKTİF</span>
+                        </div>
+                        <h3 class="font-bold text-white mb-1">Arka Plan Silici</h3>
+                        <p class="text-xs text-gray-500">Sınırsız kullanım hakkınız var.</p>
+                    </div>
+                     </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            ['home', 'tools', 'support', 'history'].forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if(el) el.classList.add('hidden');
+                
+                const nav = document.getElementById('nav-' + t);
+                if(nav) nav.classList.remove('active');
+            });
+            
+            // Show selected
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + tabName);
+            if(activeNav) activeNav.classList.add('active');
+        }
+
+        // Default to home
+        // showTab('home'); is default by HTML structure
+    </script>
+</body>
+</html>
+ 
+{% endblock content %}
