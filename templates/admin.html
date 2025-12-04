@@ -424,5 +424,31 @@
             document.getElementById('nav-' + tabName).classList.add('active');
         }
     </script>
+ /* ... --------------------------------------------  */
+    {% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock title %}
+ 
+{% block head_extra %}
+<style>
+    /* Admin Paneline özel CSS'ler (base.html'den sonra yüklenir) */
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #94a3b8; transition: all 0.2s; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+    .sidebar-link:hover, .sidebar-link.active { background: #1e293b; color: white; }
+    .sidebar-link.active { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+    .card { background: #0c1120; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; }
+    .input-dark { background: #02040a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; padding: 10px 14px; width: 100%; outline: none; transition: border-color 0.2s; }
+    .input-dark:focus { border-color: #3b82f6; }
+    /* ... (Admin panelinin tüm özel CSS'leri buraya gelecek) */
+</style>
+{% endblock head_extra %}
+
+{% block content %}
+<main class="flex-1 overflow-y-auto bg-[#02040a] relative">
+    <div class="max-w-7xl mx-auto p-8">
+        {% include "admin_content.html" %} 
+        </div>
+</main>
+{% endblock content %}
+    
 </body>
 </html>
