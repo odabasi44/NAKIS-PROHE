@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+    /* Admin Paneline özel CSS'ler (Sidebar ve Kart stilleri) */
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #94a3b8; transition: all 0.2s; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+    .sidebar-link:hover, .sidebar-link.active { background: #1e293b; color: white; }
+    .sidebar-link.active { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+    .card { background: #0c1120; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; }
+    .input-dark { background: #02040a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; padding: 10px 14px; width: 100%; outline: none; transition: border-color 0.2s; }
+    .input-dark:focus { border-color: #3b82f6; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #02040a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+</style>
+{% endblock head_extra %}
+
+{% block content %} 
+<div class="h-screen flex overflow-hidden">
+    
+    <aside class="w-72 bg-[#0c1120] border-r border-white/5 flex flex-col justify-between hidden md:flex shrink-0">
+        {% include "admin_sidebar.html" %} 
+    </aside>
+
+    <main class="flex-1 overflow-y-auto bg-[#02040a] relative">
+        <div class="max-w-7xl mx-auto p-8">
+            
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">{% block admin_title %}Yönetim Paneli{% endblock admin_title %}</h1>
+                    <p class="text-sm text-gray-500 mt-1">{% block admin_subtitle %}Sisteminize Hoş Geldiniz.{% endblock admin_subtitle %}</p>
+                </div>
+                <div class="px-4 py-2 bg-[#0c1120] rounded-full border border-white/5 flex items-center gap-2 text-xs font-medium text-gray-400">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    Sunucu: <span class="text-white">Online</span>
+                </div>
+            </header>
+
+            {% block admin_content %}{% endblock admin_content %}
+
+        </div>
+    </main>
+</div>
+{% endblock content %}
