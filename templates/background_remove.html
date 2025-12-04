@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Arka Plan Kaldırıcı{% endblock title %}
+
+{% block head_extra %}
+<style>
+    .upload-area {
+        background: rgba(17, 24, 39, 0.6);
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    .upload-area:hover, .upload-area.dragover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    .glass-panel {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock head_extra %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-10">
+
+    <!-- Başlık ve Açıklama -->
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
+            Arka Plan Kaldırıcı
+        </h1>
+        <p class="text-gray-400 max-w-lg mx-auto">
+            Yapay zeka teknolojisi ile fotoğraflarınızın arka planını saniyeler içinde şeffaf hale getirin.
+        </p>
+    </div>
+
+    <!-- Limit Durum Çubuğu -->
+    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center animate-fade-in">
+        <div class="flex items-center gap-3">
+            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
+            <span id="limit-info" class="text-sm font-medium text-gray-300">Limit kontrol ediliyor...</span>
+        </div>
+        
+        {% if not session.get('user_email') %}
+            <a href="#" onclick="openModal('userLogin')" class="text-xs text-blue-400 hover:text-blue-300 transition">Giriş Yap</a>
+        {% endif %}
+    </div>
+
+    <!-- Yükleme Alanı -->
+    <div class="glass-panel rounded-2xl p-8 relative overflow-hidden">
+        
+        <!-- Drag & Drop Alanı -->
+        <div id="dropZone" class="upload-area rounded-xl p-12 text-center cursor-pointer relative z-10">
+            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" class="hidden">
+            
+            <div class="mb-4 text-blue-500 mx-auto w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            
+            <h3 class="text-xl font-bold text-white mb-2">Resmi Buraya Sürükleyin</h3>
+            <p class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin</p>
+            
+            <button id="select-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg shadow-blue-900/30">
+                Resim Seç
+            </button>
+            
+            <p class="text-xs text-gray-500 mt-4">PNG, JPG veya WEBP (Max 10MB)</p>
+        </div>
+
+        <!-- Yükleniyor Ekranı -->
+        <div id="loading" class="hidden absolute inset-0 bg-[#0c1120]/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div class="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+            <p class="text-white font-medium animate-pulse">Yapay Zeka İşliyor...</p>
+            <p class="text-xs text-gray-400 mt-2">Bu işlem birkaç saniye sürebilir.</p>
+        </div>
+
+    </div>
+
+    <!-- Sonuç Alanı -->
+    <div id="result-area" class="hidden mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+        <!-- Orijinal -->
+        <div class="glass-panel p-4 rounded-xl">
+            <h4 class="text-sm font-medium text-gray-400 mb-3">Orijinal Resim</h4>
+            <div class="aspect-square rounded-lg overflow-hidden bg-black/40 flex items-center justify-center">
+                <img id="previewImg" class="max-w-full max-h-full object-contain">
+            </div>
+        </div>
+
+        <!-- Sonuç -->
+        <div class="glass-panel p-4 rounded-xl border-blue-500/30">
+            <h4 class="text-sm font-medium text-blue-400 mb-3 flex justify-between items-center">
+                <span>Sonuç</span>
+                <span class="text-[10px] bg-blue-500/20 px-2 py-0.5 rounded text-blue-300">Hazır</span>
+            </h4>
+            <!-- Şeffaflık deseni -->
+            <div class="aspect-square rounded-lg overflow-hidden flex items-center justify-center relative" 
+                 style="background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                <img id="resultImg" class="max-w-full max-h-full object-contain relative z-10">
+            </div>
+            
+            <a id="downloadBtn" href="#" download="temizlenmis_resim.png" class="mt-4 block w-full text-center py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition shadow-lg shadow-green-900/20">
+                İndir (PNG)
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let userStatus = { allowed: false };
+
+    // 1. Limit Kontrolü (Sayfa Yüklendiğinde)
+    async function checkLimit() {
+        const infoEl = document.getElementById('limit-info');
+        const iconEl = document.getElementById('status-icon');
+        const btn = document.getElementById('select-btn');
+        const statusBar = document.getElementById('status-bar');
+
+        try {
+            // Backend'deki yeni endpoint'e istek at
+            const res = await fetch('/api/check_tool_status/image/remove_bg');
+            const data = await res.json();
+            userStatus = data;
+
+            if (data.allowed) {
+                // İzin Var
+                iconEl.className = "w-2 h-2 rounded-full bg-green-500";
+                statusBar.className = statusBar.className.replace('border-red-500/30', 'border-green-500/30');
+                
+                if (data.premium) {
+                    infoEl.innerHTML = `💎 Premium Aktif - <span class="text-green-400">Limitsiz Erişim</span>`;
+                } else {
+                    infoEl.innerHTML = `✅ Ücretsiz Hak: <span class="text-green-400 font-bold">${data.left}</span> Adet`;
+                }
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                // Limit Yok
+                iconEl.className = "w-2 h-2 rounded-full bg-red-500";
+                statusBar.classList.add('border', 'border-red-500/30', 'bg-red-500/5');
+                
+                let msg = "Günlük limitiniz doldu.";
+                if(data.reason === 'maintenance') msg = "Araç şu an bakımda.";
+                
+                infoEl.innerHTML = `⛔ ${msg} <a onclick="openPremium()" class="text-blue-400 underline cursor-pointer ml-2">Premium Al</a>`;
+                
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.innerText = "Limit Doldu";
+            }
+
+        } catch (e) {
+            console.error("Limit kontrol hatası:", e);
+            infoEl.innerText = "Bağlantı hatası. Lütfen sayfayı yenileyin.";
+        }
+    }
+
+    // 2. Dosya Seçimi ve İşleme
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    // Tıklama ile seç
+    document.getElementById('select-btn').addEventListener('click', () => {
+        if(!userStatus.allowed) return openPremium(); // Limit yoksa premium modalı aç
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+    // Sürükle Bırak Olayları
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if(userStatus.allowed) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) return alert('Lütfen geçerli bir resim dosyası seçin.');
+
+        // Önizleme göster
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('result-area').classList.remove('hidden');
+            // Sonuç kısmını temizle
+            document.getElementById('resultImg').src = '';
+        };
+        reader.readAsDataURL(file);
+
+        uploadImage(file);
+    }
+
+    async function uploadImage(file) {
+        const loading = document.getElementById('loading');
+        loading.classList.remove('hidden');
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const res = await fetch('/api/remove_bg', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            loading.classList.add('hidden');
+
+            if (data.success) {
+                const resultSrc = "data:image/png;base64," + data.file;
+                document.getElementById('resultImg').src = resultSrc;
+                document.getElementById('downloadBtn').href = resultSrc;
+                
+                // Başarılı işlem sonrası limiti tekrar kontrol et (sayı düşecek)
+                checkLimit();
+            } else {
+                alert("Hata: " + (data.reason || data.message || "Bilinmeyen bir hata oluştu."));
+                if(res.status === 403) checkLimit(); // Limit hatasıysa UI güncelle
+            }
+
+        } catch (e) {
+            loading.classList.add('hidden');
+            alert("Sunucuya bağlanırken hata oluştu.");
+            console.error(e);
+        }
+    }
+
+    // Başlangıçta çalıştır
+    document.addEventListener('DOMContentLoaded', checkLimit);
+
+</script>
+{% endblock content %}
