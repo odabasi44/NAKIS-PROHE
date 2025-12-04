@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 from datetime import datetime, timedelta
 from PyPDF2 import PdfMerger
-from flask import Flask, request, jsonify, render_template, session, redirect, send_file
+from flask import Flask, request, jsonify, render_template, session, redirect
 from flask_cors import CORS
 import onnxruntime as ort
 
@@ -36,6 +36,7 @@ def save_settings(data):
 # ============================================================
 # KULLANICI SİSTEMİ
 # ============================================================
+# Admin paneliyle uyum için "users.json" kullanıyoruz
 PREMIUM_FILE = "users.json" 
 
 def load_premium_users():
@@ -181,16 +182,16 @@ def api_pdf_merge():
     increase_usage(email, "pdf", "merge")
     return jsonify({"success": True, "file": base64.b64encode(output.getvalue()).decode("utf-8")})
 
-# --- REMOVE BG (Geliştirilmiş Model Yükleme) ---
+# --- REMOVE BG (AKILLI MODEL YÜKLEYİCİ) ---
 u2net_session = None
 print("--- MODEL YÜKLEME BAŞLIYOR ---")
 
-# Modelin olabileceği olası yollar
+# Modelin olabileceği tüm olası yollar (FileZilla yolu dahil)
 possible_paths = [
+    "/data/ai-models/u2net.onnx",  # Senin yüklediğin yol
     "u2net.onnx",
     "models/u2net.onnx",
     "/app/models/u2net.onnx",
-    "/data/ai-models/u2net.onnx", # Kullanıcının yüklediği yer
     "/app/u2net.onnx"
 ]
 
@@ -206,9 +207,9 @@ if found_path:
         u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
         print("🚀 ONNX Modeli Başarıyla Yüklendi!")
     except Exception as e:
-        print(f"❌ Model Yükleme Hatası: {e}")
+        print(f"❌ Model Yükleme Hatası (Dosya var ama bozuk olabilir): {e}")
 else:
-    print("⚠️ UYARI: u2net.onnx modeli hiçbir klasörde bulunamadı. Arka plan silici çalışmayacak.")
+    print("⚠️ UYARI: u2net.onnx modeli hiçbir klasörde bulunamadı. Lütfen '/data/ai-models/' içine yükleyin.")
 
 def preprocess_bg(img):
     img = img.convert("RGB").resize((320, 320))
@@ -225,7 +226,7 @@ def postprocess_bg(mask, size):
 @app.route("/api/remove_bg", methods=["POST"])
 def api_remove_bg():
     if not u2net_session: 
-        return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı. Lütfen yönetici ile iletişime geçin."}), 503
+        return jsonify({"success": False, "reason": "AI Modeli Bulunamadı. Sistem Yöneticisine Başvurun."}), 503
         
     email = session.get("user_email", "guest")
     
@@ -251,7 +252,7 @@ def api_remove_bg():
         return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
     except Exception as e:
         print(f"Processing Error: {e}")
-        return jsonify({"success": False, "message": "Görüntü işleme hatası"}), 500
+        return jsonify({"success": False, "message": f"İşlem hatası: {str(e)}"}), 500
 
 # --- SAYFA ROTALARI ---
 @app.route("/")
