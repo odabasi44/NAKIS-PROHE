@@ -22,7 +22,7 @@
 {% endblock head_extra %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto py-10">
+<div class="max-w-4xl mx-auto py-10 px-4">
 
     <!-- Başlık -->
     <div class="text-center mb-10">
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Limit Durum Çubuğu -->
-    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center animate-fade-in">
+    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center animate-fade-in transition-all duration-300 border border-white/5">
         <div class="flex items-center gap-3">
             <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
             <span id="limit-info" class="text-sm font-medium text-gray-300">Sistem kontrol ediliyor...</span>
@@ -57,9 +57,9 @@
             </div>
             
             <h3 class="text-xl font-bold text-white mb-2">Resmi Buraya Sürükleyin</h3>
-            <p class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin</p>
+            <p class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin (Max 10MB)</p>
             
-            <button id="select-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg shadow-blue-900/30">
+            <button id="select-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg shadow-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed">
                 Resim Seç
             </button>
         </div>
@@ -82,15 +82,18 @@
         </div>
 
         <!-- Sonuç -->
-        <div class="glass-panel p-4 rounded-xl border-blue-500/30">
-            <h4 class="text-sm font-medium text-blue-400 mb-3">Sonuç</h4>
+        <div class="glass-panel p-4 rounded-xl border border-blue-500/30">
+            <h4 class="text-sm font-medium text-blue-400 mb-3 flex justify-between">
+                <span>Sonuç</span>
+                <span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Hazır</span>
+            </h4>
             <!-- Şeffaflık deseni -->
             <div class="aspect-square rounded-lg overflow-hidden flex items-center justify-center relative" 
                  style="background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%); background-size: 20px 20px;">
                 <img id="resultImg" class="max-w-full max-h-full object-contain relative z-10">
             </div>
             
-            <a id="downloadBtn" href="#" download="temizlenmis_resim.png" class="mt-4 block w-full text-center py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition">
+            <a id="downloadBtn" href="#" download="temizlenmis_resim.png" class="mt-4 block w-full text-center py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition shadow-lg shadow-green-900/20">
                 İndir (PNG)
             </a>
         </div>
@@ -110,40 +113,44 @@
         const loginPrompt = document.getElementById('login-prompt');
 
         // ÖNİZLEME (PREVIEW) KONTROLÜ
+        // Eğer tarayıcı blob veya googleusercontent üzerindeyse backend çalışmaz.
         if (window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent.goog')) {
             infoEl.innerHTML = "⚠️ <span class='text-yellow-400'>Önizleme Modu:</span> Backend sunucusu bu ekranda çalışmaz.";
             iconEl.className = "w-2 h-2 rounded-full bg-yellow-500";
             btn.innerText = "Sunucu Yok";
             btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
             return;
         }
 
         try {
             const res = await fetch('/api/check_tool_status/image/remove_bg');
-            if(!res.ok) throw new Error("API Hatası: " + res.status);
+            
+            if(!res.ok) {
+                throw new Error("API Hatası: " + res.status);
+            }
             
             const data = await res.json();
             userStatus = data;
 
             if (data.allowed) {
                 // İzin Var
-                iconEl.className = "w-2 h-2 rounded-full bg-green-500";
-                statusBar.className = statusBar.className.replace('border-red-500/30', 'border-green-500/30');
+                iconEl.className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]";
+                statusBar.classList.remove('border-red-500/30');
+                statusBar.classList.add('border-green-500/30');
                 
                 if (data.premium) {
                     infoEl.innerHTML = `💎 Premium Aktif - <span class="text-green-400">Limitsiz Erişim</span>`;
                 } else {
                     infoEl.innerHTML = `✅ Kalan Hakkınız: <span class="text-green-400 font-bold">${data.left}</span>`;
-                    loginPrompt.classList.remove('hidden');
+                    // Eğer misafir ise giriş yap linkini göster
+                    if(!data.premium) loginPrompt.classList.remove('hidden');
                 }
                 btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
                 btn.innerText = "Resim Seç";
             } else {
                 // Limit Yok
-                iconEl.className = "w-2 h-2 rounded-full bg-red-500";
-                statusBar.classList.add('border', 'border-red-500/30', 'bg-red-500/5');
+                iconEl.className = "w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]";
+                statusBar.classList.add('border-red-500/30', 'bg-red-500/5');
                 
                 let msg = "Günlük limitiniz doldu.";
                 if(data.reason === 'maintenance') msg = "Araç şu an bakımda.";
@@ -151,17 +158,17 @@
                 infoEl.innerHTML = `⛔ ${msg} <a onclick="openModal('premiumModal')" class="text-blue-400 underline cursor-pointer ml-2">Premium Al</a>`;
                 
                 btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
                 btn.innerText = "Limit Doldu";
             }
 
         } catch (e) {
             console.error("Limit kontrol hatası:", e);
             infoEl.innerHTML = "<span class='text-red-400'>Sunucu Bağlantı Hatası. Sayfayı yenileyin.</span>";
+            iconEl.className = "w-2 h-2 rounded-full bg-red-500";
         }
     }
 
-    // 2. Dosya Seçimi
+    // 2. Dosya Seçimi Olayları
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
@@ -172,23 +179,44 @@
 
     fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    // Sürükle Bırak Efektleri
+    dropZone.addEventListener('dragover', (e) => { 
+        e.preventDefault(); 
+        dropZone.classList.add('dragover'); 
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+    
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        if(userStatus.allowed) handleFile(e.dataTransfer.files[0]);
-        else openModal('premiumModal');
+        if(userStatus.allowed) {
+            handleFile(e.dataTransfer.files[0]);
+        } else {
+            openModal('premiumModal');
+        }
     });
 
     function handleFile(file) {
         if (!file) return;
         
+        // Sadece resim dosyaları
+        if (!file.type.startsWith('image/')) {
+            alert('Lütfen geçerli bir resim dosyası seçin (PNG, JPG, WEBP).');
+            return;
+        }
+        
+        // Önizleme göster
         const reader = new FileReader();
         reader.onload = e => {
             document.getElementById('previewImg').src = e.target.result;
             document.getElementById('result-area').classList.remove('hidden');
-            document.getElementById('resultImg').src = '';
+            // Sonuç kısmını temizle (yeni yükleme yapılıyor)
+            document.getElementById('resultImg').src = ''; 
+            // Sonuç alanına kaydır
+            document.getElementById('result-area').scrollIntoView({behavior: 'smooth'});
         };
         reader.readAsDataURL(file);
 
@@ -215,17 +243,23 @@
                 const resultSrc = "data:image/png;base64," + data.file;
                 document.getElementById('resultImg').src = resultSrc;
                 document.getElementById('downloadBtn').href = resultSrc;
+                
+                // Başarılı işlem sonrası limiti tekrar kontrol et (sayı düşecek)
                 checkLimit();
             } else {
-                alert("Hata: " + (data.reason || data.message || "Bilinmeyen hata"));
+                alert("Hata: " + (data.reason || data.message || "İşlem başarısız oldu."));
+                // Eğer limit hatası döndüyse (örn: tarayıcıda limit var sanıp sunucu reddederse)
+                if(res.status === 403) checkLimit(); 
             }
 
         } catch (e) {
             loading.classList.add('hidden');
-            alert("Sunucu hatası.");
+            alert("Sunucu ile iletişim kurulurken hata oluştu.");
+            console.error(e);
         }
     }
 
+    // Sayfa yüklendiğinde limiti kontrol et
     document.addEventListener('DOMContentLoaded', checkLimit);
 </script>
 {% endblock content %}
