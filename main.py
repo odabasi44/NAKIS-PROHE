@@ -10,7 +10,7 @@ from PyPDF2 import PdfMerger
 from flask import Flask, request, jsonify, render_template, session, redirect, send_file
 from flask_cors import CORS
 import onnxruntime as ort
-from functools import wraps 
+from functools import wraps # <<< EKLENDİ
 
 # ============================================================
 # FLASK APP SETUP
@@ -60,7 +60,7 @@ def save_tickets(data):
 # ============================================================
 # PREMIUM USER SYSTEM
 # ============================================================
-PREMIUM_FILE = "users.json" # Premium kullanıcı veritabanı dosyası
+PREMIUM_FILE = "users.json" # KULLANICI DOSYASI DOĞRU
 
 def load_premium_users():
     """users.json dosyasını yükler."""
@@ -338,20 +338,25 @@ def user_login_endpoint():
     user = get_user_data_by_email(email)
     
     if user:
-        end_date = datetime.strptime(user.get("end_date", "1970-01-01"), "%Y-%m-%d")
-        
-        if end_date >= datetime.now():
-            session["user_email"] = email
-            session["is_premium"] = True
-            return jsonify({"status": "premium", "name": user.get("name", "Kullanıcı")})
-        else:
-            return jsonify({"status": "expired"}) # Süresi dolmuş
+        try:
+            end_date = datetime.strptime(user.get("end_date", "1970-01-01"), "%Y-%m-%d")
+            
+            if end_date >= datetime.now():
+                session["user_email"] = email
+                session["is_premium"] = True
+                return jsonify({"status": "premium", "name": user.get("name", "Kullanıcı")})
+            else:
+                return jsonify({"status": "expired"}) # Süresi dolmuş
+        except ValueError:
+            return jsonify({"status": "error", "message": "Tarih formatı hatalı"}), 500
+
     
     return jsonify({"status": "not_found"}) 
 
 
 @app.route("/logout")
 def user_logout():
+    # session.pop ile tüm kullanıcı oturumlarını temizle
     session.pop("user_email", None)
     session.pop("is_premium", None)
     return redirect("/")
@@ -399,9 +404,9 @@ def save_global_settings():
     data = request.get_json()
     settings = load_settings()
 
-    settings["site"]["title"] = data.get("title", settings["site"]["title"])
-    settings["site"]["whatsapp_number"] = data.get("whatsapp_number", settings["site"]["whatsapp_number"])
-    settings["site"]["announcement_bar"] = data.get("announcement_bar", settings["site"]["announcement_bar"])
+    settings["site"]["title"] = data.get("title", settings["site"].get("title", ""))
+    settings["site"]["whatsapp_number"] = data.get("whatsapp_number", settings["site"].get("whatsapp_number", ""))
+    settings["site"]["announcement_bar"] = data.get("announcement_bar", settings["site"].get("announcement_bar", ""))
 
     save_settings(settings)
     return jsonify({"status": "ok", "message": "Site ayarları güncellendi."})
@@ -414,7 +419,7 @@ def save_admin_credentials():
     data = request.get_json()
     settings = load_settings()
 
-    settings["admin"]["email"] = data.get("email", settings["admin"]["email"])
+    settings["admin"]["email"] = data.get("email", settings["admin"].get("email", ""))
     if data.get("password"):
         settings["admin"]["password"] = data["password"]
 
