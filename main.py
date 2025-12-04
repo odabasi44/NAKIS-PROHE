@@ -7,10 +7,9 @@ import numpy as np
 from PIL import Image
 from datetime import datetime, timedelta
 from PyPDF2 import PdfMerger
-from flask import Flask, request, jsonify, render_template, session, redirect
+from flask import Flask, request, jsonify, render_template, session, redirect, send_file
 from flask_cors import CORS
 import onnxruntime as ort
-from functools import wraps 
 
 # ============================================================
 # FLASK AYARLARI
@@ -25,7 +24,8 @@ app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 # ============================================================
 def load_settings():
     if not os.path.exists("settings.json"):
-        return {"admin": {"email": "", "password": ""}, "limits": {"pdf": {}, "image": {}, "vector": {}}, "site": {}}
+        # Varsayılan ayarlar
+        return {"admin": {"email": "admin@botlab.com", "password": "admin"}, "limits": {"pdf": {}, "image": {}, "vector": {}}, "site": {}, "tool_status": {}}
     with open("settings.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -150,7 +150,6 @@ def check_tool_status_endpoint(tool, subtool):
     user = get_user_data_by_email(email)
     usage = user.get("usage_stats", {}).get(subtool, 0) if user else 0
     
-    # .get() kullanarak KeyError hatasını önlüyoruz
     return jsonify({
         "allowed": status.get("allowed", False),
         "reason": status.get("reason", ""),
@@ -182,14 +181,34 @@ def api_pdf_merge():
     increase_usage(email, "pdf", "merge")
     return jsonify({"success": True, "file": base64.b64encode(output.getvalue()).decode("utf-8")})
 
-# --- REMOVE BG ---
-print("Loading U2Net...")
-U2NET_MODEL = "/app/models/u2net.onnx"
-try: 
-    u2net_session = ort.InferenceSession(U2NET_MODEL, providers=["CPUExecutionProvider"])
-except Exception as e:
-    print(f"Model Error: {e}")
-    u2net_session = None
+# --- REMOVE BG (Geliştirilmiş Model Yükleme) ---
+u2net_session = None
+print("--- MODEL YÜKLEME BAŞLIYOR ---")
+
+# Modelin olabileceği olası yollar
+possible_paths = [
+    "u2net.onnx",
+    "models/u2net.onnx",
+    "/app/models/u2net.onnx",
+    "/data/ai-models/u2net.onnx", # Kullanıcının yüklediği yer
+    "/app/u2net.onnx"
+]
+
+found_path = None
+for path in possible_paths:
+    if os.path.exists(path):
+        found_path = path
+        print(f"✅ Model bulundu: {path}")
+        break
+
+if found_path:
+    try:
+        u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
+        print("🚀 ONNX Modeli Başarıyla Yüklendi!")
+    except Exception as e:
+        print(f"❌ Model Yükleme Hatası: {e}")
+else:
+    print("⚠️ UYARI: u2net.onnx modeli hiçbir klasörde bulunamadı. Arka plan silici çalışmayacak.")
 
 def preprocess_bg(img):
     img = img.convert("RGB").resize((320, 320))
@@ -205,7 +224,9 @@ def postprocess_bg(mask, size):
 
 @app.route("/api/remove_bg", methods=["POST"])
 def api_remove_bg():
-    if not u2net_session: return jsonify({"success": False, "reason": "AI Modeli Yüklenemedi"}), 503
+    if not u2net_session: 
+        return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı. Lütfen yönetici ile iletişime geçin."}), 503
+        
     email = session.get("user_email", "guest")
     
     status = check_user_status(email, "image", "remove_bg")
@@ -230,7 +251,7 @@ def api_remove_bg():
         return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
     except Exception as e:
         print(f"Processing Error: {e}")
-        return jsonify({"success": False, "message": "İşlem hatası"}), 500
+        return jsonify({"success": False, "message": "Görüntü işleme hatası"}), 500
 
 # --- SAYFA ROTALARI ---
 @app.route("/")
