@@ -7,11 +7,7 @@
 
 {% block admin_content %}
 
-<!-- ========================================================= -->
-<!-- 1. DASHBOARD SEKMESİ -->
-<!-- ========================================================= -->
 <div id="tab-dashboard" class="space-y-6">
-    <!-- İstatistik Kartları -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="card p-5 border-l-4 border-blue-500">
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Toplam Kullanıcı</p>
@@ -37,13 +33,10 @@
     </div>
 </div>
 
-<!-- ========================================================= -->
-<!-- 2. KULLANICILAR & ÜYELİK SEKMESİ -->
-<!-- ========================================================= -->
 <div id="tab-users" class="hidden space-y-6">
     <div class="flex justify-between items-center">
         <h2 class="text-xl font-bold text-white">Kullanıcı Yönetimi</h2>
-        <button onclick="openModal('addUserModal')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+        <button onclick="openAddUserModalWithSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
             + Yeni Üye Ekle
         </button>
     </div>
@@ -59,16 +52,12 @@
                 </tr>
             </thead>
             <tbody id="user-table-body">
-                <!-- JavaScript ile doldurulacak -->
                 <tr><td colspan="4" class="px-6 py-4 text-center">Yükleniyor...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- ========================================================= -->
-<!-- 3. ARAÇ YÖNETİMİ (LİMİT AYARLARI) -->
-<!-- ========================================================= -->
 <div id="tab-tools" class="hidden space-y-8">
     <div class="flex justify-between items-center">
         <h2 class="text-xl font-bold text-white">Paket ve Limit Ayarları</h2>
@@ -77,7 +66,6 @@
         </button>
     </div>
     
-    <!-- Dosya Boyutu Limitleri -->
     <div class="card p-6 border border-blue-500/20 bg-blue-500/5">
         <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -91,9 +79,8 @@
         </div>
     </div>
 
-    <!-- Arka Plan Silici Limitleri -->
     <div class="card p-6">
-        <h3 class="text-lg font-bold text-white mb-4">Arka Plan Silici (Günlük İşlem Limiti)</h3>
+        <h3 class="text-lg font-bold text-white mb-4">Arka Plan Silici (Günlük Limit)</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div><label class="text-xs text-gray-400 block mb-1">Ücretsiz</label><input type="number" id="limit-bg-free" class="input-dark w-full"></div>
             <div><label class="text-xs text-yellow-500 block mb-1">Başlangıç</label><input type="number" id="limit-bg-starter" class="input-dark w-full"></div>
@@ -102,9 +89,8 @@
         </div>
     </div>
 
-    <!-- PDF Birleştirme Limitleri -->
     <div class="card p-6">
-        <h3 class="text-lg font-bold text-white mb-4">PDF Birleştirme (Günlük İşlem Limiti)</h3>
+        <h3 class="text-lg font-bold text-white mb-4">PDF Birleştirme (Günlük Limit)</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div><label class="text-xs text-gray-400 block mb-1">Ücretsiz</label><input type="number" id="limit-pdf-free" class="input-dark w-full"></div>
             <div><label class="text-xs text-yellow-500 block mb-1">Başlangıç</label><input type="number" id="limit-pdf-starter" class="input-dark w-full"></div>
@@ -116,7 +102,7 @@
 
 <div id="tab-packages" class="hidden space-y-8">
     <div class="flex justify-between items-center">
-        <h2 class="text-xl font-bold text-white">Paket Bilgileri ve Fiyatlar</h2>
+        <h2 class="text-xl font-bold text-white">Paket İsim ve Açıklamaları</h2>
         <button onclick="savePackages()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-green-900/20">
             Paketleri Kaydet
         </button>
@@ -126,238 +112,138 @@
         <div class="card p-6 border-t-4 border-yellow-500 relative">
             <span class="absolute top-4 right-4 text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">STARTER</span>
             <h3 class="font-bold text-white mb-4">Başlangıç Paketi</h3>
-            
             <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
-            <input type="text" id="pkg-starter-name" class="input-dark w-full mb-3" placeholder="Başlangıç">
-            
+            <input type="text" id="pkg-starter-name" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
-            <input type="text" id="pkg-starter-price" class="input-dark w-full mb-3" placeholder="99">
-            
+            <input type="text" id="pkg-starter-price" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
-            <textarea id="pkg-starter-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
-            
-            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
-            <textarea id="pkg-starter-features" class="input-dark w-full h-24 text-xs" placeholder="PDF Birleştir, Reklamsız..."></textarea>
+            <textarea id="pkg-starter-desc" class="input-dark w-full mb-3 h-20 text-xs"></textarea>
+            <label class="block text-xs text-gray-400 mb-1">Görünen Özellikler (Metin)</label>
+            <textarea id="pkg-starter-features" class="input-dark w-full h-24 text-xs"></textarea>
         </div>
 
         <div class="card p-6 border-t-4 border-cyan-400 relative">
             <span class="absolute top-4 right-4 text-xs font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded">PRO</span>
             <h3 class="font-bold text-white mb-4">Pro Paket</h3>
-            
             <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
-            <input type="text" id="pkg-pro-name" class="input-dark w-full mb-3" placeholder="Pro">
-            
+            <input type="text" id="pkg-pro-name" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
-            <input type="text" id="pkg-pro-price" class="input-dark w-full mb-3" placeholder="199">
-            
+            <input type="text" id="pkg-pro-price" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
-            <textarea id="pkg-pro-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
-            
-            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
-            <textarea id="pkg-pro-features" class="input-dark w-full h-24 text-xs" placeholder="Tüm Araçlar, Vektör..."></textarea>
+            <textarea id="pkg-pro-desc" class="input-dark w-full mb-3 h-20 text-xs"></textarea>
+            <label class="block text-xs text-gray-400 mb-1">Görünen Özellikler (Metin)</label>
+            <textarea id="pkg-pro-features" class="input-dark w-full h-24 text-xs"></textarea>
         </div>
 
         <div class="card p-6 border-t-4 border-purple-500 relative">
             <span class="absolute top-4 right-4 text-xs font-bold text-purple-500 bg-purple-500/10 px-2 py-1 rounded">UNLIMITED</span>
             <h3 class="font-bold text-white mb-4">Sınırsız Paket</h3>
-            
             <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
-            <input type="text" id="pkg-unlimited-name" class="input-dark w-full mb-3" placeholder="Sınırsız">
-            
+            <input type="text" id="pkg-unlimited-name" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
-            <input type="text" id="pkg-unlimited-price" class="input-dark w-full mb-3" placeholder="499">
-            
+            <input type="text" id="pkg-unlimited-price" class="input-dark w-full mb-3">
             <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
-            <textarea id="pkg-unlimited-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
-            
-            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
-            <textarea id="pkg-unlimited-features" class="input-dark w-full h-24 text-xs" placeholder="Limitsiz Erişim, API..."></textarea>
+            <textarea id="pkg-unlimited-desc" class="input-dark w-full mb-3 h-20 text-xs"></textarea>
+            <label class="block text-xs text-gray-400 mb-1">Görünen Özellikler (Metin)</label>
+            <textarea id="pkg-unlimited-features" class="input-dark w-full h-24 text-xs"></textarea>
         </div>
     </div>
 </div>
 
-<script>
-    // MEVCUT SCRIPT'İN İÇİNE EKLEYİN -----------------------
-    
-    // 1. Paket Verilerini Çek ve Doldur
-    async function fetchPackagesAndFill() {
-        try {
-            const res = await fetch("/get_settings");
-            const data = await res.json();
-            const p = data.packages || {};
-
-            const tiers = ['starter', 'pro', 'unlimited'];
-            tiers.forEach(tier => {
-                if(p[tier]) {
-                    document.getElementById(`pkg-${tier}-name`).value = p[tier].name || '';
-                    document.getElementById(`pkg-${tier}-price`).value = p[tier].price || '';
-                    document.getElementById(`pkg-${tier}-desc`).value = p[tier].description || '';
-                    // Özellikler array ise stringe çevir
-                    const features = Array.isArray(p[tier].features) ? p[tier].features.join(', ') : (p[tier].features || '');
-                    document.getElementById(`pkg-${tier}-features`).value = features;
-                }
-            });
-
-        } catch(e) { console.error("Paket verisi çekme hatası:", e); }
-    }
-
-    // 2. Paketleri Kaydet
-    async function savePackages() {
-        const tiers = ['starter', 'pro', 'unlimited'];
-        let packagesData = {};
-
-        tiers.forEach(tier => {
-            const featStr = document.getElementById(`pkg-${tier}-features`).value;
-            // Virgülle ayrılanları array yap ve temizle
-            const featuresList = featStr.split(',').map(s => s.trim()).filter(s => s);
-            
-            packagesData[tier] = {
-                name: document.getElementById(`pkg-${tier}-name`).value,
-                price: document.getElementById(`pkg-${tier}-price`).value,
-                description: document.getElementById(`pkg-${tier}-desc`).value,
-                features: featuresList
-            };
-        });
-        
-        // Free paketi bozulmasın diye manuel ekleyelim veya backend'de merge edelim.
-        // Burada basitçe backend'e bu objeyi gönderiyoruz.
-
-        try {
-            const res = await fetch("/api/admin/save_packages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ packages: packagesData })
-            });
-
-            if(res.ok) alert("Paket ayarları başarıyla kaydedildi! ✅");
-            else alert("Kaydetme hatası!");
-        } catch(e) { alert("Sunucu hatası."); }
-    }
-
-    // showTab fonksiyonuna hook ekliyoruz (Mevcut showTab'i güncelleyin)
-    // admin.html içindeki window.showTab fonksiyonunu şu şekilde revize edin:
-    window.showTab = function(tabName) {
-        document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-        
-        const tabElement = document.getElementById('tab-' + tabName);
-        if(tabElement) tabElement.classList.remove('hidden');
-
-        const navElement = document.getElementById('nav-' + tabName);
-        if(navElement) navElement.classList.add('active');
-
-        // Veri çekme kancaları
-        if (tabName === 'dashboard') fetchDashboardData();
-        if (tabName === 'users') fetchUsers();
-        if (tabName === 'tools') fetchSettingsAndFillInputs(); // Eski limit fonksiyonu
-        if (tabName === 'packages') fetchPackagesAndFill();   // YENİ FONKSİYON
-        
-        // Başlık Güncelleme
-        if(navElement) {
-            updateAdminHeader(navElement.dataset.title, navElement.dataset.subtitle);
-        }
-    }
-</script>
-<!-- ========================================================= -->
-<!-- 4. DİĞER SEKMELER (Şimdilik Boş) -->
-<!-- ========================================================= -->
 <div id="tab-tickets" class="hidden space-y-6">
     <h2 class="text-xl font-bold text-white">Destek Talepleri</h2>
     <p class="text-gray-400">Henüz aktif destek talebi bulunmuyor.</p>
 </div>
-
 <div id="tab-reports" class="hidden space-y-6">
     <h2 class="text-xl font-bold text-white">Raporlar</h2>
     <p class="text-gray-400">Detaylı analizler yakında eklenecek.</p>
 </div>
-
 <div id="tab-settings" class="hidden space-y-6">
     <h2 class="text-xl font-bold text-white">Site Ayarları</h2>
     <p class="text-gray-400">Genel site yapılandırması.</p>
 </div>
 
-
-<!-- ========================================================= -->
-<!-- MODALLER -->
-<!-- ========================================================= -->
-
-<!-- MODAL: YENİ ÜYE EKLE -->
 <div id="addUserModal" class="modal-overlay hidden items-center justify-center fixed inset-0 bg-black/80 z-50">
-    <div class="modal-content p-8 w-full max-w-md relative animate-fade-in shadow-2xl bg-[#0c1120] rounded-2xl border border-white/10">
+    <div class="modal-content p-8 w-full max-w-lg relative animate-fade-in shadow-2xl bg-[#0c1120] rounded-2xl border border-white/10">
         <button onclick="closeModal('addUserModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">✕</button>
         <h2 class="text-xl font-bold text-white mb-6">Yeni Premium Üye Ekle</h2>
         
         <form id="addUserForm" onsubmit="event.preventDefault(); handleAddUser();">
-            <label class="block text-sm text-gray-400 mb-1">E-posta</label>
-            <input type="email" id="new-user-email" placeholder="kullanici@mail.com" class="input-dark w-full text-sm mb-4" required>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">E-posta</label>
+                    <input type="email" id="new-user-email" placeholder="kullanici@mail.com" class="input-dark w-full text-sm" required>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Bitiş Tarihi</label>
+                    <input type="date" id="new-user-end-date" class="input-dark w-full text-sm" required>
+                </div>
+            </div>
 
-            <label class="block text-sm text-gray-400 mb-1">Paket Seçimi</label>
-            <select id="new-user-tier" class="input-dark w-full text-sm mb-4 bg-[#02040a] text-white border border-white/10 rounded px-3 py-2">
-                <option value="starter">Başlangıç Paket</option>
-                <option value="pro">Pro Paket</option>
-                <option value="unlimited">Sınırsız Paket</option>
-            </select>
+            <input type="hidden" id="selected-tier-input" value="starter">
 
-            <label class="block text-sm text-gray-400 mb-1">Bitiş Tarihi (YYYY-MM-DD)</label>
-            <input type="date" id="new-user-end-date" class="input-dark w-full text-sm mb-6" required>
-            
+            <label class="block text-xs text-gray-400 mb-2">Paket Seçimi</label>
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <button type="button" onclick="selectPkgUI('starter')" id="btn-pkg-starter" class="pkg-btn active-starter py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5">
+                    <span>⚡</span> Starter
+                </button>
+                <button type="button" onclick="selectPkgUI('pro')" id="btn-pkg-pro" class="pkg-btn py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5">
+                    <span>🚀</span> Pro
+                </button>
+                <button type="button" onclick="selectPkgUI('unlimited')" id="btn-pkg-unlimited" class="pkg-btn py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5">
+                    <span>💎</span> Unlimited
+                </button>
+            </div>
+
+            <div id="pkg-summary-box" class="bg-[#02040a] border border-yellow-500/30 rounded-lg p-4 mb-6 transition-all min-h-[120px]">
+                <p class="text-xs text-gray-500 text-center mt-8">Veriler yükleniyor...</p>
+            </div>
+
             <p id="addUserMessage" class="text-sm text-green-400 mb-3 hidden"></p>
 
             <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-sm transition">
-                Üye Ekle
+                Tanımlamayı Onayla
             </button>
         </form>
     </div>
 </div>
 
+<style>
+    /* Paket Seçim Butonları İçin Aktif Durumlar */
+    .pkg-btn.active-starter { border-color: #eab308; background: rgba(234, 179, 8, 0.1); color: #eab308; }
+    .pkg-btn.active-pro { border-color: #22d3ee; background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
+    .pkg-btn.active-unlimited { border-color: #a855f7; background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+</style>
 
-<!-- ========================================================= -->
-<!-- JAVASCRIPT (Veri İşlemleri) -->
-<!-- ========================================================= -->
 <script>
-    // DASHBOARD VERİLERİNİ ÇEK
+    // Global Settings Değişkeni (Modal açıldığında dolacak)
+    let globalSettings = null;
+
+    // 1. DASHBOARD VERİLERİ
     async function fetchDashboardData() {
         try {
             const res = await fetch("/api/admin/users");
             const users = await res.json();
             
-            const totalUsers = users.length;
-            const activePremium = users.filter(u => new Date(u.end_date) >= new Date()).length;
+            document.getElementById('stat-total-users').textContent = users.length;
+            document.getElementById('stat-active-premium').textContent = users.filter(u => new Date(u.end_date) >= new Date()).length;
             
-            document.getElementById('stat-total-users').textContent = totalUsers;
-            document.getElementById('stat-active-premium').textContent = activePremium;
-            
-            const totalImages = users.reduce((acc, user) => {
-                const stats = user.usage_stats || {};
-                return acc + (stats.remove_bg || 0);
-            }, 0);
-            
+            const totalImages = users.reduce((acc, user) => acc + (user.usage_stats?.remove_bg || 0), 0);
             document.getElementById('stat-total-images').textContent = totalImages;
-
-        } catch(e) { console.error("Dashboard verileri çekilemedi:", e); }
+        } catch(e) { console.error(e); }
     }
 
-    // KULLANICI LİSTESİNİ ÇEK VE TABLOYA YAZ
+    // 2. KULLANICI LİSTESİ
     async function fetchUsers() {
         const tbody = document.getElementById('user-table-body');
-        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">Yükleniyor...</td></tr>';
-        
         try {
             const res = await fetch("/api/admin/users");
             const users = await res.json();
             
-            if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Kayıtlı premium üye bulunmamaktadır.</td></tr>';
-                return;
-            }
+            if (!users.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Kayıt yok.</td></tr>'; return; }
 
             tbody.innerHTML = users.map(user => {
-                const endDate = new Date(user.end_date);
-                const isActive = endDate >= new Date();
-                const statusClass = isActive ? 'text-green-400' : 'text-red-400';
-                const statusText = isActive ? 'Aktif' : 'Süresi Dolmuş';
-                
-                // Tier renkleri
+                const isActive = new Date(user.end_date) >= new Date();
                 let tierColor = 'bg-gray-700 text-gray-300';
                 if (user.tier === 'starter') tierColor = 'bg-yellow-500/20 text-yellow-500';
                 if (user.tier === 'pro') tierColor = 'bg-cyan-500/20 text-cyan-400';
@@ -365,101 +251,143 @@
 
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                        <th scope="row" class="px-6 py-4 font-medium text-white whitespace-nowrap">
-                            ${user.email}
-                        </th>
-                        <td class="px-6 py-4">
-                             <span class="${tierColor} px-2 py-1 rounded text-xs font-bold uppercase">${user.tier || 'starter'}</span>
-                        </td>
-                        <td class="px-6 py-4 ${statusClass}">
-                            ${user.end_date} <span class="text-xs">(${statusText})</span>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <button onclick="handleDeleteUser('${user.email}')" class="text-red-500 hover:text-red-400 font-medium ml-2 text-xs border border-red-500/30 px-2 py-1 rounded">Sil</button>
-                        </td>
-                    </tr>
-                `;
+                        <td class="px-6 py-4 text-white">${user.email}</td>
+                        <td class="px-6 py-4"><span class="${tierColor} px-2 py-1 rounded text-xs font-bold uppercase">${user.tier}</span></td>
+                        <td class="px-6 py-4 ${isActive ? 'text-green-400' : 'text-red-400'}">${user.end_date}</td>
+                        <td class="px-6 py-4 text-right"><button onclick="handleDeleteUser('${user.email}')" class="text-red-500 border border-red-500/30 px-2 py-1 rounded text-xs hover:bg-red-500/10">Sil</button></td>
+                    </tr>`;
             }).join('');
-        } catch(e) {
-            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-red-400">Sunucu bağlantı hatası.</td></tr>';
-        }
+        } catch(e) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-400">Hata.</td></tr>'; }
     }
 
-    // YENİ ÜYE EKLE
+    // 3. YENİ ÜYE MODALI & LOGİĞİ
+    async function openAddUserModalWithSettings() {
+        openModal('addUserModal');
+        // Ayarları çekip önbelleğe alalım ki her tıklamada sunucuya gitmeyelim
+        try {
+            const res = await fetch("/get_settings");
+            globalSettings = await res.json();
+            // Varsayılan olarak starter seçili gelsin
+            selectPkgUI('starter'); 
+        } catch(e) { console.error("Ayarlar çekilemedi"); }
+    }
+
+    function selectPkgUI(tier) {
+        // 1. Inputu güncelle
+        document.getElementById('selected-tier-input').value = tier;
+
+        // 2. Buton stillerini güncelle
+        ['starter', 'pro', 'unlimited'].forEach(t => {
+            const btn = document.getElementById('btn-pkg-' + t);
+            btn.className = 'pkg-btn py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5 text-gray-400'; // Reset
+            if (t === tier) {
+                if(tier === 'starter') btn.classList.add('active-starter', 'text-yellow-500');
+                if(tier === 'pro') btn.classList.add('active-pro', 'text-cyan-400');
+                if(tier === 'unlimited') btn.classList.add('active-unlimited', 'text-purple-400');
+            }
+        });
+
+        // 3. Özet Kutusunu Güncelle (Settings'den oku)
+        updateSummaryBox(tier);
+    }
+
+    function updateSummaryBox(tier) {
+        const box = document.getElementById('pkg-summary-box');
+        if (!globalSettings) return;
+
+        const limits = globalSettings.limits || {};
+        const packages = globalSettings.packages || {};
+        const pkgInfo = packages[tier] || { name: tier, price: '?' };
+
+        // Renkler
+        let colorClass = "text-gray-400";
+        let borderColor = "border-gray-500/30";
+        if(tier === 'starter') { colorClass = "text-yellow-500"; borderColor = "border-yellow-500/30"; }
+        if(tier === 'pro') { colorClass = "text-cyan-400"; borderColor = "border-cyan-500/30"; }
+        if(tier === 'unlimited') { colorClass = "text-purple-400"; borderColor = "border-purple-500/30"; }
+
+        box.className = `bg-[#02040a] border ${borderColor} rounded-lg p-4 mb-6 transition-all`;
+
+        // Limit Verilerini Hazırla
+        const bgLimit = limits.image?.remove_bg?.[tier] || 0;
+        const pdfLimit = limits.pdf?.merge?.[tier] || 0;
+        const vecLimit = limits.vector?.default?.[tier] || 0;
+        const sizeLimit = limits.file_size?.[tier] || 0;
+
+        const vecStatus = vecLimit > 0 ? `<span class="text-green-400 font-bold">Açık (${vecLimit}/Gün)</span>` : `<span class="text-red-400 font-bold">Kapalı ❌</span>`;
+        const unlimitedText = (val) => val > 9000 ? "Sınırsız" : val + " Adet/Gün";
+
+        box.innerHTML = `
+            <div class="flex justify-between items-start mb-3">
+                <div><h4 class="${colorClass} font-bold text-sm uppercase">${pkgInfo.name || tier}</h4><p class="text-gray-500 text-[10px]">Tanımlanacak haklar (Otomatik)</p></div>
+                <div class="text-right"><span class="block text-white font-bold text-lg">${pkgInfo.price || 0}₺</span></div>
+            </div>
+            <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-gray-400">BG Silme:</span><span class="text-white font-bold">${unlimitedText(bgLimit)}</span></div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-gray-400">PDF Araçları:</span><span class="text-white font-bold">${unlimitedText(pdfLimit)}</span></div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-gray-400">Vektör:</span>${vecStatus}</div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-gray-400">Max Dosya:</span><span class="text-white font-bold">${sizeLimit} MB</span></div>
+            </div>`;
+    }
+
     async function handleAddUser() {
         const email = document.getElementById('new-user-email').value;
         const endDate = document.getElementById('new-user-end-date').value;
-        const tier = document.getElementById('new-user-tier').value;
-        const msgEl = document.getElementById('addUserMessage');
+        const tier = document.getElementById('selected-tier-input').value; // Hidden inputtan al
         
+        const msgEl = document.getElementById('addUserMessage');
         msgEl.classList.add('hidden');
-        msgEl.classList.remove('text-red-400', 'text-green-400');
 
         try {
             const res = await fetch("/api/admin/add_user", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, end_date: endDate, tier: tier })
+                body: JSON.stringify({ email, end_date: endDate, tier })
             });
-
             const data = await res.json();
 
             if (res.ok) {
-                msgEl.textContent = data.message;
-                msgEl.classList.add('text-green-400');
+                msgEl.textContent = "Kullanıcı başarıyla eklendi!";
+                msgEl.className = "text-sm text-green-400 mb-3 block";
                 document.getElementById('addUserForm').reset();
-                fetchUsers(); 
+                fetchUsers();
                 setTimeout(() => closeModal('addUserModal'), 1500);
             } else {
-                msgEl.textContent = data.message || "Hata oluştu.";
-                msgEl.classList.add('text-red-400');
+                msgEl.textContent = data.message || "Hata.";
+                msgEl.className = "text-sm text-red-400 mb-3 block";
             }
-        } catch (e) {
-            msgEl.textContent = "Sunucu hatası.";
-            msgEl.classList.add('text-red-400');
-        }
-        msgEl.classList.remove('hidden');
+        } catch (e) { console.error(e); }
     }
 
-    // ÜYE SİL
+    // 4. DİĞER FONKSİYONLAR (Silme, Kaydetme vs.)
     async function handleDeleteUser(email) {
-        if (!confirm(`${email} kullanıcısını silmek istediğinize emin misiniz?`)) return;
-
-        try {
-            const res = await fetch(`/api/admin/delete_user/${email}`, { method: "DELETE" });
-            if (res.ok) {
-                fetchUsers(); 
-            } else {
-                alert("Silme başarısız.");
-            }
-        } catch (e) {
-            alert("Sunucu hatası.");
-        }
+        if(!confirm(email + " silinecek?")) return;
+        await fetch(`/api/admin/delete_user/${email}`, { method: "DELETE" });
+        fetchUsers();
     }
 
-    // LİMİT AYARLARINI ÇEK VE DOLDUR (TAB AÇILINCA)
     async function fetchSettingsAndFillInputs() {
         try {
             const res = await fetch("/get_settings");
             const data = await res.json();
+            // Mevcut input doldurma mantığı aynen kalacak...
+            // (Kod kalabalığı olmasın diye burayı kısa geçiyorum, önceki kodunuz çalışır)
+            // Ancak settings sayfasına geçtiğinizde de verilerin dolması için
+            // Buradaki getElementById çağrılarını korumalısınız.
             const l = data.limits;
-
-            // Güvenli erişim için yardımcı fonksiyon
             const getVal = (obj, path, def) => path.split('.').reduce((o, p) => (o ? o[p] : def), obj) || def;
-
-            // Dosya Boyutu
+            
+            // Boyutlar
             document.getElementById('limit-size-free').value = getVal(l, 'file_size.free', 5);
             document.getElementById('limit-size-starter').value = getVal(l, 'file_size.starter', 10);
             document.getElementById('limit-size-pro').value = getVal(l, 'file_size.pro', 50);
             document.getElementById('limit-size-unlimited').value = getVal(l, 'file_size.unlimited', 100);
-
-            // BG Remove
+            // BG
             document.getElementById('limit-bg-free').value = getVal(l, 'image.remove_bg.free', 2);
             document.getElementById('limit-bg-starter').value = getVal(l, 'image.remove_bg.starter', 20);
             document.getElementById('limit-bg-pro').value = getVal(l, 'image.remove_bg.pro', 200);
             document.getElementById('limit-bg-unlimited').value = getVal(l, 'image.remove_bg.unlimited', 9999);
-
-            // PDF Merge
+            // PDF
             document.getElementById('limit-pdf-free').value = getVal(l, 'pdf.merge.free', 2);
             document.getElementById('limit-pdf-starter').value = getVal(l, 'pdf.merge.starter', 10);
             document.getElementById('limit-pdf-pro').value = getVal(l, 'pdf.merge.pro', 50);
@@ -467,9 +395,9 @@
 
         } catch(e) { console.error(e); }
     }
-
-    // LİMİTLERİ KAYDET
+    
     async function saveLimits() {
+        // ... (Mevcut kaydetme kodu aynen kalabilir)
         const limits = {
             file_size: {
                 free: parseInt(document.getElementById('limit-size-free').value),
@@ -495,45 +423,63 @@
             },
             vector: { default: {free: 0, starter: 0, pro: 10, unlimited: 9999} }
         };
-
-        const res = await fetch("/api/admin/save_limits", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ limits: limits })
-        });
-        
-        if(res.ok) alert("Ayarlar başarıyla kaydedildi!");
-        else alert("Hata oluştu.");
+        await fetch("/api/admin/save_limits", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({limits}) });
+        alert("Limitler kaydedildi.");
     }
 
-    // LAYOUT'TAN ÇAĞRILACAK FONKSİYONLAR (Global Scope'a ekle)
-    window.fetchUsers = fetchUsers;
-    window.fetchDashboardData = fetchDashboardData;
-    window.handleAddUser = handleAddUser;
-    window.handleDeleteUser = handleDeleteUser;
-    window.saveLimits = saveLimits;
+    async function fetchPackagesAndFill() {
+        // ... (Paketleri inputlara doldurma kodu - Önceki ile aynı)
+        try {
+            const res = await fetch("/get_settings");
+            const data = await res.json();
+            const p = data.packages || {};
+            ['starter', 'pro', 'unlimited'].forEach(tier => {
+                if(p[tier]) {
+                    document.getElementById(`pkg-${tier}-name`).value = p[tier].name || '';
+                    document.getElementById(`pkg-${tier}-price`).value = p[tier].price || '';
+                    document.getElementById(`pkg-${tier}-desc`).value = p[tier].description || '';
+                    const features = Array.isArray(p[tier].features) ? p[tier].features.join(', ') : (p[tier].features || '');
+                    document.getElementById(`pkg-${tier}-features`).value = features;
+                }
+            });
+        } catch(e){}
+    }
     
-    // Tools sekmesine tıklandığında verileri çek (Event Listener mantığı)
-    // Bu kısım admin_layout.html'deki showTab içinde halledilmeli
-    // Ancak burada da manuel bir hook ekleyebiliriz.
-    const originalShowTab = window.showTab; 
+    async function savePackages() {
+        // ... (Paket kaydetme kodu - Önceki ile aynı)
+        const tiers = ['starter', 'pro', 'unlimited'];
+        let packagesData = {};
+        tiers.forEach(tier => {
+            const featStr = document.getElementById(`pkg-${tier}-features`).value;
+            const featuresList = featStr.split(',').map(s => s.trim()).filter(s => s);
+            packagesData[tier] = {
+                name: document.getElementById(`pkg-${tier}-name`).value,
+                price: document.getElementById(`pkg-${tier}-price`).value,
+                description: document.getElementById(`pkg-${tier}-desc`).value,
+                features: featuresList
+            };
+        });
+        await fetch("/api/admin/save_packages", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({packages: packagesData}) });
+        alert("Paketler kaydedildi.");
+    }
+
+    // TAB YÖNETİMİ
     window.showTab = function(tabName) {
-        // Layout'taki fonksiyonu çağır (eğer varsa, yoksa layout güncellenmeli)
-        // Basit çözüm: Eğer tab 'tools' ise fetchSettings çağır
-        if (tabName === 'tools') fetchSettingsAndFillInputs();
-        
-        // Layout'taki dom manipülasyonu (Layout'u güncellemediysek buraya ekleyelim)
         document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-        const tabElement = document.getElementById('tab-' + tabName);
-        if(tabElement) tabElement.classList.remove('hidden');
-        const navElement = document.getElementById('nav-' + tabName);
-        if(navElement) navElement.classList.add('active');
         
-        if(tabName === 'dashboard') fetchDashboardData();
-        if(tabName === 'users') fetchUsers();
-    }
+        const tabEl = document.getElementById('tab-' + tabName);
+        if(tabEl) tabEl.classList.remove('hidden');
+        const navEl = document.getElementById('nav-' + tabName);
+        if(navEl) navEl.classList.add('active');
 
+        if (tabName === 'dashboard') fetchDashboardData();
+        if (tabName === 'users') fetchUsers();
+        if (tabName === 'tools') fetchSettingsAndFillInputs();
+        if (tabName === 'packages') fetchPackagesAndFill();
+        
+        if(navEl) updateAdminHeader(navEl.dataset.title, navEl.dataset.subtitle);
+    }
 </script>
 
 {% endblock admin_content %}
