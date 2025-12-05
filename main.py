@@ -18,19 +18,12 @@ app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
 # --- AYARLAR ---
 def load_settings():
-    # Varsayılan ayarlar ve limitler
     default_settings = {
         "admin": {"email": "admin@botlab.com", "password": "admin"},
         "limits": {
-            "pdf": {
-                "merge": {"free": 3, "premium": 100}
-            },
-            "image": {
-                "remove_bg": {"free": 3, "premium": 1000} # Varsayılan: Ücretsiz 3, Premium 1000
-            },
-            "vector": {
-                "default": {"free": 1, "premium": 50}
-            }
+            "pdf": {"merge": {"free": 3, "premium": 100}},
+            "image": {"remove_bg": {"free": 3, "premium": 1000}},
+            "vector": {"default": {"free": 1, "premium": 50}}
         },
         "site": {},
         "tool_status": {}
@@ -42,7 +35,6 @@ def load_settings():
     try:
         with open("settings.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Eksik anahtarları varsayılanlarla doldur (Merge logic basitçe)
             if "limits" not in data: data["limits"] = default_settings["limits"]
             return data
     except:
@@ -71,13 +63,13 @@ def get_user_data_by_email(email):
         if u.get("email", "").lower() == email.lower(): return u
     return None
 
-# --- OTURUM ---
+# --- OTURUM KONTROLÜ ---
 @app.before_request
 def check_session_status():
     if request.path.startswith("/admin") and request.path != "/admin_login":
         if not session.get("admin_logged"): return redirect("/admin_login")
 
-    # Kullanıcı oturumu kontrolü
+    # Kullanıcı oturumunu kontrol et, süresi bittiyse düşür
     if "user_email" in session:
         user = get_user_data_by_email(session["user_email"])
         if user:
@@ -97,42 +89,40 @@ def check_user_status(email, tool, subtool):
     users = load_premium_users()
     premium_user = None
     
-    # Premium Kullanıcı Kontrolü
-    for u in users:
-        if u.get("email", "").lower() == email.lower():
-            end_date_str = u.get("end_date")
-            try:
-                if end_date_str and datetime.strptime(end_date_str, "%Y-%m-%d") >= datetime.now():
-                    premium_user = u
-            except: pass
-            break
+    # Email "guest" değilse ve veritabanında varsa Premium kullanıcısıdır
+    if email != "guest":
+        for u in users:
+            if u.get("email", "").lower() == email.lower():
+                end_date_str = u.get("end_date")
+                try:
+                    if end_date_str and datetime.strptime(end_date_str, "%Y-%m-%d") >= datetime.now():
+                        premium_user = u
+                except: pass
+                break
     
-    # Ayarlardan limitleri çek, yoksa varsayılan döndür
     tool_limits = settings.get("limits", {}).get(tool, {})
-    limits = tool_limits.get(subtool, {"free": 0, "premium": 0})
+    limits = tool_limits.get(subtool, {"free": 3, "premium": 1000})
     tool_status = settings.get("tool_status", {}).get(subtool, {})
     
     # Bakım Modu
     if tool_status.get("maintenance", False):
-        return {"allowed": False, "reason": "maintenance", "left": 0, "premium": session.get("is_premium", False)}
+        return {"allowed": False, "reason": "maintenance", "left": 0, "premium": False}
     
-    # Premium Limit Mantığı
+    # Premium Kullanıcı Mantığı
     if premium_user:
-        if tool_status.get("premium_only", False) or limits.get("premium", 9999) > 0:
-            premium_limit = limits.get("premium", 9999)
-            tool_usage = premium_user.get("usage_stats", {}).get(subtool, 0)
-            
-            left = premium_limit - tool_usage
-            if left <= 0:
-                return {"allowed": False, "reason": "premium_limit_full", "left": 0, "premium": True}
-            return {"allowed": True, "reason": "", "premium": True, "left": left}
+        premium_limit = limits.get("premium", 9999)
+        tool_usage = premium_user.get("usage_stats", {}).get(subtool, 0)
+        left = premium_limit - tool_usage
+        if left <= 0:
+            return {"allowed": False, "reason": "premium_limit_full", "left": 0, "premium": True}
+        return {"allowed": True, "reason": "", "premium": True, "left": left}
         
     # Sadece Premium Araç
     if tool_status.get("premium_only", False):
          return {"allowed": False, "reason": "premium_only", "left": 0, "premium": False}
 
     # Ücretsiz (Misafir) Limit Mantığı
-    free_limit = limits.get("free", 0)
+    free_limit = limits.get("free", 3)
     
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
@@ -148,23 +138,27 @@ def check_user_status(email, tool, subtool):
 def increase_usage(email, tool, subtool):
     users = load_premium_users()
     
-    # Premium ise DB'ye kaydet
-    for u in users:
-        if u.get("email", "").lower() == email.lower():
-            if "usage_stats" not in u: u["usage_stats"] = {}
-            u["usage_stats"][subtool] = u["usage_stats"].get(subtool, 0) + 1
-            u["usage"] = u.get("usage", 0) + 1
-            save_premium_users(users)
-            return
+    # Email guest değilse DB'ye yaz
+    if email != "guest":
+        for u in users:
+            if u.get("email", "").lower() == email.lower():
+                if "usage_stats" not in u: u["usage_stats"] = {}
+                u["usage_stats"][subtool] = u["usage_stats"].get(subtool, 0) + 1
+                u["usage"] = u.get("usage", 0) + 1
+                save_premium_users(users)
+                return
 
-    # Değilse Session'a kaydet
+    # Değilse Session'a yaz
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
 
 # --- API ENDPOINTLERİ ---
+
+# [ÖNEMLİ] Frontend bu endpointi kullanarak limiti sorar
 @app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
 def check_tool_status_endpoint(tool, subtool):
+    # Eğer session'da email varsa onu kullan, yoksa 'guest'
     email = session.get("user_email", "guest")
     status = check_user_status(email, tool, subtool)
     user = get_user_data_by_email(email)
@@ -180,11 +174,11 @@ def check_tool_status_endpoint(tool, subtool):
 
 # --- REMOVE BG (AKILLI MODEL YÜKLEYİCİ) ---
 u2net_session = None
-model_input_name = "input" # Varsayılan
+model_input_name = "input" # Varsayılan, aşağıda otomatik güncellenir
 
 print("--- MODEL YÜKLEME BAŞLIYOR ---")
 possible_paths = [
-    "/data/ai-models/u2net.onnx", # Senin yüklediğin yol
+    "/data/ai-models/u2net.onnx", 
     "u2net.onnx",
     "models/u2net.onnx",
     "/app/models/u2net.onnx",
@@ -201,7 +195,7 @@ for path in possible_paths:
 if found_path:
     try:
         u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
-        # Modelin giriş ismini (input name) otomatik bul
+        # [ÖNEMLİ] Modelin giriş ismini (input.1 veya input) otomatik bul
         model_input_name = u2net_session.get_inputs()[0].name
         print(f"🚀 ONNX Modeli Yüklendi! Giriş Parametresi: {model_input_name}")
     except Exception as e:
@@ -226,6 +220,7 @@ def api_remove_bg():
     if not u2net_session: 
         return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı."}), 503
         
+    # [ÖNEMLİ] Kullanıcıyı session'dan alıyoruz, formdan gelen veriye güvenmiyoruz.
     email = session.get("user_email", "guest")
     is_premium = session.get("is_premium", False)
     
@@ -256,6 +251,7 @@ def api_remove_bg():
         img = Image.open(file.stream)
         ow, oh = img.size
         
+        # [ÖNEMLİ] Dinamik input ismini kullanıyoruz (hata çözümü)
         output = u2net_session.run(None, {model_input_name: preprocess_bg(img)})[0]
         mask = postprocess_bg(output, (ow, oh))
         
