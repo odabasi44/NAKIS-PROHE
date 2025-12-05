@@ -5,34 +5,23 @@
     },
     "limits": {
         "pdf": {
-            "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999}
+            "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 99999},
+            "split": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999},
+            "compress": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999}
         },
         "image": {
-            "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 9999}
+            "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999},
+            "compress": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999}
         },
         "vector": {
-            "default": {"free": 0, "starter": 0, "pro": 10, "unlimited": 9999}
-        },
-        "file_size": {
-            "free": 5, "starter": 10, "pro": 50, "unlimited": 100
+            "default": {"free": 0, "starter": 0, "pro": 10, "unlimited": 99999}
         }
     },
-    "packages_display": {
-        "starter": {
-            "title": "Başlangıç",
-            "price": "150",
-            "features": "✅ Reklamsız Deneyim\n✅ Arka Plan Sil (20 Adet/Gün)\n✅ PDF Birleştir (10 Adet/Gün)\n❌ Vektör Aracı Kapalı\nℹ️ Max 10MB Dosya"
-        },
-        "pro": {
-            "title": "Pro Paket",
-            "price": "250",
-            "features": "✅ Tüm Araçlar Açık\n✅ Arka Plan Sil (200 Adet/Gün)\n✅ Vektör Aracı (Aktif)\n✅ Öncelikli Destek\nℹ️ Max 50MB Dosya"
-        },
-        "unlimited": {
-            "title": "Sınırsız",
-            "price": "500",
-            "features": "✅ Limitsiz Kullanım\n✅ Toplu İşlem (Batch)\n✅ API Erişimi\n✅ 7/24 Canlı Destek\nℹ️ Max 100MB Dosya"
-        }
+    "packages": {
+        "free": {"name": "Ücretsiz", "features": ["Temel PDF Araçları (Sınırlı)", "Arka Plan Silici (Sınırlı)"]},
+        "starter": {"name": "Başlangıç", "features": ["PDF Birleştir/Böl", "Arka Plan Silici (20 Adet/Gün)", "Reklamsız"]},
+        "pro": {"name": "Pro", "features": ["Tüm Araçlar Açık", "Vektörleştirici (10 Adet/Gün)", "Yüksek Hız"]},
+        "unlimited": {"name": "Sınırsız", "features": ["Limitsiz Erişim", "Öncelikli Destek", "API Erişimi"]}
     },
     "site": {
         "title": "Botlab Tools",
