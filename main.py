@@ -18,10 +18,35 @@ app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
 # --- AYARLAR ---
 def load_settings():
+    # Varsayılan ayarlar ve limitler
+    default_settings = {
+        "admin": {"email": "admin@botlab.com", "password": "admin"},
+        "limits": {
+            "pdf": {
+                "merge": {"free": 3, "premium": 100}
+            },
+            "image": {
+                "remove_bg": {"free": 3, "premium": 1000} # Varsayılan: Ücretsiz 3, Premium 1000
+            },
+            "vector": {
+                "default": {"free": 1, "premium": 50}
+            }
+        },
+        "site": {},
+        "tool_status": {}
+    }
+    
     if not os.path.exists("settings.json"):
-        return {"admin": {"email": "admin@botlab.com", "password": "admin"}, "limits": {"pdf": {}, "image": {}, "vector": {}}, "site": {}, "tool_status": {}}
-    with open("settings.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+        return default_settings
+        
+    try:
+        with open("settings.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Eksik anahtarları varsayılanlarla doldur (Merge logic basitçe)
+            if "limits" not in data: data["limits"] = default_settings["limits"]
+            return data
+    except:
+        return default_settings
 
 def save_settings(data):
     with open("settings.json", "w", encoding="utf-8") as f:
@@ -61,7 +86,6 @@ def check_session_status():
                 session["is_premium"] = (end_date >= datetime.now())
              except: session["is_premium"] = False
         else: 
-            # Kullanıcı veritabanından silinmişse oturumu düşür
             session.pop("user_email", None)
             session["is_premium"] = False
     
@@ -83,8 +107,9 @@ def check_user_status(email, tool, subtool):
             except: pass
             break
     
+    # Ayarlardan limitleri çek, yoksa varsayılan döndür
     tool_limits = settings.get("limits", {}).get(tool, {})
-    limits = tool_limits.get(subtool, {})
+    limits = tool_limits.get(subtool, {"free": 0, "premium": 0})
     tool_status = settings.get("tool_status", {}).get(subtool, {})
     
     # Bakım Modu
@@ -201,19 +226,36 @@ def api_remove_bg():
     if not u2net_session: 
         return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı."}), 503
         
-    # Session'dan email al (daha güvenli)
     email = session.get("user_email", "guest")
+    is_premium = session.get("is_premium", False)
     
+    # 1. Limit Kontrolü
     status = check_user_status(email, "image", "remove_bg")
-    if not status["allowed"]: return jsonify(status), 403
+    if not status["allowed"]: 
+        return jsonify(status), 403
 
     if "image" not in request.files: return jsonify({"success": False, "message": "Resim yok"}), 400
     
+    file = request.files["image"]
+    
+    # 2. Dosya Boyutu Kontrolü
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    # Misafir: 5MB, Premium: 50MB
+    limit_mb = 50 if is_premium else 5
+    if file_size > limit_mb * 1024 * 1024:
+        return jsonify({
+            "success": False, 
+            "reason": "file_size_limit", 
+            "message": f"Dosya boyutu çok büyük! {'Misafir limiti: 5MB' if not is_premium else 'Premium limiti: 50MB'}"
+        }), 413
+    
     try:
-        img = Image.open(request.files["image"].stream)
+        img = Image.open(file.stream)
         ow, oh = img.size
         
-        # Dinamik input ismini kullanıyoruz
         output = u2net_session.run(None, {model_input_name: preprocess_bg(img)})[0]
         mask = postprocess_bg(output, (ow, oh))
         
