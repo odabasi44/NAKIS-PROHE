@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Botlab Tools - Premium Suite</title>
+    <title>Botlab Tools • PDF, Görsel ve Vektör Araçları</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,7 +121,7 @@
                         <span class="font-bold text-lg tracking-tight text-white">Botlab Tools</span>
                         
                         <!-- Kullanıcı Paket Bilgisi -->
-                        {% if session.get('user_tier') %}
+                        {% if session.get('user_tier') and session.get('user_email') %}
                             <span class="text-[10px] uppercase tracking-widest font-bold
                                 {% if session['user_tier'] == 'starter' %} text-yellow-500
                                 {% elif session['user_tier'] == 'pro' %} text-cyan-400
@@ -144,6 +144,10 @@
                         </div>
                         <button onclick="window.location.href='/user_logout'" class="text-sm text-gray-400 hover:text-white transition">Çıkış</button>
                     {% else %}
+                        <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <span class="text-xs font-medium text-green-400">Ücretsiz Haklarınız Tanımlandı</span>
+                        </div>
                         <button onclick="openModal('loginModal')" class="hidden md:block text-sm text-gray-400 hover:text-white transition">Giriş Yap</button>
                     {% endif %}
 
@@ -173,10 +177,17 @@
             </p>
 
             <div class="flex flex-wrap justify-center gap-4">
-                <button onclick="window.location.href='/remove-bg'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Hemen Başla
-                </button>
+                {% if session.get('user_email') %}
+                    <button onclick="window.location.href='/dashboard'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
+                        Panele Git
+                    </button>
+                {% else %}
+                    <button onclick="window.location.href='/remove-bg'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Hemen Başla (Ücretsiz)
+                    </button>
+                {% endif %}
+                
                 <button onclick="openModal('premiumModal')" class="px-8 py-3.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium transition">
                     Paketleri İncele
                 </button>
