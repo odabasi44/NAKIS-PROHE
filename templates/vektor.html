@@ -203,6 +203,10 @@
     let selectedFile = null;
     let userAllowed = false;
 
+    // İndirme verilerini saklamak için global değişkenler
+    window.vectorData = null; // SVG verisi
+    window.pngData = null;    // Temizlenmiş PNG verisi
+
     // 1. LİMİT KONTROLÜ (Sayfa Yüklendiğinde)
     async function checkLimit() {
         const infoEl = document.getElementById('limit-info');
@@ -211,7 +215,6 @@
         const btn = document.getElementById('processBtn');
 
         try {
-            // Backend'de "vector" ve "default" olarak kontrol ediyoruz
             const res = await fetch('/api/check_tool_status/vector/default');
             const data = await res.json();
             userAllowed = data.allowed;
@@ -229,7 +232,7 @@
                 loginPrompt.classList.remove('hidden');
                 btn.disabled = true;
                 btn.innerText = "Pro Paket Gerekir";
-                openModal('premiumModal'); // Sayfa açılınca uyar
+                openModal('premiumModal'); 
             }
         } catch (e) {
             console.error("Limit hatası:", e);
@@ -240,7 +243,6 @@
     // 2. UI SEÇİM FONKSİYONLARI
     function selectMethod(method) {
         selectedMethod = method;
-        // Görsel güncelleme
         ['normal', 'cartoon', 'outline'].forEach(m => {
             const el = document.getElementById('opt-' + m);
             if (m === method) el.classList.add('selected');
@@ -262,10 +264,8 @@
     const fileInput = document.getElementById('fileInput');
 
     dropZone.addEventListener('click', () => fileInput.click());
-    
     fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
     
-    // Drag & Drop
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-violet-500'); });
     dropZone.addEventListener('dragleave', e => { dropZone.classList.remove('border-violet-500'); });
     dropZone.addEventListener('drop', e => {
@@ -279,7 +279,6 @@
         
         selectedFile = file;
         
-        // Mini önizleme
         const reader = new FileReader();
         reader.onload = e => {
             document.getElementById('mini-img').src = e.target.result;
@@ -288,7 +287,7 @@
             document.getElementById('mini-preview').classList.remove('hidden');
             document.getElementById('mini-preview').classList.add('flex');
             
-            // Ana önizleme alanına da koy (soluk şekilde)
+            // İlk önizleme (soluk)
             const resultImg = document.getElementById('result-img');
             resultImg.src = e.target.result;
             resultImg.style.opacity = "0.3"; 
@@ -301,6 +300,9 @@
     function clearFile() {
         selectedFile = null;
         fileInput.value = '';
+        window.vectorData = null;
+        window.pngData = null;
+        
         document.getElementById('dropZone').classList.remove('hidden');
         document.getElementById('mini-preview').classList.add('hidden');
         document.getElementById('mini-preview').classList.remove('flex');
@@ -309,7 +311,7 @@
         document.getElementById('result-view').classList.add('hidden');
     }
 
-    // 4. İŞLEM BAŞLATMA (BACKEND ISTEĞI)
+    // 4. İŞLEM BAŞLATMA (GÜNCELLENMİŞ)
     async function processVector() {
         if (!selectedFile) return alert("Lütfen önce bir resim seçin.");
         if (!userAllowed) return openModal('premiumModal');
@@ -319,11 +321,10 @@
 
         const formData = new FormData();
         formData.append('image', selectedFile);
-        formData.append('method', selectedMethod); // normal, cartoon, outline
-        formData.append('quality', selectedQuality); // medium, high, ultra
+        formData.append('method', selectedMethod);
+        formData.append('quality', selectedQuality);
 
         try {
-            // BURASI Python'da yazacağımız yeni endpoint'e gidecek
             const res = await fetch('/api/vectorize', {
                 method: 'POST',
                 body: formData
@@ -333,16 +334,16 @@
             loading.classList.add('hidden');
 
             if (data.success) {
-                // Sonuç geldiğinde resmi güncelle
+                // Backend'den gelen verileri sakla
+                window.vectorData = data.file;       // SVG
+                window.pngData = data.preview_img;   // PNG
+
+                // Önizleme alanına TEMİZLENMİŞ PNG'yi koy
                 const resultImg = document.getElementById('result-img');
-                // SVG veya Base64 PNG dönebilir, backend'e göre ayarlayacağız
-                resultImg.src = "data:image/svg+xml;base64," + data.file; 
+                resultImg.src = "data:image/png;base64," + data.preview_img; 
                 resultImg.style.opacity = "1";
                 
-                // İndirme butonları için veriyi sakla
-                window.vectorData = data.file; // Base64
-                
-                checkLimit(); // Limit düşürdükten sonra sayacı güncelle
+                checkLimit(); // Bakiyeyi güncelle
             } else {
                 alert("Hata: " + (data.message || "İşlem başarısız."));
                 if (data.reason === 'limit') openModal('premiumModal');
@@ -351,19 +352,29 @@
         } catch (e) {
             loading.classList.add('hidden');
             console.error(e);
-            alert("Sunucu hatası! (Henüz backend endpoint hazır değil)");
+            alert("Sunucu ile iletişim hatası!");
         }
     }
 
+    // 5. İNDİRME FONKSİYONU (GÜNCELLENMİŞ)
     function downloadResult(type) {
-        if (!window.vectorData) return;
         const link = document.createElement('a');
-        link.href = "data:image/svg+xml;base64," + window.vectorData;
-        link.download = `vektor_${selectedMethod}.${type}`; // svg veya dxf
+        
+        if (type === 'svg') {
+            if (!window.vectorData) return alert("Vektör verisi bulunamadı.");
+            link.href = "data:image/svg+xml;base64," + window.vectorData;
+            link.download = `vektor_${selectedMethod}.svg`;
+        } 
+        else if (type === 'png') {
+            if (!window.pngData) return alert("PNG verisi bulunamadı.");
+            link.href = "data:image/png;base64," + window.pngData;
+            link.download = `temiz_referans_${selectedMethod}.png`;
+        }
+        
         link.click();
     }
 
     document.addEventListener('DOMContentLoaded', checkLimit);
-
 </script>
+  
 {% endblock content %}
