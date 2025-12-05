@@ -380,6 +380,59 @@ def api_vectorize():
         print(f"Hata: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route("/api/img/compress", methods=["POST"])
+def api_img_compress():
+    # 1. Limit Kontrolü
+    email = session.get("user_email", "guest")
+    status = check_user_status(email, "image", "compress")
+    
+    if not status["allowed"]:
+        return jsonify({"success": False, "reason": "limit", "message": "Günlük sıkıştırma limitiniz doldu."}), 403
+
+    # 2. Dosya Kontrolü
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "Dosya yok"}), 400
+        
+    file = request.files["image"]
+    quality = int(request.form.get("quality", 70))
+    
+    # 3. İşlem
+    try:
+        # Dosya boyutunu hesapla (Orijinal)
+        file.seek(0, os.SEEK_END)
+        orig_size = file.tell()
+        file.seek(0)
+        
+        img = Image.open(file.stream)
+        
+        # Eğer PNG ve şeffaf ise, JPEG'e çevirirken arka planı beyaz yap veya PNG olarak kaydet
+        # Basitlik için JPEG'e zorluyoruz (Sıkıştırma oranı en iyi JPEG'de çalışır)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=quality, optimize=True)
+        new_size = output.tell()
+        
+        # Kazanç hesabı
+        saving = int(((orig_size - new_size) / orig_size) * 100) if orig_size > 0 else 0
+        
+        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
+        
+        # 4. Limit Düşür
+        increase_usage(email, "image", "compress")
+        
+        return jsonify({
+            "success": True,
+            "file": encoded_img,
+            "new_size": f"{new_size/1024/1024:.2f} MB",
+            "saving": saving
+        })
+        
+    except Exception as e:
+        print(f"Compress Error: {e}")
+        return jsonify({"success": False, "message": "İşlem hatası."}), 500
+
 @app.route("/api/admin/save_packages", methods=["POST"])
 def save_packages_api():
     if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
@@ -517,6 +570,8 @@ def api_pdf_merge():
 def home(): return render_template("index.html")
 @app.route("/remove-bg")
 def remove_bg_page(): return render_template("background_remove.html")
+@app.route("/img/compress")
+def img_compress_page(): return render_template("image_compress.html")
 @app.route("/pdf/merge")
 def pdf_merge_page(): return render_template("pdf_merge.html")
 @app.route("/admin_login")
@@ -612,6 +667,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
