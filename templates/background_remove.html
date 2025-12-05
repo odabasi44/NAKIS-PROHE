@@ -57,7 +57,8 @@
             </div>
             
             <h3 class="text-xl font-bold text-white mb-2">Resmi Buraya Sürükleyin</h3>
-            <p class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin (Max 10MB)</p>
+            <!-- Dinamik limit mesajı buraya JS ile gelecek -->
+            <p id="size-limit-msg" class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin (Max 5MB)</p>
             
             <button id="select-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg shadow-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed">
                 Resim Seç
@@ -87,7 +88,6 @@
                 <span>Sonuç</span>
                 <span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Hazır</span>
             </h4>
-            <!-- Şeffaflık deseni -->
             <div class="aspect-square rounded-lg overflow-hidden flex items-center justify-center relative" 
                  style="background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%); background-size: 20px 20px;">
                 <img id="resultImg" class="max-w-full max-h-full object-contain relative z-10">
@@ -111,9 +111,8 @@
         const btn = document.getElementById('select-btn');
         const statusBar = document.getElementById('status-bar');
         const loginPrompt = document.getElementById('login-prompt');
+        const sizeMsg = document.getElementById('size-limit-msg');
 
-        // ÖNİZLEME (PREVIEW) KONTROLÜ
-        // Eğer tarayıcı blob veya googleusercontent üzerindeyse backend çalışmaz.
         if (window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent.goog')) {
             infoEl.innerHTML = "⚠️ <span class='text-yellow-400'>Önizleme Modu:</span> Backend sunucusu bu ekranda çalışmaz.";
             iconEl.className = "w-2 h-2 rounded-full bg-yellow-500";
@@ -124,10 +123,7 @@
 
         try {
             const res = await fetch('/api/check_tool_status/image/remove_bg');
-            
-            if(!res.ok) {
-                throw new Error("API Hatası: " + res.status);
-            }
+            if(!res.ok) throw new Error("API Hatası: " + res.status);
             
             const data = await res.json();
             userStatus = data;
@@ -139,32 +135,42 @@
                 statusBar.classList.add('border-green-500/30');
                 
                 if (data.premium) {
-                    infoEl.innerHTML = `💎 Premium Aktif - <span class="text-green-400">Limitsiz Erişim</span>`;
+                    infoEl.innerHTML = `💎 Premium Aktif - <span class="text-green-400">Sınırsız Erişim</span>`;
+                    sizeMsg.innerText = "veya bilgisayarınızdan seçin (Max 50MB)";
                 } else {
-                    infoEl.innerHTML = `✅ Kalan Hakkınız: <span class="text-green-400 font-bold">${data.left}</span>`;
-                    // Eğer misafir ise giriş yap linkini göster
-                    if(!data.premium) loginPrompt.classList.remove('hidden');
+                    infoEl.innerHTML = `🎁 Günlük Ücretsiz Hak: <span class="text-green-400 font-bold">${data.left}</span>`;
+                    sizeMsg.innerText = "veya bilgisayarınızdan seçin (Max 5MB)";
+                    loginPrompt.classList.remove('hidden');
                 }
                 btn.disabled = false;
                 btn.innerText = "Resim Seç";
             } else {
                 // Limit Yok
-                iconEl.className = "w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]";
-                statusBar.classList.add('border-red-500/30', 'bg-red-500/5');
-                
-                let msg = "Günlük limitiniz doldu.";
-                if(data.reason === 'maintenance') msg = "Araç şu an bakımda.";
-                
-                infoEl.innerHTML = `⛔ ${msg} <a onclick="openModal('premiumModal')" class="text-blue-400 underline cursor-pointer ml-2">Premium Al</a>`;
-                
-                btn.disabled = true;
-                btn.innerText = "Limit Doldu";
+                handleLimitReached(data, infoEl, iconEl, statusBar, btn);
             }
 
         } catch (e) {
             console.error("Limit kontrol hatası:", e);
             infoEl.innerHTML = "<span class='text-red-400'>Sunucu Bağlantı Hatası. Sayfayı yenileyin.</span>";
             iconEl.className = "w-2 h-2 rounded-full bg-red-500";
+        }
+    }
+    
+    function handleLimitReached(data, infoEl, iconEl, statusBar, btn) {
+        iconEl.className = "w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]";
+        statusBar.classList.add('border-red-500/30', 'bg-red-500/5');
+        
+        let msg = "Günlük limitiniz doldu.";
+        if(data.reason === 'maintenance') msg = "Araç şu an bakımda.";
+        
+        infoEl.innerHTML = `⛔ ${msg} <a onclick="openModal('premiumModal')" class="text-blue-400 underline cursor-pointer ml-2">Premium Al</a>`;
+        
+        btn.disabled = true;
+        btn.innerText = "Limit Doldu";
+        
+        // Limit dolduysa otomatik popup aç (sadece bakım değilse)
+        if(data.reason !== 'maintenance') {
+            openModal('premiumModal');
         }
     }
 
@@ -179,7 +185,6 @@
 
     fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-    // Sürükle Bırak Efektleri
     dropZone.addEventListener('dragover', (e) => { 
         e.preventDefault(); 
         dropZone.classList.add('dragover'); 
@@ -202,20 +207,16 @@
     function handleFile(file) {
         if (!file) return;
         
-        // Sadece resim dosyaları
         if (!file.type.startsWith('image/')) {
             alert('Lütfen geçerli bir resim dosyası seçin (PNG, JPG, WEBP).');
             return;
         }
         
-        // Önizleme göster
         const reader = new FileReader();
         reader.onload = e => {
             document.getElementById('previewImg').src = e.target.result;
             document.getElementById('result-area').classList.remove('hidden');
-            // Sonuç kısmını temizle (yeni yükleme yapılıyor)
             document.getElementById('resultImg').src = ''; 
-            // Sonuç alanına kaydır
             document.getElementById('result-area').scrollIntoView({behavior: 'smooth'});
         };
         reader.readAsDataURL(file);
@@ -243,13 +244,18 @@
                 const resultSrc = "data:image/png;base64," + data.file;
                 document.getElementById('resultImg').src = resultSrc;
                 document.getElementById('downloadBtn').href = resultSrc;
-                
-                // Başarılı işlem sonrası limiti tekrar kontrol et (sayı düşecek)
                 checkLimit();
             } else {
-                alert("Hata: " + (data.reason || data.message || "İşlem başarısız oldu."));
-                // Eğer limit hatası döndüyse (örn: tarayıcıda limit var sanıp sunucu reddederse)
-                if(res.status === 403) checkLimit(); 
+                // Hata Yakalama
+                if (res.status === 403 || data.reason === "free_limit_full") {
+                     alert("Günlük limitiniz doldu! Premium'a geçerek devam edebilirsiniz.");
+                     openModal('premiumModal');
+                     checkLimit();
+                } else if (res.status === 413 || data.reason === "file_size_limit") {
+                     alert(data.message || "Dosya boyutu çok büyük.");
+                } else {
+                     alert("Hata: " + (data.reason || data.message || "İşlem başarısız oldu."));
+                }
             }
 
         } catch (e) {
@@ -259,7 +265,6 @@
         }
     }
 
-    // Sayfa yüklendiğinde limiti kontrol et
     document.addEventListener('DOMContentLoaded', checkLimit);
 </script>
 {% endblock content %}
