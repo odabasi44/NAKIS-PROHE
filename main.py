@@ -190,6 +190,31 @@ def increase_usage(email, tool, subtool):
     session.modified = True # <--- LIMITIN DÜŞMESİ İÇİN ŞART
 
 # --- API ENDPOINTLERİ ---
+
+@app.route("/api/admin/save_packages", methods=["POST"])
+def save_packages_api():
+    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
+    
+    data = request.get_json()
+    new_packages = data.get("packages", {})
+    
+    settings = load_settings()
+    
+    # Mevcut "free" paketini koruyalım, diğerlerini güncelleyelim
+    current_packages = settings.get("packages", {})
+    
+    # Gelen veriyi işle
+    for tier, info in new_packages.items():
+        if tier in ["starter", "pro", "unlimited"]:
+            # Eğer settings'de yoksa oluştur, varsa güncelle
+            if tier not in current_packages: current_packages[tier] = {}
+            current_packages[tier].update(info)
+            
+    settings["packages"] = current_packages
+    save_settings(settings)
+    
+    return jsonify({"status": "ok", "message": "Paketler güncellendi."})
+
 @app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
 def check_tool_status_endpoint(tool, subtool):
     email = session.get("user_email", "guest")
@@ -398,3 +423,4 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
