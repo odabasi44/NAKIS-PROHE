@@ -29,6 +29,6 @@
     },
     "tool_status": {
         "remove_bg": {"maintenance": false, "premium_only": false},
-        "vector": {"maintenance": false, "premium_only": true}
+        "vector": {"maintenance": false, "premium_only": false}
     }
 }
