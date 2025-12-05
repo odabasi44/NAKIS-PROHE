@@ -191,95 +191,105 @@ def increase_usage(email, tool, subtool):
     session["free_usage"][tool][subtool] = current + 1
     session.modified = True # <--- LIMITIN DÜŞMESİ İÇİN ŞART
 
-# --- VEKTÖR MOTORU (AI ENGINE) ---
+# --- VEKTÖR MOTORU (GELİŞMİŞ-v.2-ODABASI) ---
 class VectorEngine:
     def __init__(self, image_stream):
         # Dosyayı OpenCV formatına çevir
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        self.height, self.width = self.img.shape[:2]
+        if self.img is None:
+            raise ValueError("Görüntü okunamadı")
+        self.original_h, self.original_w = self.img.shape[:2]
 
-    def resize_image(self, quality):
-        # Kaliteye göre boyutlandırma (İşlem hızını ve detay seviyesini belirler)
-        scale = 1.0
-        if quality == 'medium': scale = 0.5      # Hızlı, düşük detay
-        elif quality == 'high': scale = 1.0      # Standart
-        elif quality == 'ultra': scale = 2.0     # Çok detaylı (Yapay büyütme)
+    def process_enhanced_quality(self, mode='normal'):
+        """
+        Wilcom ve Nakış için özel optimize edilmiş işleme motoru.
+        pyrMeanShiftFiltering kullanarak 'Yağlı Boya' etkisi yaratır, 
+        bu da gereksiz dikişleri (kırışıklıkları) yok eder.
+        """
         
-        if scale != 1.0:
-            self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
-            self.height, self.width = self.img.shape[:2]
+        # 1. Gürültü Azaltma ve Düzleştirme (En Önemli Adım)
+        # sp: Mekansal pencere yarıçapı (Büyüdükçe detaylar azalır, bloklar büyür)
+        # sr: Renk penceresi yarıçapı (Benzer renkleri birleştirir)
+        if mode == 'cartoon':
+            # Daha agresif düzleştirme (Büyük bloklar)
+            self.img = cv2.pyrMeanShiftFiltering(self.img, sp=25, sr=40)
+        else:
+            # Dengeli düzleştirme (Detayları korur ama paraziti siler)
+            self.img = cv2.pyrMeanShiftFiltering(self.img, sp=15, sr=30)
 
-    def quantize_colors(self, k=16):
-        # Renk sayısını azaltma (Cartoon ve Normal mod için)
+        # 2. Renk Sayısını Optimize Et (K-Means)
+        # Nakış makinesi için renk sayısını limitlemek iplik değişimini azaltır.
+        k = 16 if mode == 'normal' else 8
         data = np.float32(self.img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
-        result = center[label.flatten()]
-        self.img = result.reshape((self.img.shape))
+        self.img = center[label.flatten()].reshape((self.img.shape))
+
+        # 3. Kenar Yumuşatma (Median Blur)
+        # Vektör kenarlarındaki tırtıkları alır
+        self.img = cv2.medianBlur(self.img, 3)
 
     def process_outline(self):
-        # Sadece dış hatları çıkar (Nakış için sargı dikiş mantığı)
+        # Outline modu için özel işlem
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        # Canny Edge Detection
-        edges = cv2.Canny(gray, 100, 200)
-        # Çizgileri biraz kalınlaştır (Nakışta kopma olmaması için)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0) # Hafif bulanıklık keskin kenar verir
+        edges = cv2.Canny(gray, 75, 150)
+        
+        # Çizgileri birleştir (Dilation)
         kernel = np.ones((2,2), np.uint8)
         dilated = cv2.dilate(edges, kernel, iterations=1)
-        # Renkleri ters çevir (Siyah çizgi, beyaz arka plan)
+        
         self.img = cv2.bitwise_not(dilated)
-        # Tekrar 3 kanala çevir ki SVG motoru işleyebilsin
         self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
 
-    def process_cartoon(self):
-        # Çizgi film efekti (Bilateral Filter + Az Renk)
-        # 1. Pürüzsüzleştir (Dokuları yok et, kenarları koru)
-        self.img = cv2.bilateralFilter(self.img, 9, 75, 75)
-        # 2. Renk sayısını ciddi oranda düşür (Örn: 8 renk)
-        self.quantize_colors(k=8)
-
-    def generate_svg(self):
-        # Görüntüdeki benzersiz renkleri bul
-        # (Çok büyük resimlerde bu kısım yavaş olabilir, optimize edilebilir)
+    def generate_svg(self, smoothness='high'):
+        """
+        Vektör verisini oluşturur.
+        smoothness: 'high' ise köşeleri daha çok yuvarlar (Wilcom için iyi).
+        """
         pixels = self.img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
-        svg_output = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" viewBox="0 0 {self.width} {self.height}">'
+        # SVG Başlığı
+        svg_output = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.original_w}" height="{self.original_h}" viewBox="0 0 {self.original_w} {self.original_h}">'
         
-        # Arka plan için (Opsiyonel, şimdilik boş geçiyoruz)
-        
-        # Her renk için konturları bul ve path oluştur
+        # Epsilon değeri: Eğri hassasiyeti. 
+        # Değer ne kadar BÜYÜK olursa çizgi o kadar DÜZ/BASİT olur.
+        # Değer ne kadar KÜÇÜK olursa çizgi o kadar DETAYLI/TIRTIKLI olur.
+        epsilon_factor = 0.001 # Varsayılan (High Detail)
+        if smoothness == 'ultra': epsilon_factor = 0.003 # Daha yuvarlak hatlar
+        elif smoothness == 'medium': epsilon_factor = 0.0005 # Daha keskin hatlar
+
         for color in unique_colors:
-            # Bu rengin maskesini oluştur
             mask = cv2.inRange(self.img, color, color)
-            
-            # Konturları bul (RETR_TREE: iç içe delikleri de bulur)
-            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # RETR_EXTERNAL yerine RETR_TREE kullanıyoruz ki iç boşlukları da alsın
+            contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             
             if not contours: continue
             
-            # Rengi HEX formatına çevir (OpenCV BGR kullanır, SVG RGB ister)
             b, g, r = color
+            # Beyaz veya beyaza çok yakın arka planı atla (Opsiyonel)
+            if r > 250 and g > 250 and b > 250: continue
+            
             hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
-            # Beyaz arka planı çizme (Outline modunda veya genel temizlik için)
-            if r > 250 and g > 250 and b > 250: continue
-
             path_data = ""
-            for cnt in contours:
-                # Kontur noktalarını azalt (SVG boyutunu küçültür ve çizgiyi yumuşatır)
-                epsilon = 0.001 * cv2.arcLength(cnt, True) # Hassasiyet ayarı
+            for i, cnt in enumerate(contours):
+                # Alan kontrolü: Çok küçük noktaları (gürültü) vektöre çevirme
+                if cv2.contourArea(cnt) < 20: continue 
+
+                epsilon = epsilon_factor * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 
                 if len(approx) < 3: continue
                 
-                # Noktaları SVG Path komutuna çevir (M = Move to, L = Line to)
                 points = approx.reshape(-1, 2)
                 path_data += f"M {points[0][0]} {points[0][1]} "
                 for p in points[1:]:
                     path_data += f"L {p[0]} {p[1]} "
-                path_data += "Z " # Kapat
+                path_data += "Z " 
             
             if path_data:
                 svg_output += f'<path d="{path_data}" fill="{hex_color}" stroke="none" />'
@@ -290,54 +300,61 @@ class VectorEngine:
 # --- API ENDPOINTLERİ ---
 # --- API ENDPOINTLERİ KISMINA EKLEYİN ---
 
+# --- API GÜNCELLEMESİ ---
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
-    # 1. Kullanıcı Kontrolü
     email = session.get("user_email", "guest")
-    
-    # "vector" aracı için "default" alt limitini kontrol et
     status = check_user_status(email, "vector", "default")
     
     if not status["allowed"]:
-        return jsonify({"success": False, "reason": "limit", "message": "Vektör limitiniz doldu veya paketiniz yetersiz."}), 403
+        return jsonify({"success": False, "reason": "limit"}), 403
 
-    # 2. Dosya Kontrolü
     if "image" not in request.files:
-        return jsonify({"success": False, "message": "Görsel yüklenmedi"}), 400
+        return jsonify({"success": False}), 400
     
     file = request.files["image"]
-    method = request.form.get("method", "normal") # normal, cartoon, outline
-    quality = request.form.get("quality", "high") # medium, high, ultra
+    method = request.form.get("method", "normal") 
+    quality = request.form.get("quality", "high") 
 
     try:
-        # 3. İşleme Başla
         engine = VectorEngine(file)
         
-        # a. Boyutlandır
-        engine.resize_image(quality)
-        
-        # b. Metoda göre işle
+        # 1. İşleme (Enhanced Mode)
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            engine.process_cartoon()
+            engine.process_enhanced_quality(mode='cartoon')
         else: # normal
-            engine.quantize_colors(k=32) # Normal modda 32 renge indir
+            engine.process_enhanced_quality(mode='normal')
             
-        # c. SVG Oluştur
-        svg_string = engine.generate_svg()
+        # 2. SVG Oluştur (Wilcom için 'high' veya 'ultra' smoothness önerilir)
+        smoothness = 'high'
+        if quality == 'ultra': smoothness = 'ultra'
+        elif quality == 'medium': smoothness = 'medium'
         
-        # d. Base64 Encode (Frontend'de göstermek için)
+        svg_string = engine.generate_svg(smoothness=smoothness)
+        
+        # 3. Çıktıları Hazırla
+        # a. Vektör (SVG)
         encoded_svg = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
         
-        # 4. Limiti Düşür
+        # b. Önizleme PNG (İşlenmiş, pürüzsüz halini geri gönderiyoruz)
+        # Kullanıcı Wilcom'da "Auto Trace" yapacaksa bu temiz PNG çok işine yarar.
+        _, buffer = cv2.imencode('.png', engine.img)
+        encoded_png = base64.b64encode(buffer).decode('utf-8')
+        
         increase_usage(email, "vector", "default")
         
-        return jsonify({"success": True, "file": encoded_svg})
+        # Hem SVG hem PNG döndürüyoruz
+        return jsonify({
+            "success": True, 
+            "file": encoded_svg,      # İndirilebilir Vektör
+            "preview_img": encoded_png # Ekranda görünecek temizlenmiş resim
+        })
 
     except Exception as e:
-        print(f"Vektör Hatası: {e}")
-        return jsonify({"success": False, "message": "Görüntü işlenirken sunucu hatası oluştu."}), 500
+        print(f"Hata: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/save_packages", methods=["POST"])
 def save_packages_api():
@@ -571,6 +588,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
