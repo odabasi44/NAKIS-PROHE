@@ -1,499 +1,272 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>Arka Plan Kaldır • Botlab Tools</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
 
-    <style>
-        :root {
-            --bg: #050814;
-            --panel: #0c1226;
-            --card: #11182f;
-            --border: rgba(255,255,255,0.08);
-            --text: #e2e8f0;
-            --text-soft: #94a3b8;
-            --accent: #4f8dff;
-            --accent-strong: #67e8f9;
-            --btn-grad: linear-gradient(135deg, #4f8dff, #7c3aed);
-            --success: #22c55e;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
+{% block title %}Arka Plan Kaldırıcı{% endblock title %}
 
-        body {
-            margin: 0;
-            background: radial-gradient(circle at top, #1a2043 0, #050814 55%);
-            font-family: system-ui, sans-serif;
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+{% block head_extra %}
+<style>
+    .upload-area {
+        background: rgba(17, 24, 39, 0.6);
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    .upload-area:hover, .upload-area.dragover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    .glass-panel {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock head_extra %}
 
-        .container {
-            max-width: 900px;
-            margin: auto;
-            padding: 26px 16px;
-            width: 100%;
-            box-sizing: border-box;
-            flex: 1;
-        }
+{% block content %}
+<div class="max-w-4xl mx-auto py-10 px-4">
 
-        /* HEADER */
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 26px;
-        }
-
-        .brand {
-            display: flex; align-items: center; gap: 10px; cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .brand-logo {
-            width: 36px; height: 36px;
-            border-radius: 10px;
-            background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 40%);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; color: #020617;
-        }
-
-        /* BUTTONS */
-        .btn {
-            border: none;
-            padding: 9px 16px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            color: white;
-            transition: 0.2s;
-            font-size: 13px;
-        }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn:hover { filter: brightness(1.1); }
-
-        .btn-primary { background: var(--btn-grad); }
-        .btn-premium { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
-
-        /* STATUS BAR (NEW) */
-        .status-bar {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .status-left { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-soft); }
-        .status-dot.active { background: var(--success); box-shadow: 0 0 10px rgba(34,197,94,0.4); }
-        .status-dot.limit { background: var(--danger); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
-
-        /* UPLOAD AREA */
-        .upload-box {
-            background: var(--card);
-            border: 2px dashed var(--border);
-            padding: 40px 20px;
-            text-align: center;
-            border-radius: 14px;
-            cursor: pointer;
-            transition: 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .upload-box:hover, .upload-box.dragover {
-            border-color: var(--accent);
-            background: rgba(79, 141, 255, 0.05);
-        }
-
-        /* RESULTS */
-        .grid-results {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 30px;
-            display: none; /* JS ile açılacak */
-        }
-        
-        .result-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .img-container {
-            width: 100%;
-            height: 300px; /* Sabit yükseklik */
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 15px;
-        }
-
-        .transparent-bg {
-            background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%);
-            background-size: 20px 20px;
-            background-color: #111827;
-        }
-
-        .img-container img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .loader {
-            display: none;
-            position: absolute;
-            inset: 0;
-            background: rgba(5, 8, 20, 0.85);
-            z-index: 10;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(4px);
-        }
-        .spinner {
-            width: 40px; height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* POPUP STYLES */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            display: none; justify-content: center; align-items: center; z-index: 9999;
-            backdrop-filter: blur(5px);
-        }
-        .modal {
-            background: #0f172a; padding: 25px; border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 380px;
-            text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        @media (max-width: 600px) {
-            .grid-results { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-
-    <!-- HEADER -->
-    <header>
-        <a class="brand" href="/">
-            <div class="brand-logo">B</div>
-            <div>
-                <div style="font-size:16px; font-weight:700;">Botlab Tools</div>
-                <div style="font-size:11px; color:var(--text-soft);">Arka Plan Kaldır</div>
-            </div>
-        </a>
-
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-premium" onclick="openPremium()">Premium Al</button>
-            <button class="btn btn-ghost" onclick="openUserLogin()" id="loginBtn">Giriş Yap</button>
-        </div>
-    </header>
-
-    <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 10px;">Arka Planı Kaldır</h1>
-        <p style="color: var(--text-soft); font-size: 14px;">Yapay zeka ile saniyeler içinde şeffaf PNG elde edin.</p>
-    </div>
-
-    <!-- AKILLI LİMİT ÇUBUĞU -->
-    <div class="status-bar" id="statusBar">
-        <div class="status-left">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Limit kontrol ediliyor...</span>
-        </div>
-        <!-- Giriş yapmamış kullanıcıya özel uyarı -->
-        <div id="guestWarning" style="display:none; font-size:12px; color:var(--accent);">
-            <span style="cursor:pointer; text-decoration:underline;" onclick="openUserLogin()">Giriş yaparak</span> devam et.
-        </div>
-    </div>
-
-    <!-- UPLOAD BOX -->
-    <div class="upload-box" id="dropZone">
-        <!-- Loader -->
-        <div class="loader" id="loader">
-            <div class="spinner"></div>
-            <div style="font-weight:600;">Yapay Zeka İşliyor...</div>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4f8dff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-        </div>
-        
-        <h3 style="margin-bottom: 10px;">Resmi Buraya Sürükleyin</h3>
-        <p style="color: var(--text-soft); font-size: 13px; margin-bottom: 25px;" id="sizeLimitText">veya dosya seçin (Max 5MB)</p>
-        
-        <input type="file" id="fileInput" accept="image/png, image/jpeg, image/jpg, image/webp" style="display:none;">
-        <button class="btn btn-primary" id="selectFileBtn">Resim Seç</button>
-    </div>
-
-    <!-- SONUÇLAR -->
-    <div class="grid-results" id="resultsArea">
-        <div class="result-card">
-            <div style="margin-bottom:10px; font-size:13px; color:var(--text-soft);">Orijinal</div>
-            <div class="img-container">
-                <img id="originalImg" src="">
-            </div>
-        </div>
-        
-        <div class="result-card" style="border-color: var(--accent);">
-            <div style="margin-bottom:10px; font-size:13px; color:var(--accent);">Sonuç (Şeffaf)</div>
-            <div class="img-container transparent-bg">
-                <img id="resultImg" src="">
-            </div>
-            <a id="downloadBtn" class="btn btn-primary" style="display:inline-block; text-decoration:none; margin-top:10px;">İndir (PNG)</a>
-        </div>
-    </div>
-
-</div>
-
-<!-- PREMIUM MODAL -->
-<div class="modal-overlay" id="premiumModal">
-    <div class="modal">
-        <div style="font-size: 40px; margin-bottom: 10px;">💎</div>
-        <h3 style="margin-bottom: 10px; font-size: 20px;">Premium'a Geçin</h3>
-        <p style="color: var(--text-soft); font-size: 14px; margin-bottom: 20px;">
-            Günlük limitiniz doldu. Sınırsız işlem, yüksek hız ve 50MB dosya yükleme hakkı için Premium paket alın.
+    <!-- Başlık -->
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
+            Arka Plan Kaldırıcı
+        </h1>
+        <p class="text-gray-400 max-w-lg mx-auto">
+            Yapay zeka teknolojisi ile fotoğraflarınızın arka planını saniyeler içinde şeffaf hale getirin.
         </p>
-        <button class="btn btn-premium" style="width: 100%; margin-bottom: 10px;" onclick="window.open('https://wa.me/905335620807?text=Premium%20paket%20satin%20almak%20istiyorum', '_blank')">WhatsApp ile Al</button>
-        <button class="btn btn-ghost" style="width: 100%;" onclick="closePremium()">Kapat</button>
     </div>
-</div>
 
-<!-- LOGIN MODAL -->
-<div class="modal-overlay" id="loginModal">
-    <div class="modal">
-        <h3 style="margin-bottom: 15px;">🔐 Giriş Yap</h3>
-        <input type="email" id="loginEmail" placeholder="ornek@email.com" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: #1e293b; color: white; margin-bottom: 15px; box-sizing: border-box;">
-        <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="submitLogin()">Giriş Yap</button>
-        <button class="btn btn-ghost" style="width: 100%;" onclick="closeUserLogin()">İptal</button>
+    <!-- Limit Durum Çubuğu -->
+    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center animate-fade-in transition-all duration-300 border border-white/5">
+        <div class="flex items-center gap-3">
+            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
+            <span id="limit-info" class="text-sm font-medium text-gray-300">Sistem kontrol ediliyor...</span>
+        </div>
+        
+        <div id="login-prompt" class="hidden">
+            <a onclick="openModal('userLogin')" class="text-xs text-blue-400 hover:text-blue-300 transition cursor-pointer">Giriş Yap</a>
+        </div>
     </div>
+
+    <!-- Yükleme Alanı -->
+    <div class="glass-panel rounded-2xl p-8 relative overflow-hidden">
+        
+        <div id="dropZone" class="upload-area rounded-xl p-12 text-center cursor-pointer relative z-10">
+            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" class="hidden">
+            
+            <div class="mb-4 text-blue-500 mx-auto w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            
+            <h3 class="text-xl font-bold text-white mb-2">Resmi Buraya Sürükleyin</h3>
+            <!-- Dinamik limit mesajı buraya JS ile gelecek -->
+            <p id="size-limit-msg" class="text-gray-400 text-sm mb-6">veya bilgisayarınızdan seçin (Max 5MB)</p>
+            
+            <button id="select-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg shadow-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                Resim Seç
+            </button>
+        </div>
+
+        <!-- Yükleniyor Ekranı -->
+        <div id="loading" class="hidden absolute inset-0 bg-[#0c1120]/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div class="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+            <p class="text-white font-medium animate-pulse">Yapay Zeka İşliyor...</p>
+        </div>
+    </div>
+
+    <!-- Sonuç Alanı -->
+    <div id="result-area" class="hidden mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+        <!-- Orijinal -->
+        <div class="glass-panel p-4 rounded-xl">
+            <h4 class="text-sm font-medium text-gray-400 mb-3">Orijinal</h4>
+            <div class="aspect-square rounded-lg overflow-hidden bg-black/40 flex items-center justify-center">
+                <img id="previewImg" class="max-w-full max-h-full object-contain">
+            </div>
+        </div>
+
+        <!-- Sonuç -->
+        <div class="glass-panel p-4 rounded-xl border border-blue-500/30">
+            <h4 class="text-sm font-medium text-blue-400 mb-3 flex justify-between">
+                <span>Sonuç</span>
+                <span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Hazır</span>
+            </h4>
+            <div class="aspect-square rounded-lg overflow-hidden flex items-center justify-center relative" 
+                 style="background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%); background-size: 20px 20px;">
+                <img id="resultImg" class="max-w-full max-h-full object-contain relative z-10">
+            </div>
+            
+            <a id="downloadBtn" href="#" download="temizlenmis_resim.png" class="mt-4 block w-full text-center py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition shadow-lg shadow-green-900/20">
+                İndir (PNG)
+            </a>
+        </div>
+    </div>
+
 </div>
 
 <script>
-    // === DEĞİŞKENLER ===
-    let userAllowed = false;
-    let isPremium = false;
-    
-    // === DOM ELEMENTLERİ ===
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const selectFileBtn = document.getElementById('selectFileBtn');
-    const loader = document.getElementById('loader');
-    
-    // === BAŞLANGIÇ: LİMİT KONTROLÜ ===
-    document.addEventListener('DOMContentLoaded', checkUserLimit);
+    let userStatus = { allowed: false };
 
-    async function checkUserLimit() {
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const guestWarning = document.getElementById('guestWarning');
-        const sizeLimitText = document.getElementById('sizeLimitText');
-        const loginBtn = document.getElementById('loginBtn');
+    // 1. Limit Kontrolü
+    async function checkLimit() {
+        const infoEl = document.getElementById('limit-info');
+        const iconEl = document.getElementById('status-icon');
+        const btn = document.getElementById('select-btn');
+        const statusBar = document.getElementById('status-bar');
+        const loginPrompt = document.getElementById('login-prompt');
+        const sizeMsg = document.getElementById('size-limit-msg');
 
-        // Önizleme Modu Kontrolü (Coolify'da bazen API çalışmazsa diye)
-        if (window.location.protocol === 'blob:') {
-            statusText.innerText = "Önizleme Modu (API çalışmayabilir)";
+        // Önizleme kontrolü
+        if (window.location.protocol === 'blob:' || window.location.href.includes('scf.usercontent.goog')) {
+            infoEl.innerHTML = "⚠️ <span class='text-yellow-400'>Önizleme Modu:</span> Backend sunucusu bu ekranda çalışmaz.";
+            iconEl.className = "w-2 h-2 rounded-full bg-yellow-500";
+            btn.innerText = "Sunucu Yok";
+            btn.disabled = true;
             return;
         }
 
         try {
-            // Backend'e sor: Durumum ne?
             const res = await fetch('/api/check_tool_status/image/remove_bg');
+            if(!res.ok) throw new Error("API Hatası: " + res.status);
+            
             const data = await res.json();
-
-            userAllowed = data.allowed;
-            isPremium = data.premium;
+            userStatus = data;
 
             if (data.allowed) {
-                // İZİN VAR
-                statusDot.className = 'status-dot active';
+                // İzin Var
+                iconEl.className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]";
+                statusBar.classList.remove('border-red-500/30');
+                statusBar.classList.add('border-green-500/30');
                 
                 if (data.premium) {
-                    statusText.innerHTML = "💎 Premium Aktif: <b>Sınırsız Erişim</b>";
-                    sizeLimitText.innerText = "veya dosya seçin (Max 50MB)";
-                    loginBtn.style.display = 'none'; // Zaten giriş yapmış
+                    infoEl.innerHTML = `💎 Premium Aktif - <span class="text-green-400">Sınırsız Erişim</span>`;
+                    sizeMsg.innerText = "veya bilgisayarınızdan seçin (Max 50MB)";
                 } else {
-                    statusText.innerHTML = `✅ Kalan Hakkınız: <b>${data.left}</b>`;
-                    sizeLimitText.innerText = "veya dosya seçin (Max 5MB)";
-                    // Eğer giriş yapmamışsa (guest) uyarı göster
-                    // (Backend 'guest' emaili kullanıyorsa premium false döner)
-                    if(data.left < 3) guestWarning.style.display = 'block';
+                    infoEl.innerHTML = `🎁 Günlük Ücretsiz Hak: <span class="text-green-400 font-bold">${data.left}</span>`;
+                    sizeMsg.innerText = "veya bilgisayarınızdan seçin (Max 5MB)";
+                    loginPrompt.classList.remove('hidden');
                 }
-                
-                selectFileBtn.disabled = false;
-                selectFileBtn.innerText = "Resim Seç";
-
+                btn.disabled = false;
+                btn.innerText = "Resim Seç";
             } else {
-                // LİMİT YOK
-                statusDot.className = 'status-dot limit';
-                statusText.innerHTML = "⛔ <b>Limit Doldu.</b>";
-                
-                selectFileBtn.disabled = true;
-                selectFileBtn.innerText = "Limit Doldu";
-                
-                // Neden doldu?
-                if (data.reason === 'premium_limit_full' || data.reason === 'free_limit_full') {
-                    openPremium(); // Otomatik Popup
-                }
+                // Limit Yok
+                handleLimitReached(data, infoEl, iconEl, statusBar, btn);
             }
 
         } catch (e) {
-            console.error("Limit API hatası:", e);
-            statusText.innerText = "Sunucu bağlantı hatası.";
-            statusDot.style.background = 'gray';
+            console.error("Limit kontrol hatası:", e);
+            infoEl.innerHTML = "<span class='text-red-400'>Sunucu Bağlantı Hatası. Sayfayı yenileyin.</span>";
+            iconEl.className = "w-2 h-2 rounded-full bg-red-500";
+        }
+    }
+    
+    function handleLimitReached(data, infoEl, iconEl, statusBar, btn) {
+        iconEl.className = "w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]";
+        statusBar.classList.add('border-red-500/30', 'bg-red-500/5');
+        
+        let msg = "Günlük limitiniz doldu.";
+        if(data.reason === 'maintenance') msg = "Araç şu an bakımda.";
+        
+        infoEl.innerHTML = `⛔ ${msg} <a onclick="openModal('premiumModal')" class="text-blue-400 underline cursor-pointer ml-2">Premium Al</a>`;
+        
+        btn.disabled = true;
+        btn.innerText = "Limit Doldu";
+        
+        // Limit dolduysa otomatik popup aç (sadece bakım değilse)
+        if(data.reason !== 'maintenance') {
+            openModal('premiumModal');
         }
     }
 
-    // === DOSYA YÜKLEME ===
-    selectFileBtn.addEventListener('click', () => {
-        if(userAllowed) fileInput.click();
-        else openPremium();
+    // 2. Dosya Seçimi Olayları
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    document.getElementById('select-btn').addEventListener('click', () => {
+        if(!userStatus.allowed) return openModal('premiumModal');
+        fileInput.click();
     });
 
-    fileInput.addEventListener('change', function() {
-        if (this.files[0]) processFile(this.files[0]);
-    });
+    fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-    // Sürükle Bırak
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('dragover', (e) => { 
+        e.preventDefault(); 
+        dropZone.classList.add('dragover'); 
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+    
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+        if(userStatus.allowed) {
+            handleFile(e.dataTransfer.files[0]);
+        } else {
+            openModal('premiumModal');
+        }
     });
 
-    function processFile(file) {
-        if (!userAllowed) {
-            openPremium();
-            return;
-        }
-
-        // 1. Tip Kontrolü
+    function handleFile(file) {
+        if (!file) return;
+        
         if (!file.type.startsWith('image/')) {
-            alert("Lütfen bir resim dosyası seçin.");
+            alert('Lütfen geçerli bir resim dosyası seçin (PNG, JPG, WEBP).');
             return;
         }
-
-        // 2. Boyut Kontrolü (Client Side)
-        const limitMB = isPremium ? 50 : 5;
-        if (file.size > limitMB * 1024 * 1024) {
-            alert(`Dosya çok büyük! Sizin limitiniz: ${limitMB}MB`);
-            return;
-        }
-
-        // 3. Önizleme
+        
         const reader = new FileReader();
-        reader.onload = (e) => {
-            document.getElementById('originalImg').src = e.target.result;
-            document.getElementById('resultsArea').style.display = 'grid';
-            // Scroll to results
-            setTimeout(() => {
-                document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+        reader.onload = e => {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('result-area').classList.remove('hidden');
+            document.getElementById('resultImg').src = ''; 
+            document.getElementById('result-area').scrollIntoView({behavior: 'smooth'});
         };
         reader.readAsDataURL(file);
 
-        // 4. Gönder
         uploadImage(file);
     }
 
     async function uploadImage(file) {
-        loader.style.display = 'flex'; // Göster
+        const loading = document.getElementById('loading');
+        loading.classList.remove('hidden');
 
         const formData = new FormData();
         formData.append('image', file);
-        // Not: Email göndermiyoruz, backend session'dan alıyor.
+        // Not: Email'i buradan göndermiyoruz, backend session'dan alıyor.
 
         try {
             const res = await fetch('/api/remove_bg', {
                 method: 'POST',
                 body: formData
             });
-
             const data = await res.json();
-            loader.style.display = 'none'; // Gizle
+
+            loading.classList.add('hidden');
 
             if (data.success) {
                 const resultSrc = "data:image/png;base64," + data.file;
                 document.getElementById('resultImg').src = resultSrc;
                 document.getElementById('downloadBtn').href = resultSrc;
-                
-                // Başarılı olunca limiti tekrar kontrol et (sayı düşsün)
-                checkUserLimit();
-
+                checkLimit();
             } else {
-                // Hata Yönetimi
-                if (res.status === 403 || data.reason === 'free_limit_full') {
-                    alert("Limitiniz doldu!");
-                    openPremium();
-                    checkUserLimit();
-                } else if (res.status === 413) {
-                    alert("Dosya boyutu sunucu limitini aşıyor.");
+                // Hata Yakalama
+                if (res.status === 403 || data.reason === "free_limit_full") {
+                     alert("Günlük limitiniz doldu! Premium'a geçerek devam edebilirsiniz.");
+                     openModal('premiumModal');
+                     checkLimit();
+                } else if (res.status === 413 || data.reason === "file_size_limit") {
+                     alert(data.message || "Dosya boyutu çok büyük.");
                 } else {
-                    alert("Hata: " + (data.message || "İşlem başarısız."));
+                     alert("Hata: " + (data.reason || data.message || "İşlem başarısız oldu."));
                 }
             }
+
         } catch (e) {
-            loader.style.display = 'none';
-            alert("Sunucu hatası veya bağlantı koptu.");
+            loading.classList.add('hidden');
+            alert("Sunucu ile iletişim kurulurken hata oluştu.");
+            console.error(e);
         }
     }
 
-    // === MODAL FONKSİYONLARI ===
-    function openPremium() { document.getElementById('premiumModal').style.display = 'flex'; }
-    function closePremium() { document.getElementById('premiumModal').style.display = 'none'; }
-    
-    function openUserLogin() { document.getElementById('loginModal').style.display = 'flex'; }
-    function closeUserLogin() { document.getElementById('loginModal').style.display = 'none'; }
-
-    async function submitLogin() {
-        const email = document.getElementById('loginEmail').value;
-        if (!email) return alert("E-posta girin.");
-
-        const res = await fetch('/user_login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        
-        const data = await res.json();
-        if (data.status === 'premium' || data.status === 'admin') {
-            alert("Giriş Başarılı!");
-            closeUserLogin();
-            location.reload(); // Sayfayı yenile ki yeni limitler gelsin
-        } else {
-            alert("Kullanıcı bulunamadı veya süresi dolmuş.");
-        }
-    }
+    document.addEventListener('DOMContentLoaded', checkLimit);
 </script>
-
-</body>
-</html>
+{% endblock content %}
