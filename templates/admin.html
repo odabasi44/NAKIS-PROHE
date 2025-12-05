@@ -69,65 +69,14 @@
 <!-- ========================================================= -->
 <!-- 3. ARAÇ YÖNETİMİ (LİMİT AYARLARI) -->
 <!-- ========================================================= -->
-<!-- TOOLS & LIMITS CONTENT -->
 <div id="tab-tools" class="hidden space-y-8">
     <div class="flex justify-between items-center">
         <h2 class="text-xl font-bold text-white">Paket ve Limit Ayarları</h2>
-        <div class="flex gap-2">
-             <button onclick="savePackagesDisplay()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition">Paket Görünümünü Kaydet</button>
-             <button onclick="saveLimits()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition">Limitleri Kaydet</button>
-        </div>
+        <button onclick="saveLimits()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-green-900/20">
+            Ayarları Kaydet
+        </button>
     </div>
     
-    <!-- 1. PAKET GÖRÜNÜM AYARLARI (VİTRİN) -->
-    <h3 class="text-lg font-bold text-gray-400 border-b border-white/5 pb-2">Paket Vitrin Ayarları (Fiyat & Metin)</h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        <!-- STARTER EDITOR -->
-        <div class="card p-4 border border-yellow-500/20 bg-yellow-500/5">
-            <h3 class="text-yellow-500 font-bold mb-2 text-sm">Başlangıç Paketi</h3>
-            <div class="space-y-2">
-                <input type="text" id="pkg-starter-title" placeholder="Paket Adı" class="input-dark text-sm w-full">
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">₺</span>
-                    <input type="text" id="pkg-starter-price" placeholder="Fiyat" class="input-dark text-sm w-full pl-6">
-                </div>
-                <textarea id="pkg-starter-features" rows="5" class="input-dark w-full text-xs" placeholder="Özellikler (Her satıra bir tane)"></textarea>
-            </div>
-        </div>
-
-        <!-- PRO EDITOR -->
-        <div class="card p-4 border border-cyan-500/20 bg-cyan-500/5">
-            <h3 class="text-cyan-400 font-bold mb-2 text-sm">Pro Paket</h3>
-            <div class="space-y-2">
-                <input type="text" id="pkg-pro-title" placeholder="Paket Adı" class="input-dark text-sm w-full">
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">₺</span>
-                    <input type="text" id="pkg-pro-price" placeholder="Fiyat" class="input-dark text-sm w-full pl-6">
-                </div>
-                <textarea id="pkg-pro-features" rows="5" class="input-dark w-full text-xs" placeholder="Özellikler"></textarea>
-            </div>
-        </div>
-
-        <!-- UNLIMITED EDITOR -->
-        <div class="card p-4 border border-purple-500/20 bg-purple-500/5">
-            <h3 class="text-purple-400 font-bold mb-2 text-sm">Sınırsız Paket</h3>
-            <div class="space-y-2">
-                <input type="text" id="pkg-unlimited-title" placeholder="Paket Adı" class="input-dark text-sm w-full">
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">₺</span>
-                    <input type="text" id="pkg-unlimited-price" placeholder="Fiyat" class="input-dark text-sm w-full pl-6">
-                </div>
-                <textarea id="pkg-unlimited-features" rows="5" class="input-dark w-full text-xs" placeholder="Özellikler"></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. TEKNİK LİMİT AYARLARI -->
-    <h3 class="text-lg font-bold text-gray-400 border-b border-white/5 pb-2 mt-8">Teknik Limit Ayarları</h3>
-    
-    <div class="grid grid-cols-1 gap-6">
-        <!-- Dosya Boyutu -->
     <!-- Dosya Boyutu Limitleri -->
     <div class="card p-6 border border-blue-500/20 bg-blue-500/5">
         <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
@@ -419,7 +368,7 @@
     window.handleAddUser = handleAddUser;
     window.handleDeleteUser = handleDeleteUser;
     window.saveLimits = saveLimits;
-
+    
     // Tools sekmesine tıklandığında verileri çek (Event Listener mantığı)
     // Bu kısım admin_layout.html'deki showTab içinde halledilmeli
     // Ancak burada da manuel bir hook ekleyebiliriz.
