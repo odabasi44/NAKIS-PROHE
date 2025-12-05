@@ -114,6 +114,150 @@
     </div>
 </div>
 
+<div id="tab-packages" class="hidden space-y-8">
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white">Paket Bilgileri ve Fiyatlar</h2>
+        <button onclick="savePackages()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-green-900/20">
+            Paketleri Kaydet
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6 border-t-4 border-yellow-500 relative">
+            <span class="absolute top-4 right-4 text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">STARTER</span>
+            <h3 class="font-bold text-white mb-4">Başlangıç Paketi</h3>
+            
+            <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
+            <input type="text" id="pkg-starter-name" class="input-dark w-full mb-3" placeholder="Başlangıç">
+            
+            <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
+            <input type="text" id="pkg-starter-price" class="input-dark w-full mb-3" placeholder="99">
+            
+            <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
+            <textarea id="pkg-starter-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
+            
+            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
+            <textarea id="pkg-starter-features" class="input-dark w-full h-24 text-xs" placeholder="PDF Birleştir, Reklamsız..."></textarea>
+        </div>
+
+        <div class="card p-6 border-t-4 border-cyan-400 relative">
+            <span class="absolute top-4 right-4 text-xs font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded">PRO</span>
+            <h3 class="font-bold text-white mb-4">Pro Paket</h3>
+            
+            <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
+            <input type="text" id="pkg-pro-name" class="input-dark w-full mb-3" placeholder="Pro">
+            
+            <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
+            <input type="text" id="pkg-pro-price" class="input-dark w-full mb-3" placeholder="199">
+            
+            <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
+            <textarea id="pkg-pro-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
+            
+            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
+            <textarea id="pkg-pro-features" class="input-dark w-full h-24 text-xs" placeholder="Tüm Araçlar, Vektör..."></textarea>
+        </div>
+
+        <div class="card p-6 border-t-4 border-purple-500 relative">
+            <span class="absolute top-4 right-4 text-xs font-bold text-purple-500 bg-purple-500/10 px-2 py-1 rounded">UNLIMITED</span>
+            <h3 class="font-bold text-white mb-4">Sınırsız Paket</h3>
+            
+            <label class="block text-xs text-gray-400 mb-1">Görünen İsim</label>
+            <input type="text" id="pkg-unlimited-name" class="input-dark w-full mb-3" placeholder="Sınırsız">
+            
+            <label class="block text-xs text-gray-400 mb-1">Fiyat (₺)</label>
+            <input type="text" id="pkg-unlimited-price" class="input-dark w-full mb-3" placeholder="499">
+            
+            <label class="block text-xs text-gray-400 mb-1">Açıklama</label>
+            <textarea id="pkg-unlimited-desc" class="input-dark w-full mb-3 h-20 text-xs" placeholder="Kısa açıklama..."></textarea>
+            
+            <label class="block text-xs text-gray-400 mb-1">Özellikler (Virgül ile ayırın)</label>
+            <textarea id="pkg-unlimited-features" class="input-dark w-full h-24 text-xs" placeholder="Limitsiz Erişim, API..."></textarea>
+        </div>
+    </div>
+</div>
+
+<script>
+    // MEVCUT SCRIPT'İN İÇİNE EKLEYİN -----------------------
+    
+    // 1. Paket Verilerini Çek ve Doldur
+    async function fetchPackagesAndFill() {
+        try {
+            const res = await fetch("/get_settings");
+            const data = await res.json();
+            const p = data.packages || {};
+
+            const tiers = ['starter', 'pro', 'unlimited'];
+            tiers.forEach(tier => {
+                if(p[tier]) {
+                    document.getElementById(`pkg-${tier}-name`).value = p[tier].name || '';
+                    document.getElementById(`pkg-${tier}-price`).value = p[tier].price || '';
+                    document.getElementById(`pkg-${tier}-desc`).value = p[tier].description || '';
+                    // Özellikler array ise stringe çevir
+                    const features = Array.isArray(p[tier].features) ? p[tier].features.join(', ') : (p[tier].features || '');
+                    document.getElementById(`pkg-${tier}-features`).value = features;
+                }
+            });
+
+        } catch(e) { console.error("Paket verisi çekme hatası:", e); }
+    }
+
+    // 2. Paketleri Kaydet
+    async function savePackages() {
+        const tiers = ['starter', 'pro', 'unlimited'];
+        let packagesData = {};
+
+        tiers.forEach(tier => {
+            const featStr = document.getElementById(`pkg-${tier}-features`).value;
+            // Virgülle ayrılanları array yap ve temizle
+            const featuresList = featStr.split(',').map(s => s.trim()).filter(s => s);
+            
+            packagesData[tier] = {
+                name: document.getElementById(`pkg-${tier}-name`).value,
+                price: document.getElementById(`pkg-${tier}-price`).value,
+                description: document.getElementById(`pkg-${tier}-desc`).value,
+                features: featuresList
+            };
+        });
+        
+        // Free paketi bozulmasın diye manuel ekleyelim veya backend'de merge edelim.
+        // Burada basitçe backend'e bu objeyi gönderiyoruz.
+
+        try {
+            const res = await fetch("/api/admin/save_packages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ packages: packagesData })
+            });
+
+            if(res.ok) alert("Paket ayarları başarıyla kaydedildi! ✅");
+            else alert("Kaydetme hatası!");
+        } catch(e) { alert("Sunucu hatası."); }
+    }
+
+    // showTab fonksiyonuna hook ekliyoruz (Mevcut showTab'i güncelleyin)
+    // admin.html içindeki window.showTab fonksiyonunu şu şekilde revize edin:
+    window.showTab = function(tabName) {
+        document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+        
+        const tabElement = document.getElementById('tab-' + tabName);
+        if(tabElement) tabElement.classList.remove('hidden');
+
+        const navElement = document.getElementById('nav-' + tabName);
+        if(navElement) navElement.classList.add('active');
+
+        // Veri çekme kancaları
+        if (tabName === 'dashboard') fetchDashboardData();
+        if (tabName === 'users') fetchUsers();
+        if (tabName === 'tools') fetchSettingsAndFillInputs(); // Eski limit fonksiyonu
+        if (tabName === 'packages') fetchPackagesAndFill();   // YENİ FONKSİYON
+        
+        // Başlık Güncelleme
+        if(navElement) {
+            updateAdminHeader(navElement.dataset.title, navElement.dataset.subtitle);
+        }
+    }
+</script>
 <!-- ========================================================= -->
 <!-- 4. DİĞER SEKMELER (Şimdilik Boş) -->
 <!-- ========================================================= -->
