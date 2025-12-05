@@ -5,7 +5,6 @@ import os
 import io
 import json
 import base64
-import cv2
 import numpy as np
 from PIL import Image
 from datetime import datetime, timedelta
@@ -572,5 +571,6 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
