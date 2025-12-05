@@ -1,29 +1,34 @@
 {
     "admin": {
-        "email": "odabasiaiteknoloji@gmail.com",
-        "password": "280494Odabasi."
-    },
-    "site": {
-        "whatsapp_number": "905335620807",
-        "title": "Botlab Tools | Premium Suite",
-        "announcement_bar": ""
+        "email": "admin@botlab.com",
+        "password": "admin"
     },
     "limits": {
-        "global_free_count": 2,
         "pdf": {
-            "merge": { "free": 2, "premium": 9999 },
-            "split": { "free": 2, "premium": 9999 },
-            "compress": { "free": 2, "premium": 9999 },
-            "word2pdf": { "free": 2, "premium": 9999 }
+            "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 99999},
+            "split": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999},
+            "compress": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999}
         },
         "image": {
-            "remove_bg": { "free": 2, "premium": 9999 },
-            "compress": { "free": 2, "premium": 9999 },
-            "resize": { "free": 2, "premium": 9999 }
+            "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999},
+            "compress": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999}
+        },
+        "vector": {
+            "default": {"free": 0, "starter": 0, "pro": 10, "unlimited": 99999}
         }
     },
+    "packages": {
+        "free": {"name": "Ücretsiz", "features": ["Temel PDF Araçları (Sınırlı)", "Arka Plan Silici (Sınırlı)"]},
+        "starter": {"name": "Başlangıç", "features": ["PDF Birleştir/Böl", "Arka Plan Silici (20 Adet/Gün)", "Reklamsız"]},
+        "pro": {"name": "Pro", "features": ["Tüm Araçlar Açık", "Vektörleştirici (10 Adet/Gün)", "Yüksek Hız"]},
+        "unlimited": {"name": "Sınırsız", "features": ["Limitsiz Erişim", "Öncelikli Destek", "API Erişimi"]}
+    },
+    "site": {
+        "title": "Botlab Tools",
+        "whatsapp_number": "905335620807"
+    },
     "tool_status": {
-        "remove_bg": { "maintenance": false, "premium_only": false },
-        "pdf_merge": { "maintenance": false, "premium_only": false }
+        "remove_bg": {"maintenance": false, "premium_only": false},
+        "vector": {"maintenance": false, "premium_only": true}
     }
 }
