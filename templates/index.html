@@ -206,7 +206,6 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 
-                <!-- ARKA PLAN SİLİCİ (HERKESE AÇIK) -->
                 <div onclick="window.location.href='/remove-bg'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-green-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
                     <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
@@ -216,33 +215,12 @@
                     <span class="bg-green-500/20 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded border border-green-500/20">AKTİF</span>
                 </div>
 
-                <!-- AKILLI VEKTÖR (SADECE PRO VE ÜSTÜ) -->
-                <!-- Eğer tier 'starter' veya 'free' ise KİLİTLİ olacak -->
-                <div class="tool-card rounded-2xl p-5 relative group 
-                            {% if tier == 'free' or tier == 'starter' %} locked-mode {% else %} cursor-pointer hover:border-purple-500/40 {% endif %}"
-                     onclick="{% if tier == 'free' or tier == 'starter' %}openModal('premiumModal'){% else %}window.location.href='/vektor'{% endif %}">
-                    
-                    {% if tier == 'free' or tier == 'starter' %}
-                    <div class="locked-overlay">
-                        <div class="lock-icon-box">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                        </div>
-                        <span class="text-white font-bold text-sm">Pro Paket Gerekir</span>
-                        <span class="text-xs text-gray-400 mt-1">Erişmek için tıklayın</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                   <div onclick="window.location.href='/vektor'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-purple-500/20 shadow-[0_0_20px_rgba(139,92,246,0.05)]">
-                    
+                <div onclick="window.location.href='/vektor'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-purple-500/20 shadow-[0_0_20px_rgba(139,92,246,0.05)]">
                     <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-4 group-hover:scale-110 transition-transform">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     </div>
-                    
                     <h3 class="text-lg font-bold text-white mb-1 group-hover:text-violet-400 transition-colors">AI Nakış Vektör</h3>
                     <p class="text-xs text-gray-400 leading-relaxed mb-3">Görselleri Wilcom uyumlu vektör formatına çevirin.</p>
-                    
                     <span class="bg-purple-500/20 text-purple-400 text-[9px] font-bold px-2 py-0.5 rounded border border-purple-500/20">PRO</span>
                 </div>
 
@@ -394,125 +372,100 @@
 </div>
 
 <script>
-        function openModal(id) {
-            const modal = document.getElementById(id);
+       // MODAL FONKSİYONLARI
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            
+            // Eğer açılan modal Premium modal ise paketleri yükle
+            if (id === 'premiumModal') {
+                loadPackages();
+            }
         }
-        // MEVCUT SCRIPT İÇİNE EKLEYİN -----------------------
+    }
 
-    // Modal açıldığında paketleri çek
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    // PAKETLERİ ÇEKME
     async function loadPackages() {
         const container = document.getElementById('packages-container');
-        
         try {
             const res = await fetch('/get_settings');
             const data = await res.json();
             const packages = data.packages || {};
             
-            // Sıralama ve Renk Ayarları
             const tiers = [
-                { id: 'starter', color: 'yellow', icon: 'M13 10V3L4 14h7v7l9-11h-7z' }, // Yıldırım ikonu
-                { id: 'pro', color: 'cyan', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }, // Onay ikonu
-                { id: 'unlimited', color: 'purple', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' } // Elmas/Yıldız
+                { id: 'starter', color: 'yellow', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+                { id: 'pro', color: 'cyan', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                { id: 'unlimited', color: 'purple', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' }
             ];
 
             let html = '';
-
             tiers.forEach(tier => {
                 const pkg = packages[tier.id];
                 if (!pkg) return;
 
-                // Özellik listesini oluştur
                 const featuresList = Array.isArray(pkg.features) 
                     ? pkg.features.map(f => `<li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-${tier.color}-500 mt-1">✓</span> ${f}</li>`).join('')
                     : `<li class="text-sm text-gray-400">${pkg.features || ''}</li>`;
 
-                // Dinamik Kart HTML'i
                 html += `
                 <div class="relative bg-[#02040a] border border-${tier.color}-500/20 rounded-xl p-6 hover:border-${tier.color}-500/50 transition-all group flex flex-col">
                     <div class="absolute inset-0 bg-${tier.color}-500/5 blur-xl group-hover:bg-${tier.color}-500/10 transition-all rounded-xl"></div>
-                    
                     <div class="relative z-10 flex-grow">
                         <div class="w-12 h-12 bg-${tier.color}-500/20 rounded-lg flex items-center justify-center mb-4 text-${tier.color}-400">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${tier.icon}"></path></svg>
                         </div>
-                        
                         <h3 class="text-xl font-bold text-white mb-2">${pkg.name}</h3>
                         <p class="text-gray-400 text-xs h-10 mb-4">${pkg.description || ''}</p>
-                        
                         <div class="mb-6">
                             <span class="text-3xl font-bold text-white">₺${pkg.price}</span>
                             <span class="text-gray-500 text-sm">/aylık</span>
                         </div>
-                        
-                        <ul class="space-y-3 mb-8 min-h-[120px]">
-                            ${featuresList}
-                        </ul>
+                        <ul class="space-y-3 mb-8 min-h-[120px]">${featuresList}</ul>
                     </div>
-
-                    <a href="https://wa.me/905335620807?text=Merhaba,%20${pkg.name}%20paketi%20satın%20almak%20istiyorum." 
-                       target="_blank"
-                       class="relative z-10 block w-full py-3 rounded-lg font-bold text-center transition bg-${tier.color}-600 hover:bg-${tier.color}-500 text-white shadow-lg shadow-${tier.color}-900/20">
-                       Paketi Seç
-                    </a>
-                </div>
-                `;
+                    <a href="https://wa.me/905335620807?text=Merhaba,%20${pkg.name}%20paketi%20satın%20almak%20istiyorum." target="_blank" class="relative z-10 block w-full py-3 rounded-lg font-bold text-center transition bg-${tier.color}-600 hover:bg-${tier.color}-500 text-white shadow-lg shadow-${tier.color}-900/20">Paketi Seç</a>
+                </div>`;
             });
-
             container.innerHTML = html;
-
         } catch (e) {
-            container.innerHTML = `<p class="col-span-3 text-red-400 text-center">Paket bilgileri yüklenirken hata oluştu.</p>`;
             console.error(e);
+            container.innerHTML = `<p class="col-span-3 text-red-400 text-center">Paket bilgileri yüklenirken hata oluştu.</p>`;
         }
     }
 
-    // Modal açma fonksiyonunu güncelleyelim
-    // Eski openModal fonksiyonunuzu BULUN ve şu satırı ekleyin:
-    const originalOpenModal = openModal; // Eğer çakışma olursa diye
-    window.openModal = function(id) {
-        const modal = document.getElementById(id);
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+    // LOGIN İŞLEMİ
+    async function submitLogin() {
+        const email = document.getElementById('loginEmail').value;
+        if(!email) return alert("Lütfen geçerli bir e-posta adresi girin.");
         
-        // Sadece premium modal açıldığında verileri yükle
-        if (id === 'premiumModal') {
-            loadPackages();
+        try {
+            const res = await fetch('/user_login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'admin') {
+                window.location.href = '/admin';
+            } else if (data.status === 'premium') {
+                location.reload();
+            } else {
+                alert("Kullanıcı bulunamadı veya süresi dolmuş.");
+            }
+        } catch(e) {
+            alert("Sunucu hatası.");
         }
     }
-
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        async function submitLogin() {
-            const email = document.getElementById('loginEmail').value;
-            if(!email) return alert("Lütfen geçerli bir e-posta adresi girin.");
-            
-            try {
-                const res = await fetch('/user_login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                
-                const data = await res.json();
-                
-                if (data.status === 'admin') {
-                    window.location.href = '/admin';
-                } else if (data.status === 'premium') {
-                    // Sayfayı yenile ki Jinja tier bilgisini işlesin
-                    location.reload();
-                } else {
-                    alert("Kullanıcı bulunamadı veya süresi dolmuş.");
-                }
-            } catch(e) {
-                alert("Sunucu hatası.");
-            }
-        }
     </script>
 </body>
 </html>
