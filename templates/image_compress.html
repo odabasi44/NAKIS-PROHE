@@ -110,8 +110,19 @@
 </div>
 
 <script>
+    <script>
     let selectedFile = null;
     let userAllowed = false;
+
+    // YARDIMCI FONKSİYON: Boyutu MB veya KB olarak formatla
+    function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
 
     // 1. Limit Kontrolü
     async function checkLimit() {
@@ -149,8 +160,8 @@
         selectedFile = e.target.files[0];
         if(selectedFile) {
             document.getElementById('fileName').innerText = selectedFile.name;
-            // Orijinal boyutu yaz (Basit formatlama)
-            document.getElementById('origSize').innerText = (selectedFile.size / 1024 / 1024).toFixed(2) + " MB";
+            // GÜNCELLEME: Burada artık formatBytes fonksiyonunu kullanıyoruz
+            document.getElementById('origSize').innerText = formatBytes(selectedFile.size);
         }
     });
 
@@ -186,11 +197,11 @@
                 document.getElementById('downloadBtn').href = imgSrc;
                 document.getElementById('downloadBtn').download = "compressed_" + selectedFile.name;
                 
-                // Yeni boyut bilgisi
+                // Backend'den gelen hazır formatlı metni yaz
                 document.getElementById('newSize').innerText = data.new_size;
                 document.getElementById('savingPercent').innerText = "%" + data.saving;
                 
-                checkLimit(); // Bakiyeyi güncelle
+                checkLimit(); 
             } else {
                 alert(data.message || "Hata oluştu.");
                 if(data.reason === 'limit') openModal('premiumModal');
@@ -202,5 +213,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', checkLimit);
+</script>
 </script>
 {% endblock content %}
