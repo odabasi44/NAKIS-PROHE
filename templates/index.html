@@ -1,358 +1,543 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Botlab Tools - PDF, Görsel ve Dijital Araçlar</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Botlab Tools • PDF, Görsel ve Vektör Araçları</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
-                    colors: {
-                        brand: {
-                            dark: '#02040a',
-                            card: '#0c1120',
-                            border: 'rgba(255,255,255,0.06)',
-                        }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.6s ease-out',
-                        'float': 'float 3s ease-in-out infinite',
-                        'shimmer': 'shimmer 2s linear infinite'
-                    },
-                    keyframes: {
-                        fadeIn: { '0%': { opacity: '0', transform: 'translateY(15px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
-                        shimmer: { from: { backgroundPosition: '0 0' }, to: { backgroundPosition: '-200% 0' } }
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
-        body { background-color: #02040a; color: #e2e8f0; }
-        .tool-card {
-            background: linear-gradient(145deg, rgba(17, 24, 39, 0.4), rgba(12, 17, 32, 0.8));
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-main: #050814;
+            --bg-elev: #0b1024;
+            --bg-card: #11172f;
+            --bg-card-soft: #181f3a;
+            --text-main: #f5f7ff;
+            --text-muted: #9ca4c8;
+            --accent: #4f8dff;
+            --accent-strong: #67e8f9;
         }
-        .tool-card:hover:not(.disabled) {
-            transform: translateY(-4px);
-            border-color: rgba(59, 130, 246, 0.4);
-            box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.2);
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top, #1a2043 0, #050814 55%, #020308 100%);
+            color: var(--text-main);
         }
-        .tool-card.disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(0.9); }
-        .section-title { display: flex; align-items: center; gap: 12px; font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .badge-soon { background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); }
+
+        /* GLOBAL CONTAINER */
+        .page-shell {
+            max-width: 1180px;
+            margin: auto;
+            padding: 24px 16px 60px;
+        }
+
+        /* BUTTONS */
+        .btn { padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-ghost { background: rgba(15,23,42,0.8); border: 1px solid rgba(148,163,255,0.35); color: white; }
+        .btn-premium { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600; }
+        .btn-primary { background: linear-gradient(135deg, #4f8dff, #7c3aed); color: white; }
+
+        /* LOCKED FEATURE STYLES */
+        .locked-card {
+            position: relative;
+            opacity: 0.5;
+            filter: grayscale(0.9);
+            pointer-events: none; /* Tıklamayı engelle */
+            overflow: hidden;
+            border: 1px dashed #475569 !important;
+        }
         
-        /* Shimmer Effect for Free Badge */
-        .bg-shimmer {
-            background: linear-gradient(to right, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.3) 50%, rgba(16, 185, 129, 0.1) 100%);
-            background-size: 200% 100%;
-            animation: shimmer 3s infinite;
+        /* Kilit İkonu ve Mesajı */
+        .locked-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: rgba(2, 6, 23, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 20;
+            pointer-events: auto; /* Butona tıklanabilsin */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        /* Başlangıçta görünür olsun (veya hover ile) - Kullanıcı deneyimi için direkt gösteriyoruz */
+        .locked-card .locked-overlay {
+            opacity: 1; 
+        }
+
+        .upgrade-badge {
+            background: #f59e0b;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 99px;
+            font-weight: 700;
+            font-size: 11px;
+            margin-bottom: 8px;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+        
+        /* WHATSAPP */
+        .whatsapp-btn {
+            position: fixed; right: 18px; bottom: 18px; width: 58px; height: 58px;
+            background: #22c55e; color: white; font-size: 28px; border-radius: 50%;
+            display:flex; align-items:center; justify-content:center; cursor:pointer;
+            box-shadow: 0 0 14px rgba(34,197,94,0.7); z-index: 9999;
         }
     </style>
-</head>
-<body class="min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-500/30">
-
-    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div class="absolute top-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]"></div>
-        <div class="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[120px]"></div>
-    </div>
-
-    <nav class="w-full border-b border-white/5 backdrop-blur-xl sticky top-0 z-50 bg-black/20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='/'">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-900/20">B</div>
-                    <div class="flex flex-col">
-                        <span class="font-bold text-lg tracking-tight text-white">Botlab Tools</span>
-                        <span class="text-[10px] text-gray-400 uppercase tracking-widest">Premium Suite</span>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span class="text-xs font-medium text-green-400">Ücretsiz Haklarınız Tanımlandı</span>
-                    </div>
-
-                    <!-- Jinja2 ile Oturum Kontrolü -->
-                    {% if session.get('user_email') %}
-                        <a href="/dashboard" class="hidden md:block text-sm font-bold text-blue-400 hover:text-white transition">Panele Git →</a>
-                    {% else %}
-                        <button onclick="openModal('loginModal')" class="hidden md:block text-sm text-gray-400 hover:text-white transition">Giriş Yap</button>
-                    {% endif %}
-
-                    <button onclick="openModal('premiumModal')" class="px-5 py-2.5 rounded-full bg-white text-black font-bold text-sm hover:bg-gray-200 transition shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                        Premium Al
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="flex-grow max-w-7xl mx-auto px-4 py-12 w-full animate-fade-in">
-        
-        <div class="text-center mb-16">
-            
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-500/20 bg-blue-500/5 mb-6 animate-float">
-                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span class="text-xs font-semibold text-blue-300 tracking-wide uppercase">Kredi Kartı Gerekmez • Anında Dene</span>
-            </div>
-
-            <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
-                Tüm Dijital İşleriniz <br>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">Tek Bir Panelde.</span>
-            </h1>
-            <p class="text-gray-400 max-w-2xl mx-auto text-lg mb-8">
-                Yapay zeka destekli görsel işleme, profesyonel PDF araçları ve günlük dijital ihtiyaçlarınız için geliştirildi. <span class="text-white font-medium">Günlük ücretsiz hakkınızla hemen başlayın.</span>
-            </p>
-
-            <div class="flex flex-wrap justify-center gap-4">
-                {% if session.get('user_email') %}
-                    <button onclick="window.location.href='/dashboard'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
-                        Panele Git
-                    </button>
-                {% else %}
-                    <button onclick="window.location.href='/remove-bg'" class="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Hemen Başla (Ücretsiz)
-                    </button>
-                {% endif %}
-                
-                <button onclick="openModal('premiumModal')" class="px-8 py-3.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium transition">
-                    Paketleri İncele
-                </button>
-            </div>
-        </div>
-
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="w-2 h-8 bg-blue-500 rounded-full"></span>
-                Görsel Araçlar & AI
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                
-                <div onclick="window.location.href='/remove-bg'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-green-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Arka Plan Silici</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-3">AI ile arka planı saniyeler içinde şeffaf yapın.</p>
-                    
-                    <div class="flex items-center gap-2">
-                        <span class="bg-green-500/20 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded border border-green-500/20">AKTİF</span>
-                        <span class="text-[10px] text-gray-500 font-medium">Ücretsiz Dene</span>
-                    </div>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">AI Nakış Vektör</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">Görselleri Wilcom uyumlu vektör formatına çevirin.</p>
-                    <span class="absolute top-4 right-4 badge-soon">ÇOK YAKINDA</span>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">Görsel Sıkıştır</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">Kaliteden ödün vermeden boyutu küçültün.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">Format Çevirici</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">WebP, HEIC dosyalarını JPG/PNG'ye dönüştürün.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-            </div>
-        </section>
-
-
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="w-2 h-8 bg-red-500 rounded-full"></span>
-                PDF Araçları
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                
-                <!-- PDF MERGE KARTI DÜZELTİLDİ: AKTİF HALE GETİRİLDİ -->
-                <div onclick="window.location.href='/pdf/merge'" class="tool-card rounded-2xl p-5 relative group cursor-pointer border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]">
-                    <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4 group-hover:scale-110 transition-transform">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-red-400 transition-colors">PDF Birleştir</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-3">Birden fazla dosyayı tek PDF yapın.</p>
-                    
-                    <div class="flex items-center gap-2">
-                        <span class="bg-red-500/20 text-red-400 text-[9px] font-bold px-2 py-0.5 rounded border border-red-500/20">AKTİF</span>
-                        <span class="text-[10px] text-gray-500 font-medium">Ücretsiz Dene</span>
-                    </div>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">PDF Böl</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">Sayfaları ayıklayın veya PDF'i parçalara bölün.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">PDF Sıkıştır</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">PDF dosya boyutunu %80'e kadar düşürün.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">Word to PDF</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">DOCX dosyalarını bozulmadan PDF yapın.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-            </div>
-        </section>
-
-
-        <section class="mb-16">
-            <div class="section-title">
-                <span class="w-2 h-8 bg-amber-500 rounded-full"></span>
-                Dijital & Pratik Araçlar
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 6h4v4H6V6zm0 8h4v4H6v-4zm8-8h4v4h-4V6z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">QR Kod Oluştur</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">Wi-Fi, Link veya Metin için QR kod üretin.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-
-                <div class="tool-card disabled rounded-2xl p-5 relative">
-                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-4">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-white mb-1">Şifre Oluşturucu</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed">Kırılması imkansız, güvenli şifreler yaratın.</p>
-                    <span class="absolute top-4 right-4 badge-soon">YAKINDA</span>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <footer class="border-t border-white/5 bg-black/40 py-10 text-center">
-        <p class="text-gray-500 text-sm mb-2">&copy; 2025 Botlab Tools. Yapay Zeka Destekli Dijital Çözümler.</p>
-        <div class="flex justify-center gap-4 text-xs text-gray-600">
-            <a href="#" class="hover:text-gray-400">Gizlilik Politikası</a>
-            <a href="#" class="hover:text-gray-400">Kullanım Şartları</a>
-            <a href="#" class="hover:text-gray-400">İletişim</a>
-        </div>
-    </footer>
-
-    <!-- LOGIN MODAL (Backend Entegre) -->
-    <div id="loginModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[100]">
-        <div class="bg-[#0c1120] border border-white/10 p-8 rounded-2xl w-full max-w-sm relative animate-fade-in shadow-2xl">
-            <button onclick="closeModal('loginModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">✕</button>
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-blue-600/20 text-blue-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                </div>
-                <h2 class="text-xl font-bold text-white">Giriş Yap</h2>
-                <p class="text-gray-400 text-xs mt-1">Premium hesabınıza erişmek için e-posta adresinizi girin.</p>
-            </div>
-            
-            <input type="email" id="loginEmail" placeholder="ornek@sirket.com" class="w-full bg-[#02040a] border border-gray-800 rounded-lg px-4 py-3 mb-4 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors placeholder-gray-600">
-            <button onclick="submitLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg shadow-blue-900/30">Giriş Yap</button>
-        </div>
-    </div>
-
-    <!-- PREMIUM MODAL -->
-    <div id="premiumModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[100]">
-        <div class="bg-[#0c1120] border border-amber-500/20 p-8 rounded-2xl w-full max-w-sm relative animate-fade-in text-center shadow-[0_0_50px_rgba(245,158,11,0.1)]">
-            <button onclick="closeModal('premiumModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">✕</button>
-            
-            <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-500/20">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            </div>
-
-            <h2 class="text-2xl font-bold mb-2 text-white">Limitsiz Erişim</h2>
-            <p class="text-gray-400 text-sm mb-8 leading-relaxed">
-                Günlük ücretsiz işlem limitiniz doldu. İş akışınızı hızlandırmak ve tüm araçları limitsiz kullanmak için Premium'a geçin.
-            </p>
-            
-            <button onclick="window.open('https://wa.me/905335620807?text=Premium%20paket%20hakkinda%20bilgi%20almak%20istiyorum.', '_blank')" class="w-full bg-white text-black font-bold py-3.5 rounded-xl transition hover:bg-gray-200 flex items-center justify-center gap-2 mb-3">
-                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-8.68-2.031-.967-.272-.297-.471-.446-.744-.446-.272 0-.57.025-.867.074-.297.05-1.138.421-1.732 1.016-.594.594-1.138 1.435-1.138 3.486 0 2.05 1.485 4.031 1.683 4.279.198.248 2.946 4.501 7.136 6.31 2.898 1.251 3.488 1.002 4.107.942.619-.06 1.758-.718 2.006-1.411.248-.694.248-1.289.173-1.413z"/></svg>
-                WhatsApp ile Satın Al
-            </button>
-            <button onclick="closeModal('premiumModal')" class="text-xs text-gray-500 hover:text-gray-300 transition">Hayır, teşekkürler</button>
-        </div>
-    </div>
 
     <script>
-        function openModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        async function submitLogin() {
-            const email = document.getElementById('loginEmail').value;
-            if(!email) return alert("Lütfen geçerli bir e-posta adresi girin.");
-            
-            try {
-                const res = await fetch('/user_login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                
-                const data = await res.json();
-                
-                // DÜZELTME BURADA YAPILDI: Admin ve Premium ayrımı
-                if (data.status === 'admin') {
-                    window.location.href = '/admin'; // Admin panel yolu
-                } else if (data.status === 'premium') {
-                    window.location.href = '/dashboard'; // Kullanıcı paneli yolu
-                } else {
-                    alert("Kullanıcı bulunamadı veya süresi dolmuş.");
-                }
-            } catch(e) {
-                alert("Sunucu hatası.");
-            }
+        function openPremium() {
+            document.getElementById('premium-popup').style.display = 'flex';
         }
     </script>
+</head>
+
+<body>
+
+<!-- ========================================================= -->
+<!-- USER LOGIN POPUP -->
+<!-- ========================================================= -->
+<div id="userLogin" style="
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(5px);
+    display:none; justify-content:center; align-items:center; z-index:99999;
+">
+    <div style="
+        width:330px; background:#0f172a; padding:22px;
+        border-radius:14px; border:1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    ">
+        <h3 style="font-size:18px; margin-bottom:10px; font-weight:700;">🔐 Giriş Yap</h3>
+
+        <label style="font-size:13px; color:#94a3b8;">E-posta adresiniz</label>
+        <input id="userLoginEmail" type="email" placeholder="ornek@sirket.com"
+               style="width:100%; margin-top:6px; margin-bottom:16px;
+               padding:12px; border-radius:10px; border:1px solid #334155;
+               background:#1e293b; color:white; outline:none;">
+
+        <button onclick="submitUserLogin()" style="
+            width:100%; padding:12px; border-radius:10px;
+            background: linear-gradient(to right, #4f8dff, #3b82f6);
+            color:white; font-weight:600; border:none; cursor:pointer;
+        ">Giriş Yap</button>
+
+        <button onclick="closeUserLogin()" style="
+            width:100%; margin-top:12px; background:none;
+            border:none; color:#94a3b8; font-size:12px; cursor:pointer;
+        ">Kapat</button>
+    </div>
+</div>
+
+<script>
+function openUserLogin() {
+    document.getElementById("userLogin").style.display = "flex";
+}
+function closeUserLogin() {
+    document.getElementById("userLogin").style.display = "none";
+}
+async function submitUserLogin() {
+    const email = document.getElementById("userLoginEmail").value.trim();
+    if (!email) return alert("Mail adresi yazın");
+
+    const res = await fetch("/user_login", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (data.status === "admin") {
+        window.location.href = "/admin";
+    } else if (data.status === "premium") {
+        alert("Giriş başarılı! Paketiniz: " + (data.tier || "Standart").toUpperCase());
+        closeUserLogin();
+        location.reload();
+    } else {
+        alert("Kullanıcı bulunamadı veya süresi dolmuş.");
+    }
+}
+</script>
+
+<!-- ========================================================= -->
+<!-- HEADER -->
+<!-- ========================================================= -->
+<header style="width:100%; display:flex; justify-content:center; border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(5,8,20,0.8); backdrop-filter:blur(10px); position:sticky; top:0; z-index:50;">
+    <div style="width:1180px; display:flex; justify-content:space-between; align-items:center; padding:16px;">
+
+        <div class="brand" onclick="window.location.href='/'" style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <div class="brand-logo" style="
+                width:42px; height:42px; border-radius:12px;
+                background: radial-gradient(circle at 25% 0, #67e8f9 0, #4f8dff 40%, #181f3a 100%);
+                display:flex; align-items:center; justify-content:center;
+                font-weight:700; color:#020617; font-size:20px;
+                box-shadow: 0 0 20px rgba(79, 141, 255, 0.2);
+            ">B</div>
+            <div>
+                <div style="font-size:18px; font-weight:700; letter-spacing:-0.5px;">Botlab Tools</div>
+                
+                <!-- PAKET BİLGİSİ GÖSTERİMİ -->
+                {% if session.get('user_tier') %}
+                    {% if session['user_tier'] == 'starter' %}
+                        <div style="font-size:11px; color:#facc15; font-weight:600; border:1px solid #facc15; display:inline-block; padding:0 6px; border-radius:4px;">BAŞLANGIÇ PAKET</div>
+                    {% elif session['user_tier'] == 'pro' %}
+                         <div style="font-size:11px; color:#67e8f9; font-weight:600; border:1px solid #67e8f9; display:inline-block; padding:0 6px; border-radius:4px;">PRO PAKET</div>
+                    {% elif session['user_tier'] == 'unlimited' %}
+                         <div style="font-size:11px; color:#c084fc; font-weight:600; border:1px solid #c084fc; display:inline-block; padding:0 6px; border-radius:4px;">SINIRSIZ PAKET</div>
+                    {% endif %}
+                {% else %}
+                    <div style="font-size:11px; color:var(--text-muted);">PDF • Görsel • Vektör</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+            {% if session.get('user_email') %}
+                <span class="hidden md:inline text-xs text-gray-400">Hoş geldin</span>
+                <button onclick="window.location.href='/user_logout'" class="btn btn-ghost text-xs">Çıkış</button>
+            {% else %}
+                <button class="btn btn-ghost" onclick="openUserLogin()">Giriş Yap</button>
+            {% endif %}
+            
+            <button class="btn btn-premium" onclick="openPremium()">Premium Satın Al</button>
+        </div>
+
+    </div>
+</header>
+
+<!-- WHATSAPP BUTTON -->
+<div class="whatsapp-btn"
+     onclick="window.open('https://wa.me/905335620807?text=Merhaba%2C+Paketimi+yukseltmek+istiyorum.', '_blank')">💬
+</div>
+
+
+<!-- ========================================================= -->
+<!-- ANA SAYFA İÇERİĞİ -->
+<!-- ========================================================= -->
+<div class="page-shell animate-fade-in">
+
+<!-- ====================== HERO ========================== -->
+<section class="hero" style="
+    display:grid;
+    grid-template-columns:minmax(0,3fr) minmax(0,2.6fr);
+    gap:22px;
+    margin-bottom:40px;
+">
+
+    <!-- HERO SOL -->
+    <div style="
+        background: radial-gradient(circle at top left, rgba(79,141,255,0.16) 0, transparent 55%),
+                    linear-gradient(135deg, rgba(15,23,42,0.96), rgba(10,14,30,0.96));
+        border-radius:24px;
+        padding:32px;
+        border:1px solid rgba(255,255,255,0.06);
+        box-shadow:0 22px 45px rgba(0,0,0,0.45);
+        display:flex; flex-direction:column; justify-content:center;
+    ">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+            <span style="
+                font-size:11px; padding:4px 12px; border-radius:999px;
+                background:rgba(22,163,74,0.14); color:#4ade80;
+                border:1px solid rgba(34,197,94,0.5); font-weight:600;
+            ">V2.0 Yayında</span>
+        </div>
+
+        <h1 style="font-size:32px; line-height:1.2; font-weight:800; margin-bottom:16px; letter-spacing:-1px;">
+            Tüm Dijital İşleriniz<br>
+            <span style="
+                background:linear-gradient(120deg,#4f8dff,#67e8f9);
+                -webkit-background-clip:text;
+                color:transparent;
+            ">Tek Bir Panelde.</span>
+        </h1>
+
+        <p style="font-size:15px; color:var(--text-muted); max-width:480px; margin-bottom:24px; line-height:1.6;">
+            Dosyaları indirip farklı sitelere yüklemekle uğraşmayın. Botlab Tools ile
+            PDF, görsel ve vektör işlerinizi tek ekranda, saniyeler içinde halledin.
+        </p>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button class="btn-primary btn" onclick="window.location.href='/remove-bg'" style="padding:12px 24px; font-size:14px; font-weight:600;">
+                Hemen Başla
+            </button>
+            <button class="btn-ghost btn" onclick="window.location.hash='#vector-tools'" style="padding:12px 24px; font-size:14px;">
+                Araçları Keşfet
+            </button>
+        </div>
+    </div>
+
+    <!-- HERO SAĞ (KATEGORİLER) -->
+    <aside style="
+        border-radius:24px;
+        background:linear-gradient(145deg, rgba(15,23,42,0.98), #020617);
+        border:1px solid rgba(255,255,255,0.05);
+        padding:24px;
+        box-shadow:0 22px 45px rgba(0,0,0,0.45);
+        display:flex; flex-direction:column; gap:16px;
+    ">
+        <h3 style="font-size:14px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Hızlı Erişim</h3>
+
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px;">
+            <div onclick="window.location.href='/remove-bg'" style="
+                border-radius:16px; background:var(--bg-card);
+                border:1px solid rgba(255,255,255,0.06); padding:16px; cursor:pointer;
+                transition:all 0.2s;
+            " onmouseover="this.style.background='var(--bg-card-soft)'" onmouseout="this.style.background='var(--bg-card)'">
+                <h4 style="font-size:13px; margin-bottom:4px;">🖼️ Arka Plan Sil</h4>
+                <p style="font-size:11px; color:var(--text-muted);">Saniyeler içinde temizle.</p>
+            </div>
+
+            <div onclick="window.location.href='/pdf/merge'" style="
+                border-radius:16px; background:var(--bg-card);
+                border:1px solid rgba(255,255,255,0.06); padding:16px; cursor:pointer;
+                transition:all 0.2s;
+            " onmouseover="this.style.background='var(--bg-card-soft)'" onmouseout="this.style.background='var(--bg-card)'">
+                <h4 style="font-size:13px; margin-bottom:4px;">📎 PDF Birleştir</h4>
+                <p style="font-size:11px; color:var(--text-muted);">Dosyaları bir araya getir.</p>
+            </div>
+            
+            <div onclick="window.location.href='/image/compress'" style="
+                border-radius:16px; background:var(--bg-card);
+                border:1px solid rgba(255,255,255,0.06); padding:16px; cursor:pointer;
+                transition:all 0.2s;
+            " onmouseover="this.style.background='var(--bg-card-soft)'" onmouseout="this.style.background='var(--bg-card)'">
+                <h4 style="font-size:13px; margin-bottom:4px;">🗜️ Görsel Sıkıştır</h4>
+                <p style="font-size:11px; color:var(--text-muted);">Kaliteyi bozmadan küçült.</p>
+            </div>
+
+            <div onclick="window.location.href='/vektor'" style="
+                border-radius:16px; background:var(--bg-card);
+                border:1px solid rgba(255,255,255,0.06); padding:16px; cursor:pointer;
+                transition:all 0.2s;
+            " onmouseover="this.style.background='var(--bg-card-soft)'" onmouseout="this.style.background='var(--bg-card)'">
+                <h4 style="font-size:13px; margin-bottom:4px;">🎨 Vektör Yap</h4>
+                <p style="font-size:11px; color:var(--text-muted);">AI ile vektöre çevir.</p>
+            </div>
+        </div>
+    </aside>
+</section>
+
+<!-- 
+    JINJA2 TIER LOGIC 
+    Kullanıcının paketine göre (free, starter, pro, unlimited) kısıtlamaları belirle.
+-->
+{% set tier = session.get('user_tier', 'free') %}
+
+<!-- ========================================================= -->
+<!-- GÖRSEL ARAÇLAR -->
+<!-- ========================================================= -->
+<section id="image-tools" style="margin-bottom:40px;">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+        <span style="width:4px; height:20px; background:#4f8dff; border-radius:4px;"></span>
+        Görsel Araçlar
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+
+        <!-- ARKA PLAN SİLİCİ (HERKESE AÇIK) -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-blue-500/30">
+            <div class="mb-4 w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">Arka Plan Silici</h4>
+            <p class="text-xs text-gray-400 mb-4">AI ile arka planı saniyeler içinde şeffaf yapın.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-green-500/10 text-green-400 px-2 py-1 rounded">Aktif</span>
+                 <span onclick="window.location.href='/remove-bg'" class="text-blue-400 text-xs font-bold cursor-pointer hover:underline">Kullan →</span>
+            </div>
+        </article>
+
+        <!-- GÖRSEL SIKIŞTIR (HERKESE AÇIK) -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-blue-500/30">
+            <div class="mb-4 w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">Görsel Sıkıştır</h4>
+            <p class="text-xs text-gray-400 mb-4">Kaliteden ödün vermeden boyutu küçültün.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-gray-700/50 text-gray-400 px-2 py-1 rounded">Yakında</span>
+            </div>
+        </article>
+
+    </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- PDF ARAÇLARI -->
+<!-- ========================================================= -->
+<section id="pdf-tools" style="margin-bottom:40px;">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+        <span style="width:4px; height:20px; background:#ef4444; border-radius:4px;"></span>
+        PDF Araçları
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+
+        <!-- PDF BİRLEŞTİR (BAŞLANGIÇ DAHİL AÇIK) -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-red-500/30">
+            <div class="mb-4 w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">PDF Birleştir</h4>
+            <p class="text-xs text-gray-400 mb-4">Dosyaları tek PDF yapın.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded">Aktif</span>
+                 <span onclick="window.location.href='/pdf/merge'" class="text-red-400 text-xs font-bold cursor-pointer hover:underline">Kullan →</span>
+            </div>
+        </article>
+
+        <!-- PDF BÖL (BAŞLANGIÇ İÇİN KİLİTLİ) -->
+        <!-- Logic: Eğer tier 'starter' ise bu kart kilitli görünür ve overlay çıkar -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-red-500/30 
+                        {% if tier == 'starter' %}locked-card{% endif %}"
+                 onclick="{% if tier == 'starter' %}openPremium(){% else %}window.location.href='/pdf/split'{% endif %}">
+            
+            {% if tier == 'starter' %}
+            <div class="locked-overlay">
+                <div class="upgrade-badge">⚡ PRO GEREKİR</div>
+                <button onclick="openPremium()" class="btn btn-premium" style="font-size:11px; padding:6px 12px; pointer-events:auto;">Paketi Yükselt</button>
+            </div>
+            {% endif %}
+            
+            <div class="mb-4 w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">PDF Böl</h4>
+            <p class="text-xs text-gray-400 mb-4">Sayfaları ayıklayın.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-gray-700/50 text-gray-400 px-2 py-1 rounded">Yakında</span>
+            </div>
+        </article>
+
+        <!-- PDF SIKIŞTIR (BAŞLANGIÇ İÇİN KİLİTLİ) -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-red-500/30
+                        {% if tier == 'starter' %}locked-card{% endif %}"
+                 onclick="{% if tier == 'starter' %}openPremium(){% else %}window.location.href='/pdf/compress'{% endif %}">
+            
+            {% if tier == 'starter' %}
+            <div class="locked-overlay">
+                <div class="upgrade-badge">⚡ PRO GEREKİR</div>
+                <button onclick="openPremium()" class="btn btn-premium" style="font-size:11px; padding:6px 12px; pointer-events:auto;">Paketi Yükselt</button>
+            </div>
+            {% endif %}
+            
+            <div class="mb-4 w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">PDF Sıkıştır</h4>
+            <p class="text-xs text-gray-400 mb-4">Dosya boyutunu %80 düşürün.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-gray-700/50 text-gray-400 px-2 py-1 rounded">Yakında</span>
+            </div>
+        </article>
+
+    </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- VEKTÖR ARAÇLARI (SADECE PRO VE UNLIMITED) -->
+<!-- ========================================================= -->
+<section id="vector-tools" style="margin-bottom:60px;">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+        <span style="width:4px; height:20px; background:#c084fc; border-radius:4px;"></span>
+        Akıllı Vektörleştirici
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+
+        <!-- VECTOR (BAŞLANGIÇ İÇİN KİLİTLİ) -->
+        <article class="tool-card rounded-2xl p-5 border border-white/5 relative group cursor-pointer hover:border-purple-500/30
+                        {% if tier == 'starter' %}locked-card{% endif %}"
+                 onclick="{% if tier == 'starter' %}openPremium(){% else %}window.location.href='/vektor'{% endif %}">
+            
+            {% if tier == 'starter' %}
+            <div class="locked-overlay">
+                <div class="upgrade-badge">🔥 SINIRSIZ PAKET</div>
+                <button onclick="openPremium()" class="btn btn-premium" style="font-size:11px; padding:6px 12px; pointer-events:auto;">Paketi Yükselt</button>
+            </div>
+            {% endif %}
+            
+            <div class="mb-4 w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg>
+            </div>
+            <h4 class="font-bold mb-1">Akıllı Vektör</h4>
+            <p class="text-xs text-gray-400 mb-4">Görselleri vektöre çevir.</p>
+            <div class="flex justify-between items-center">
+                 <span class="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded">Aktif</span>
+                 <span class="text-purple-400 text-xs font-bold cursor-pointer hover:underline">Kullan →</span>
+            </div>
+        </article>
+
+    </div>
+</section>
+
+</div> <!-- page-shell end -->
+
+<!-- ========================================================= -->
+<!-- FOOTER -->
+<!-- ========================================================= -->
+<footer style="
+    margin-top:auto; padding:30px 0;
+    background:rgba(2,6,23,0.95);
+    border-top:1px solid rgba(255,255,255,0.05);
+">
+    <div class="footer-inner" style="
+        max-width:1180px; margin:0 auto; padding:0 16px;
+        display:flex; justify-content:space-between; align-items:center;
+        color:#64748b; font-size:13px;
+    ">
+        <span>© 2025 Botlab Teknoloji — Yapay Zeka Destekli Dosya Araçları</span>
+        <div style="display:flex; gap:16px;">
+             <a href="#" class="hover:text-white transition">Gizlilik</a>
+             <a href="#" class="hover:text-white transition">Şartlar</a>
+             <a href="#" class="hover:text-white transition">İletişim</a>
+        </div>
+    </div>
+</footer>
+
+<!-- PREMIUM MODAL -->
+<div id="premium-popup" style="
+    position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px);
+    display:none; justify-content:center; align-items:center; z-index:99999;
+">
+    <div style="
+        width:90%; max-width:400px; background:#0f172a; padding:32px;
+        border-radius:24px; border:1px solid rgba(245,158,11,0.3);
+        box-shadow: 0 0 50px rgba(245,158,11,0.1); text-align:center;
+    ">
+        <div style="
+            width:64px; height:64px; background:linear-gradient(135deg, #fbbf24, #d97706);
+            border-radius:16px; margin:0 auto 20px; display:flex; align-items:center; justify-content:center;
+            box-shadow: 0 10px 30px rgba(245,158,11,0.3);
+        ">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </div>
+
+        <h3 style="font-size:24px; font-weight:800; color:white; margin-bottom:8px;">Paket Yükseltin</h3>
+        <p style="color:#94a3b8; font-size:14px; margin-bottom:24px; line-height:1.6;">
+            Bu özelliğe erişmek için paketiniz yetersiz. <br>
+            <span style="color:#fbbf24;">PRO</span> veya <span style="color:#c084fc;">SINIRSIZ</span> pakete geçerek tüm araçları açın.
+        </p>
+
+        <button onclick="window.open('https://wa.me/905335620807?text=Paket+yukseltmek+istiyorum', '_blank')" 
+                style="width:100%; padding:14px; border-radius:12px; font-weight:700; background:white; color:black; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-8.68-2.031-.967-.272-.297-.471-.446-.744-.446-.272 0-.57.025-.867.074-.297.05-1.138.421-1.732 1.016-.594.594-1.138 1.435-1.138 3.486 0 2.05 1.485 4.031 1.683 4.279.198.248 2.946 4.501 7.136 6.31 2.898 1.251 3.488 1.002 4.107.942.619-.06 1.758-.718 2.006-1.411.248-.694.248-1.289.173-1.413z"/></svg>
+            WhatsApp ile Yükselt
+        </button>
+
+        <button onclick="document.getElementById('premium-popup').style.display='none'" style="margin-top:16px; background:none; border:none; color:#64748b; font-size:12px; cursor:pointer;">
+            Hayır, teşekkürler
+        </button>
+    </div>
+</div>
+
 </body>
 </html>
