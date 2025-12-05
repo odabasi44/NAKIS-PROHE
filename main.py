@@ -18,27 +18,41 @@ app.secret_key = "BOTLAB_SECRET_123"
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
-# --- AYARLAR SİSTEMİ ---
+# --- AYARLAR SİSTEMİ (GÜNCELLENMİŞ) ---
 def load_settings():
     # Varsayılan Paket ve Limit Ayarları
     default_settings = {
         "admin": {"email": "admin@botlab.com", "password": "admin"},
         "limits": {
-            # Günlük İşlem Limitleri (Adet)
-            "pdf": {
-                "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999}
-            },
+            # GÖRSEL ARAÇLAR
             "image": {
-                "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 9999}
+                "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 9999},
+                "compress": {"free": 5, "starter": 50, "pro": 500, "unlimited": 9999},
+                "convert": {"free": 5, "starter": 50, "pro": 500, "unlimited": 9999}
             },
+            # PDF ARAÇLARI
+            "pdf": {
+                "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
+                "split": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
+                "compress": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
+                "word2pdf": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999}
+            },
+            # VEKTÖR & AI
             "vector": {
                 "default": {"free": 0, "starter": 5, "pro": 50, "unlimited": 9999}
+            },
+            # YENİ ÜRETİCİLER (İndirme Limiti)
+            # Free pakete '0' vererek indirmeyi engelleyeceğiz ama sayfayı açacağız.
+            "generator": {
+                "qr": {"free": 0, "starter": 10, "pro": 100, "unlimited": 9999},
+                "logo": {"free": 0, "starter": 5, "pro": 50, "unlimited": 9999}
             },
             # Dosya Boyutu Limitleri (MB)
             "file_size": {
                 "free": 5, "starter": 10, "pro": 50, "unlimited": 100
             }
         },
+        "packages": {}, # Paket tanımları (daha önce eklediklerimiz korunur)
         "site": {},
         "tool_status": {}
     }
@@ -51,11 +65,21 @@ def load_settings():
             data = json.load(f)
             # Eksik alanları varsayılanlarla doldur (migration)
             if "limits" not in data: data["limits"] = default_settings["limits"]
-            if "file_size" not in data["limits"]: data["limits"]["file_size"] = default_settings["limits"]["file_size"]
+            
+            # Yeni eklenen araçları kontrol et ve eksikse ekle
+            defaults = default_settings["limits"]
+            for main_cat, tools in defaults.items():
+                if main_cat not in data["limits"]:
+                    data["limits"][main_cat] = tools
+                else:
+                    if isinstance(tools, dict):
+                        for tool, limits in tools.items():
+                            if tool not in data["limits"][main_cat]:
+                                data["limits"][main_cat][tool] = limits
+            
             return data
     except:
         return default_settings
-
 def save_settings(data):
     with open("settings.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
@@ -588,6 +612,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
