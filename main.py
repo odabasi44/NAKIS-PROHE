@@ -300,7 +300,10 @@ def api_pdf_merge():
 
 # --- SAYFALAR & AUTH ---
 @app.route("/")
-def home(): return render_template("index.html")
+def home():
+    # settings.json'u okuyup index.html'e gönderiyoruz
+    settings = load_settings()
+    return render_template("index.html", settings=settings)
 @app.route("/remove-bg")
 def remove_bg_page(): return render_template("background_remove.html")
 @app.route("/pdf/merge")
@@ -398,3 +401,4 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
