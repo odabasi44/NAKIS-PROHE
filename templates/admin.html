@@ -53,7 +53,7 @@
             <thead class="text-xs text-gray-200 uppercase bg-[#080b16] border-b border-white/5">
                 <tr>
                     <th scope="col" class="px-6 py-3">E-posta</th>
-                    <th scope="col" class="px-6 py-3">Kullanım (Adet)</th>
+                    <th scope="col" class="px-6 py-3">Paket</th>
                     <th scope="col" class="px-6 py-3">Bitiş Tarihi</th>
                     <th scope="col" class="px-6 py-3 text-right">İşlem</th>
                 </tr>
@@ -67,14 +67,49 @@
 </div>
 
 <!-- ========================================================= -->
-<!-- 3. ARAÇ YÖNETİMİ SEKMESİ -->
+<!-- 3. ARAÇ YÖNETİMİ (LİMİT AYARLARI) -->
 <!-- ========================================================= -->
-<div id="tab-tools" class="hidden space-y-6">
-    <h2 class="text-xl font-bold text-white mb-4">Araç Bakım ve Limit Ayarları</h2>
+<div id="tab-tools" class="hidden space-y-8">
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white">Paket ve Limit Ayarları</h2>
+        <button onclick="saveLimits()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-green-900/20">
+            Ayarları Kaydet
+        </button>
+    </div>
+    
+    <!-- Dosya Boyutu Limitleri -->
+    <div class="card p-6 border border-blue-500/20 bg-blue-500/5">
+        <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            Maksimum Dosya Boyutu (MB)
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="text-xs text-gray-400 block mb-1">Ücretsiz</label><input type="number" id="limit-size-free" class="input-dark w-full"></div>
+            <div><label class="text-xs text-yellow-500 block mb-1">Başlangıç</label><input type="number" id="limit-size-starter" class="input-dark w-full"></div>
+            <div><label class="text-xs text-cyan-400 block mb-1">Pro</label><input type="number" id="limit-size-pro" class="input-dark w-full"></div>
+            <div><label class="text-xs text-purple-400 block mb-1">Sınırsız</label><input type="number" id="limit-size-unlimited" class="input-dark w-full"></div>
+        </div>
+    </div>
+
+    <!-- Arka Plan Silici Limitleri -->
     <div class="card p-6">
-        <p class="text-gray-400 mb-4">Şu an için araç ayarları config dosyasından yönetilmektedir. Arayüz entegrasyonu sonraki aşamada eklenecektir.</p>
-        <div class="p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg text-yellow-200 text-sm">
-            ⚠️ Bakım modunu aktif etmek için <code>settings.json</code> dosyasını düzenleyin.
+        <h3 class="text-lg font-bold text-white mb-4">Arka Plan Silici (Günlük İşlem Limiti)</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="text-xs text-gray-400 block mb-1">Ücretsiz</label><input type="number" id="limit-bg-free" class="input-dark w-full"></div>
+            <div><label class="text-xs text-yellow-500 block mb-1">Başlangıç</label><input type="number" id="limit-bg-starter" class="input-dark w-full"></div>
+            <div><label class="text-xs text-cyan-400 block mb-1">Pro</label><input type="number" id="limit-bg-pro" class="input-dark w-full"></div>
+            <div><label class="text-xs text-purple-400 block mb-1">Sınırsız</label><input type="number" id="limit-bg-unlimited" class="input-dark w-full"></div>
+        </div>
+    </div>
+
+    <!-- PDF Birleştirme Limitleri -->
+    <div class="card p-6">
+        <h3 class="text-lg font-bold text-white mb-4">PDF Birleştirme (Günlük İşlem Limiti)</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="text-xs text-gray-400 block mb-1">Ücretsiz</label><input type="number" id="limit-pdf-free" class="input-dark w-full"></div>
+            <div><label class="text-xs text-yellow-500 block mb-1">Başlangıç</label><input type="number" id="limit-pdf-starter" class="input-dark w-full"></div>
+            <div><label class="text-xs text-cyan-400 block mb-1">Pro</label><input type="number" id="limit-pdf-pro" class="input-dark w-full"></div>
+            <div><label class="text-xs text-purple-400 block mb-1">Sınırsız</label><input type="number" id="limit-pdf-unlimited" class="input-dark w-full"></div>
         </div>
     </div>
 </div>
@@ -112,8 +147,15 @@
             <label class="block text-sm text-gray-400 mb-1">E-posta</label>
             <input type="email" id="new-user-email" placeholder="kullanici@mail.com" class="input-dark w-full text-sm mb-4" required>
 
+            <label class="block text-sm text-gray-400 mb-1">Paket Seçimi</label>
+            <select id="new-user-tier" class="input-dark w-full text-sm mb-4 bg-[#02040a] text-white border border-white/10 rounded px-3 py-2">
+                <option value="starter">Başlangıç Paket</option>
+                <option value="pro">Pro Paket</option>
+                <option value="unlimited">Sınırsız Paket</option>
+            </select>
+
             <label class="block text-sm text-gray-400 mb-1">Bitiş Tarihi (YYYY-MM-DD)</label>
-            <input type="text" id="new-user-end-date" placeholder="Örn: 2026-12-31" class="input-dark w-full text-sm mb-6" required>
+            <input type="date" id="new-user-end-date" class="input-dark w-full text-sm mb-6" required>
             
             <p id="addUserMessage" class="text-sm text-green-400 mb-3 hidden"></p>
 
@@ -136,16 +178,11 @@
             const users = await res.json();
             
             const totalUsers = users.length;
-            // end_date kontrolü (güvenli tarih ayrıştırma)
-            const activePremium = users.filter(u => {
-                if(!u.end_date) return false;
-                return new Date(u.end_date) >= new Date();
-            }).length;
+            const activePremium = users.filter(u => new Date(u.end_date) >= new Date()).length;
             
             document.getElementById('stat-total-users').textContent = totalUsers;
             document.getElementById('stat-active-premium').textContent = activePremium;
             
-            // Toplam kullanım hesapla (güvenli erişim)
             const totalImages = users.reduce((acc, user) => {
                 const stats = user.usage_stats || {};
                 return acc + (stats.remove_bg || 0);
@@ -153,9 +190,7 @@
             
             document.getElementById('stat-total-images').textContent = totalImages;
 
-        } catch(e) {
-            console.error("Dashboard verileri çekilemedi:", e);
-        }
+        } catch(e) { console.error("Dashboard verileri çekilemedi:", e); }
     }
 
     // KULLANICI LİSTESİNİ ÇEK VE TABLOYA YAZ
@@ -178,9 +213,11 @@
                 const statusClass = isActive ? 'text-green-400' : 'text-red-400';
                 const statusText = isActive ? 'Aktif' : 'Süresi Dolmuş';
                 
-                // İstatistikleri güvenli al
-                const stats = user.usage_stats || {};
-                const usageTotal = (stats.remove_bg || 0) + (stats.pdf_merge || 0);
+                // Tier renkleri
+                let tierColor = 'bg-gray-700 text-gray-300';
+                if (user.tier === 'starter') tierColor = 'bg-yellow-500/20 text-yellow-500';
+                if (user.tier === 'pro') tierColor = 'bg-cyan-500/20 text-cyan-400';
+                if (user.tier === 'unlimited') tierColor = 'bg-purple-500/20 text-purple-400';
 
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
@@ -188,7 +225,7 @@
                             ${user.email}
                         </th>
                         <td class="px-6 py-4">
-                            ${usageTotal}
+                             <span class="${tierColor} px-2 py-1 rounded text-xs font-bold uppercase">${user.tier || 'starter'}</span>
                         </td>
                         <td class="px-6 py-4 ${statusClass}">
                             ${user.end_date} <span class="text-xs">(${statusText})</span>
@@ -201,7 +238,6 @@
             }).join('');
         } catch(e) {
             tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-red-400">Sunucu bağlantı hatası.</td></tr>';
-            console.error("Kullanıcı listesi hatası:", e);
         }
     }
 
@@ -209,6 +245,7 @@
     async function handleAddUser() {
         const email = document.getElementById('new-user-email').value;
         const endDate = document.getElementById('new-user-end-date').value;
+        const tier = document.getElementById('new-user-tier').value;
         const msgEl = document.getElementById('addUserMessage');
         
         msgEl.classList.add('hidden');
@@ -218,7 +255,7 @@
             const res = await fetch("/api/admin/add_user", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, end_date: endDate })
+                body: JSON.stringify({ email: email, end_date: endDate, tier: tier })
             });
 
             const data = await res.json();
@@ -227,7 +264,7 @@
                 msgEl.textContent = data.message;
                 msgEl.classList.add('text-green-400');
                 document.getElementById('addUserForm').reset();
-                fetchUsers(); // Listeyi yenile
+                fetchUsers(); 
                 setTimeout(() => closeModal('addUserModal'), 1500);
             } else {
                 msgEl.textContent = data.message || "Hata oluştu.";
@@ -247,7 +284,7 @@
         try {
             const res = await fetch(`/api/admin/delete_user/${email}`, { method: "DELETE" });
             if (res.ok) {
-                fetchUsers(); // Listeyi yenile
+                fetchUsers(); 
             } else {
                 alert("Silme başarısız.");
             }
@@ -255,6 +292,104 @@
             alert("Sunucu hatası.");
         }
     }
+
+    // LİMİT AYARLARINI ÇEK VE DOLDUR (TAB AÇILINCA)
+    async function fetchSettingsAndFillInputs() {
+        try {
+            const res = await fetch("/get_settings");
+            const data = await res.json();
+            const l = data.limits;
+
+            // Güvenli erişim için yardımcı fonksiyon
+            const getVal = (obj, path, def) => path.split('.').reduce((o, p) => (o ? o[p] : def), obj) || def;
+
+            // Dosya Boyutu
+            document.getElementById('limit-size-free').value = getVal(l, 'file_size.free', 5);
+            document.getElementById('limit-size-starter').value = getVal(l, 'file_size.starter', 10);
+            document.getElementById('limit-size-pro').value = getVal(l, 'file_size.pro', 50);
+            document.getElementById('limit-size-unlimited').value = getVal(l, 'file_size.unlimited', 100);
+
+            // BG Remove
+            document.getElementById('limit-bg-free').value = getVal(l, 'image.remove_bg.free', 2);
+            document.getElementById('limit-bg-starter').value = getVal(l, 'image.remove_bg.starter', 20);
+            document.getElementById('limit-bg-pro').value = getVal(l, 'image.remove_bg.pro', 200);
+            document.getElementById('limit-bg-unlimited').value = getVal(l, 'image.remove_bg.unlimited', 9999);
+
+            // PDF Merge
+            document.getElementById('limit-pdf-free').value = getVal(l, 'pdf.merge.free', 2);
+            document.getElementById('limit-pdf-starter').value = getVal(l, 'pdf.merge.starter', 10);
+            document.getElementById('limit-pdf-pro').value = getVal(l, 'pdf.merge.pro', 50);
+            document.getElementById('limit-pdf-unlimited').value = getVal(l, 'pdf.merge.unlimited', 9999);
+
+        } catch(e) { console.error(e); }
+    }
+
+    // LİMİTLERİ KAYDET
+    async function saveLimits() {
+        const limits = {
+            file_size: {
+                free: parseInt(document.getElementById('limit-size-free').value),
+                starter: parseInt(document.getElementById('limit-size-starter').value),
+                pro: parseInt(document.getElementById('limit-size-pro').value),
+                unlimited: parseInt(document.getElementById('limit-size-unlimited').value)
+            },
+            image: {
+                remove_bg: {
+                    free: parseInt(document.getElementById('limit-bg-free').value),
+                    starter: parseInt(document.getElementById('limit-bg-starter').value),
+                    pro: parseInt(document.getElementById('limit-bg-pro').value),
+                    unlimited: parseInt(document.getElementById('limit-bg-unlimited').value)
+                }
+            },
+            pdf: {
+                merge: {
+                    free: parseInt(document.getElementById('limit-pdf-free').value),
+                    starter: parseInt(document.getElementById('limit-pdf-starter').value),
+                    pro: parseInt(document.getElementById('limit-pdf-pro').value),
+                    unlimited: parseInt(document.getElementById('limit-pdf-unlimited').value)
+                }
+            },
+            vector: { default: {free: 0, starter: 0, pro: 10, unlimited: 9999} }
+        };
+
+        const res = await fetch("/api/admin/save_limits", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limits: limits })
+        });
+        
+        if(res.ok) alert("Ayarlar başarıyla kaydedildi!");
+        else alert("Hata oluştu.");
+    }
+
+    // LAYOUT'TAN ÇAĞRILACAK FONKSİYONLAR (Global Scope'a ekle)
+    window.fetchUsers = fetchUsers;
+    window.fetchDashboardData = fetchDashboardData;
+    window.handleAddUser = handleAddUser;
+    window.handleDeleteUser = handleDeleteUser;
+    window.saveLimits = saveLimits;
+    
+    // Tools sekmesine tıklandığında verileri çek (Event Listener mantığı)
+    // Bu kısım admin_layout.html'deki showTab içinde halledilmeli
+    // Ancak burada da manuel bir hook ekleyebiliriz.
+    const originalShowTab = window.showTab; 
+    window.showTab = function(tabName) {
+        // Layout'taki fonksiyonu çağır (eğer varsa, yoksa layout güncellenmeli)
+        // Basit çözüm: Eğer tab 'tools' ise fetchSettings çağır
+        if (tabName === 'tools') fetchSettingsAndFillInputs();
+        
+        // Layout'taki dom manipülasyonu (Layout'u güncellemediysek buraya ekleyelim)
+        document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+        const tabElement = document.getElementById('tab-' + tabName);
+        if(tabElement) tabElement.classList.remove('hidden');
+        const navElement = document.getElementById('nav-' + tabName);
+        if(navElement) navElement.classList.add('active');
+        
+        if(tabName === 'dashboard') fetchDashboardData();
+        if(tabName === 'users') fetchUsers();
+    }
+
 </script>
 
 {% endblock admin_content %}
