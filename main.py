@@ -18,10 +18,29 @@ app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
 # --- AYARLAR ---
 def load_settings():
+    # Varsayılan sağlam ayarlar
+    default_settings = {
+        "admin": {"email": "admin@botlab.com", "password": "admin"},
+        "limits": {
+            "pdf": {"merge": {"free": 3, "premium": 100}},
+            "image": {"remove_bg": {"free": 3, "premium": 1000}},
+            "vector": {"default": {"free": 1, "premium": 50}}
+        },
+        "site": {},
+        "tool_status": {}
+    }
+    
     if not os.path.exists("settings.json"):
-        return {"admin": {"email": "admin@botlab.com", "password": "admin"}, "limits": {"pdf": {}, "image": {}, "vector": {}}, "site": {}, "tool_status": {}}
-    with open("settings.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+        return default_settings
+        
+    try:
+        with open("settings.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Eğer dosyada limitler eksikse varsayılanları kullan
+            if "limits" not in data: data["limits"] = default_settings["limits"]
+            return data
+    except:
+        return default_settings
 
 def save_settings(data):
     with open("settings.json", "w", encoding="utf-8") as f:
@@ -74,17 +93,18 @@ def check_user_status(email, tool, subtool):
     premium_user = None
     
     # Premium Kullanıcı Kontrolü
-    for u in users:
-        if u.get("email", "").lower() == email.lower():
-            end_date_str = u.get("end_date")
-            try:
-                if end_date_str and datetime.strptime(end_date_str, "%Y-%m-%d") >= datetime.now():
-                    premium_user = u
-            except: pass
-            break
+    if email != "guest":
+        for u in users:
+            if u.get("email", "").lower() == email.lower():
+                end_date_str = u.get("end_date")
+                try:
+                    if end_date_str and datetime.strptime(end_date_str, "%Y-%m-%d") >= datetime.now():
+                        premium_user = u
+                except: pass
+                break
     
     tool_limits = settings.get("limits", {}).get(tool, {})
-    limits = tool_limits.get(subtool, {})
+    limits = tool_limits.get(subtool, {"free": 3, "premium": 1000}) # Varsayılan değerler
     tool_status = settings.get("tool_status", {}).get(subtool, {})
     
     # Bakım Modu
@@ -107,10 +127,15 @@ def check_user_status(email, tool, subtool):
          return {"allowed": False, "reason": "premium_only", "left": 0, "premium": False}
 
     # Ücretsiz (Misafir) Limit Mantığı
-    free_limit = limits.get("free", 0)
+    free_limit = limits.get("free", 3)
     
-    if "free_usage" not in session: session["free_usage"] = {}
-    if tool not in session["free_usage"]: session["free_usage"][tool] = {}
+    if "free_usage" not in session: 
+        session["free_usage"] = {}
+        session.modified = True # Değişikliği kaydet
+        
+    if tool not in session["free_usage"]: 
+        session["free_usage"][tool] = {}
+        session.modified = True # Değişikliği kaydet
     
     usage = session["free_usage"][tool].get(subtool, 0)
     left = free_limit - usage
@@ -124,18 +149,27 @@ def increase_usage(email, tool, subtool):
     users = load_premium_users()
     
     # Premium ise DB'ye kaydet
-    for u in users:
-        if u.get("email", "").lower() == email.lower():
-            if "usage_stats" not in u: u["usage_stats"] = {}
-            u["usage_stats"][subtool] = u["usage_stats"].get(subtool, 0) + 1
-            u["usage"] = u.get("usage", 0) + 1
-            save_premium_users(users)
-            return
+    if email != "guest":
+        for u in users:
+            if u.get("email", "").lower() == email.lower():
+                if "usage_stats" not in u: u["usage_stats"] = {}
+                u["usage_stats"][subtool] = u["usage_stats"].get(subtool, 0) + 1
+                u["usage"] = u.get("usage", 0) + 1
+                save_premium_users(users)
+                return
 
-    # Değilse Session'a kaydet
+    # Değilse Session'a kaydet (KRİTİK DÜZELTME BURADA)
     if "free_usage" not in session: session["free_usage"] = {}
-    if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-    session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
+    
+    if tool not in session["free_usage"]: 
+        session["free_usage"][tool] = {}
+    
+    # Kullanımı artır
+    current_usage = session["free_usage"][tool].get(subtool, 0)
+    session["free_usage"][tool][subtool] = current_usage + 1
+    
+    # [ÖNEMLİ] Flask'a oturumun değiştiğini açıkça belirtmeliyiz, yoksa kaydetmez!
+    session.modified = True
 
 # --- API ENDPOINTLERİ ---
 @app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
@@ -201,16 +235,31 @@ def api_remove_bg():
     if not u2net_session: 
         return jsonify({"success": False, "reason": "AI Modeli Sunucuda Bulunamadı."}), 503
         
-    # Session'dan email al (daha güvenli)
     email = session.get("user_email", "guest")
+    is_premium = session.get("is_premium", False)
     
     status = check_user_status(email, "image", "remove_bg")
     if not status["allowed"]: return jsonify(status), 403
 
     if "image" not in request.files: return jsonify({"success": False, "message": "Resim yok"}), 400
     
+    file = request.files["image"]
+    
+    # Boyut Kontrolü: Premium 50MB, Misafir 5MB
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    limit_mb = 50 if is_premium else 5
+    if file_size > limit_mb * 1024 * 1024:
+         return jsonify({
+            "success": False, 
+            "reason": "file_size_limit", 
+            "message": f"Dosya boyutu çok büyük! Limit: {limit_mb}MB"
+        }), 413
+    
     try:
-        img = Image.open(request.files["image"].stream)
+        img = Image.open(file.stream)
         ow, oh = img.size
         
         # Dinamik input ismini kullanıyoruz
