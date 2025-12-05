@@ -5,16 +5,16 @@
     },
     "limits": {
         "pdf": {
-            "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 99999},
-            "split": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999},
-            "compress": {"free": 0, "starter": 5, "pro": 50, "unlimited": 99999}
+            "merge": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999},
+            "split": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999},
+            "compress": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999}
         },
         "image": {
-            "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999},
-            "compress": {"free": 2, "starter": 20, "pro": 200, "unlimited": 99999}
+            "remove_bg": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999},
+            "compress": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999}
         },
         "vector": {
-            "default": {"free": 0, "starter": 0, "pro": 10, "unlimited": 99999}
+            "default": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999}
         }
     },
     "packages": {
