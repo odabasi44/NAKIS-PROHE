@@ -110,7 +110,6 @@
 </div>
 
 <script>
-    <script>
     let selectedFile = null;
     let userAllowed = false;
 
@@ -160,7 +159,7 @@
         selectedFile = e.target.files[0];
         if(selectedFile) {
             document.getElementById('fileName').innerText = selectedFile.name;
-            // GÜNCELLEME: Burada artık formatBytes fonksiyonunu kullanıyoruz
+            // DÜZELTME: formatBytes fonksiyonunu kullanıyoruz
             document.getElementById('origSize').innerText = formatBytes(selectedFile.size);
         }
     });
@@ -213,6 +212,5 @@
     }
 
     document.addEventListener('DOMContentLoaded', checkLimit);
-</script>
 </script>
 {% endblock content %}
