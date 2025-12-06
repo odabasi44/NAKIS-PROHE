@@ -271,25 +271,39 @@ class VectorEngine:
 
     def enhance_image(self):
         """
-        Karanlık fotoğrafları AI için hazırlar.
-        CLAHE kullanarak kontrastı ve parlaklığı dengeler.
+        GÜÇLENDİRİLMİŞ AYDINLATMA (Stüdyo Işığı Efekti)
+        Karanlık fotoğrafları hem aydınlatır hem de renkleri canlı hale getirir.
         """
-        # 1. Resmi LAB renk uzayına çevir
+        # 1. Otomatik Beyaz Dengesi (Simple White Balance)
+        # Bu işlem, sarı veya karanlık tonları temizler.
+        wb = cv2.xphoto.createSimpleWB()
+        self.img = wb.balanceWhite(self.img)
+
+        # 2. CLAHE (Kontrast Dengeleme) - Lab Renk Uzayında
         lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        
-        # 2. Sadece L (Işık) kanalına CLAHE uygula
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        # ClipLimit'i artırarak (2.0 -> 3.0) kontrastı daha çok açıyoruz
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
-        
-        # 3. Kanalları birleştir ve geri BGR'ye çevir
         limg = cv2.merge((cl, a, b))
         self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
-        # 4. Hafif parlaklık artışı (Gamma Correction)
-        invGamma = 1.0 / 1.2 
+        # 3. Gamma Düzeltmesi (Parlaklık Artırma)
+        # Gamma değerini düşürerek (1.2 -> 1.5) daha fazla ışık veriyoruz.
+        # Bu sayede gölgelerdeki detaylar ortaya çıkar.
+        gamma = 1.5
+        invGamma = 1.0 / gamma
         table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         self.img = cv2.LUT(self.img, table)
+
+        # 4. Hafif Doygunluk (Saturation) Artışı
+        # Renklerin soluk kalmaması için
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        s = cv2.add(s, 30) # Doygunluğu artır
+        v = cv2.add(v, 20) # Parlaklığı biraz daha artır
+        final_hsv = cv2.merge((h, s, v))
+        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
 
     def process_with_ai_model(self):
         """AI Modeli ile Anime/Çizim efekti uygular"""
@@ -702,3 +716,4 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
