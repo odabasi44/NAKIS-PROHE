@@ -312,8 +312,19 @@ class VectorEngine:
         v = cv2.add(v, 20) 
         final_hsv = cv2.merge((h, s, v))
         self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+
+        # 5. YENİ: Yüz Hatlarını ve Detayları Keskinleştir (Sharpening)
+        # Bu işlem dudak ve göz çizgilerini belirginleştirir.
+        kernel = np.array([[0, -1, 0],
+                           [-1, 5,-1],
+                           [0, -1, 0]])
+        self.img = cv2.filter2D(self.img, -1, kernel)
         
-        # 3. Gamma Düzeltmesi (Parlaklık Artırma)
+        # 6. YENİ: Detayları Ortaya Çıkar (Detail Enhancement)
+        # OpenCV'nin özel filtresi ile ince detayları güçlendir.
+        self.img = cv2.detailEnhance(self.img, sigma_s=10, sigma_r=0.15)
+        
+        # 7. Gamma Düzeltmesi (Parlaklık Artırma)
         # Gamma değerini düşürerek (1.2 -> 1.5) daha fazla ışık veriyoruz.
         # Bu sayede gölgelerdeki detaylar ortaya çıkar.
         gamma = 1.5
@@ -745,6 +756,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
