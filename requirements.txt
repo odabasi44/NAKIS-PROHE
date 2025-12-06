@@ -3,7 +3,8 @@ opencv-python-headless==4.8.1.78
 pillow==10.0.0
 numpy==1.24.3
 onnxruntime
-
+pillow-heif
 flask-cors==4.0.0
 PyPDF2==3.0.1
+
 
