@@ -203,6 +203,22 @@ if os.path.exists(gan_path):
 else:
     print(f"DİKKAT: Model dosyası bulunamadı: {gan_path}")
 
+# --- DEBUG BAŞLANGICI (Bunu main.py'de gan_path altına ekleyin) ---
+print("--- MODEL KONTROLÜ BAŞLIYOR ---")
+print(f"Aranan Yol: {gan_path}")
+if os.path.exists(gan_path):
+    print("✅ DOSYA BULUNDU!")
+    print(f"Dosya Boyutu: {os.path.getsize(gan_path)} bytes")
+else:
+    print("❌ DOSYA YOK! Lütfen yolu kontrol edin.")
+    # Alternatif yolları dene (Belki klasör yapısı farklıdır)
+    alt_paths = ["models/face_paint_512_v2.onnx", "source/models/face_paint_512_v2.onnx", "/app/models/face_paint_512_v2.onnx"]
+    for p in alt_paths:
+        if os.path.exists(p):
+            print(f"💡 İPUCU: Dosya burada bulundu: {p}")
+print("--- MODEL KONTROLÜ BİTTİ ---")
+# --- DEBUG BİTİŞİ ---
+
 # 2. U2NET MODELİ (BG Remove)
 u2net_session = None
 u2net_input_name = "input"
@@ -650,5 +666,6 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
