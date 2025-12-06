@@ -279,7 +279,16 @@ class VectorEngine:
         try:
             wb = cv2.xphoto.createSimpleWB()
             self.img = wb.balanceWhite(self.img)
-        except: pass # Modül yoksa devam et
+        exceptAttributeError:
+            # cv2.xphoto yoksa manuel beyaz dengesi yap (Gray World Assumption)
+            result = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
+            avg_a = np.average(result[:, :, 1])
+            avg_b = np.average(result[:, :, 2])
+            result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
+            result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
+            self.img = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
+        except: pass
+
         # 2. CLAHE (Kontrast Dengeleme) - Lab Renk Uzayında
         lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
@@ -717,6 +726,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
