@@ -276,10 +276,10 @@ class VectorEngine:
         """
         # 1. Otomatik Beyaz Dengesi (Simple White Balance)
         # Bu işlem, sarı veya karanlık tonları temizler.
-    try:
-        wb = cv2.xphoto.createSimpleWB()
-        self.img = wb.balanceWhite(self.img)
-    except: pass # Modül yoksa devam et
+        try:
+            wb = cv2.xphoto.createSimpleWB()
+            self.img = wb.balanceWhite(self.img)
+        except: pass # Modül yoksa devam et
         # 2. CLAHE (Kontrast Dengeleme) - Lab Renk Uzayında
         lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
@@ -717,5 +717,6 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
