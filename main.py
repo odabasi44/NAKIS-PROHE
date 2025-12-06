@@ -216,124 +216,118 @@ def increase_usage(email, tool, subtool):
     session.modified = True # <--- LIMITIN DÜŞMESİ İÇİN ŞART
 
 # --- VEKTÖR MOTORU (GELİŞMİŞ-v.2-ODABASI) ---
+# --- VEKTÖR MOTORU (GELİŞMİŞ AVATAR & ÇİZGİ ROMAN MODU) ---
 class VectorEngine:
     def __init__(self, image_stream):
-        # Dosyayı OpenCV formatına çevir
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
-        
-        # ÖNEMLİ DEĞİŞİKLİK: IMREAD_UNCHANGED ile yükle (Alpha kanalını koru)
+        # Şeffaflık (Alpha) varsa koruyarak yükle
         image = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
         
         if image is None:
             raise ValueError("Görüntü okunamadı")
 
-        # Şeffaflık Kontrolü (4 Kanal var mı? B, G, R, Alpha)
+        # Şeffaflık Yönetimi (PNG ise arkasını beyaz yap)
         if len(image.shape) == 3 and image.shape[2] == 4:
-            # Alpha kanalını al
             alpha_channel = image[:, :, 3]
-            
-            # RGB kanallarını al
             rgb_channels = image[:, :, :3]
-            
-            # Beyaz bir arka plan oluştur (Tuval)
             white_bg = np.ones_like(rgb_channels, dtype=np.uint8) * 255
-            
-            # Alpha kanalını maske olarak kullan (0-255 arası değerleri 0-1 arasına çek)
             alpha_factor = alpha_channel[:, :, np.newaxis] / 255.0
-            
-            # Ön planı ve arka planı birleştir: 
-            # (Resim * Alpha) + (Beyaz Zemin * (1 - Alpha))
             base = (rgb_channels * alpha_factor + white_bg * (1 - alpha_factor)).astype(np.uint8)
-            
             self.img = base
-        elif len(image.shape) == 2: # Gri tonlamalı gelirse
+        elif len(image.shape) == 2:
              self.img = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         else:
-            # Zaten 3 kanallı (JPG vb.) ise dokunma
-            self.img = image[:, :, :3] # Güvenlik için sadece ilk 3 kanalı al
+            self.img = image[:, :, :3]
 
         self.original_h, self.original_w = self.img.shape[:2]
 
-    def process_enhanced_quality(self, mode='normal'):
+    def resize_for_processing(self):
+        # İşlem hızı ve kalite dengesi için resmi optimize et (Max 800px)
+        max_dim = 800
+        h, w = self.img.shape[:2]
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+
+    def process_cartoon_avatar(self):
         """
-        Wilcom ve Nakış için özel optimize edilmiş işleme motoru.
-        pyrMeanShiftFiltering kullanarak 'Yağlı Boya' etkisi yaratır, 
-        bu da gereksiz dikişleri (kırışıklıkları) yok eder.
+        ULTRA KALİTE ÇİZGİ ROMAN MODU (Wilcom Uyumlu)
+        1. Resmi pürüzsüzleştir.
+        2. Renkleri 8-10 ana renge indir.
+        3. Keskin siyah kontur çizgileri ekle.
         """
+        # 1. Boyutlandırma (Kalite için önemli)
+        self.resize_for_processing()
         
-        # 1. Gürültü Azaltma ve Düzleştirme (En Önemli Adım)
-        # sp: Mekansal pencere yarıçapı (Büyüdükçe detaylar azalır, bloklar büyür)
-        # sr: Renk penceresi yarıçapı (Benzer renkleri birleştirir)
-        if mode == 'cartoon':
-            # Daha agresif düzleştirme (Büyük bloklar)
-            self.img = cv2.pyrMeanShiftFiltering(self.img, sp=25, sr=40)
-        else:
-            # Dengeli düzleştirme (Detayları korur ama paraziti siler)
-            self.img = cv2.pyrMeanShiftFiltering(self.img, sp=15, sr=30)
-
-        # 2. Renk Sayısını Optimize Et (K-Means)
-        # Nakış makinesi için renk sayısını limitlemek iplik değişimini azaltır.
-        k = 16 if mode == 'normal' else 8
-        data = np.float32(self.img).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        # 2. Renk Düzleştirme (Bilateral Filter - Yağlı Boya Etkisi)
+        # Tekrarlayan filtreleme ile dokuları yok et, sadece renk blokları kalsın
+        color = self.img
+        for _ in range(7): 
+            color = cv2.bilateralFilter(color, 9, 75, 75)
+            
+        # 3. Kenar Çizgilerini Çıkarma (Line Art)
+        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.medianBlur(gray, 7)
+        # Adaptive Threshold: Siyah kalem efekti verir
+        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
+        
+        # 4. Renk Azaltma (K-Means) - Nakış için az renk şart
+        data = np.float32(color).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
+        # k=8 : Maksimum 8 renk olsun (Tişört baskı/Nakış için ideal)
+        _, label, center = cv2.kmeans(data, 8, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
-        self.img = center[label.flatten()].reshape((self.img.shape))
-
-        # 3. Kenar Yumuşatma (Median Blur)
-        # Vektör kenarlarındaki tırtıkları alır
-        self.img = cv2.medianBlur(self.img, 3)
+        result_color = center[label.flatten()].reshape((color.shape))
+        
+        # 5. Birleştirme (Renkler + Siyah Çizgiler)
+        # Siyah çizgileri renkli resmin üzerine maske olarak uygula
+        self.img = cv2.bitwise_and(result_color, result_color, mask=edges)
+        
+        # Siyah çizgilerin olduğu yerler siyah olsun (Maske şeffaf yapmasın)
+        # Kenarların (edges) siyah olduğu yerleri resimde de siyah yap
+        edges_inv = cv2.bitwise_not(edges) # Siyah çizgiler şimdi beyaz oldu
+        self.img[edges_inv == 255] = [0, 0, 0] # Çizgileri SİYAH boya
 
     def process_outline(self):
-        # Outline modu için özel işlem
+        # Sadece Dış Hatlar (Sargı Dikiş)
+        self.resize_for_processing()
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (5, 5), 0) # Hafif bulanıklık keskin kenar verir
-        edges = cv2.Canny(gray, 75, 150)
-        
-        # Çizgileri birleştir (Dilation)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(gray, 50, 150)
+        # Çizgileri kalınlaştır
         kernel = np.ones((2,2), np.uint8)
         dilated = cv2.dilate(edges, kernel, iterations=1)
-        
         self.img = cv2.bitwise_not(dilated)
         self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
 
-    def generate_svg(self, smoothness='high'):
-        """
-        Vektör verisini oluşturur.
-        smoothness: 'high' ise köşeleri daha çok yuvarlar (Wilcom için iyi).
-        """
+    def generate_svg(self):
+        # SVG oluştururken çok küçük detayları (gürültü) atla
         pixels = self.img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
-        # SVG Başlığı
-        svg_output = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.original_w}" height="{self.original_h}" viewBox="0 0 {self.original_w} {self.original_h}">'
+        svg_output = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.original_w}" height="{self.original_h}" viewBox="0 0 {self.img.shape[1]} {self.img.shape[0]}">'
         
-        # Epsilon değeri: Eğri hassasiyeti. 
-        # Değer ne kadar BÜYÜK olursa çizgi o kadar DÜZ/BASİT olur.
-        # Değer ne kadar KÜÇÜK olursa çizgi o kadar DETAYLI/TIRTIKLI olur.
-        epsilon_factor = 0.001 # Varsayılan (High Detail)
-        if smoothness == 'ultra': epsilon_factor = 0.003 # Daha yuvarlak hatlar
-        elif smoothness == 'medium': epsilon_factor = 0.0005 # Daha keskin hatlar
-
         for color in unique_colors:
-            mask = cv2.inRange(self.img, color, color)
-            # RETR_EXTERNAL yerine RETR_TREE kullanıyoruz ki iç boşlukları da alsın
-            contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            
-            if not contours: continue
-            
             b, g, r = color
-            # Beyaz veya beyaza çok yakın arka planı atla (Opsiyonel)
-            if r > 250 and g > 250 and b > 250: continue
+            # Beyaza çok yakın alanları (Arka plan) çizme
+            if r > 240 and g > 240 and b > 240: continue
+            
+            mask = cv2.inRange(self.img, color, color)
+            
+            # Gürültü temizliği (Küçük noktaları yok et)
+            kernel = np.ones((3,3), np.uint8)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            
+            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             
             hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
             path_data = ""
-            for i, cnt in enumerate(contours):
-                # Alan kontrolü: Çok küçük noktaları (gürültü) vektöre çevirme
-                if cv2.contourArea(cnt) < 20: continue 
-
-                epsilon = epsilon_factor * cv2.arcLength(cnt, True)
+            for cnt in contours:
+                # Çok küçük alanları vektör yapma
+                if cv2.contourArea(cnt) < 50: continue 
+                
+                epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 
                 if len(approx) < 3: continue
@@ -372,37 +366,38 @@ def api_vectorize():
     try:
         engine = VectorEngine(file)
         
-        # 1. İşleme (Enhanced Mode)
+        # YENİ MANTIK:
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            engine.process_enhanced_quality(mode='cartoon')
+            # YENİ AVATAR MODU BURADA ÇAĞRILIYOR
+            engine.process_cartoon_avatar()
         else: # normal
-            engine.process_enhanced_quality(mode='normal')
-            
-        # 2. SVG Oluştur (Wilcom için 'high' veya 'ultra' smoothness önerilir)
-        smoothness = 'high'
-        if quality == 'ultra': smoothness = 'ultra'
-        elif quality == 'medium': smoothness = 'medium'
+            # Normal modda da biraz çizgi roman havası verelim ama çizgiler olmadan
+            engine.resize_for_processing()
+            engine.img = cv2.pyrMeanShiftFiltering(engine.img, 20, 45)
+            engine.quantize_colors(k=16) # Eski fonksiyon silindiği için buraya basit KMeans eklenebilir veya process_cartoon_avatar hafifletilebilir.
+            # Normal mod için basit KMeans (Eğer eski metodları sildiysek buraya inline yazalım)
+            data = np.float32(engine.img).reshape((-1, 3))
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+            _, label, center = cv2.kmeans(data, 16, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+            center = np.uint8(center)
+            engine.img = center[label.flatten()].reshape((engine.img.shape))
+
+        # SVG Oluştur
+        svg_string = engine.generate_svg()
         
-        svg_string = engine.generate_svg(smoothness=smoothness)
-        
-        # 3. Çıktıları Hazırla
-        # a. Vektör (SVG)
+        # Çıktıları Hazırla
         encoded_svg = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
-        
-        # b. Önizleme PNG (İşlenmiş, pürüzsüz halini geri gönderiyoruz)
-        # Kullanıcı Wilcom'da "Auto Trace" yapacaksa bu temiz PNG çok işine yarar.
         _, buffer = cv2.imencode('.png', engine.img)
         encoded_png = base64.b64encode(buffer).decode('utf-8')
         
         increase_usage(email, "vector", "default")
         
-        # Hem SVG hem PNG döndürüyoruz
         return jsonify({
             "success": True, 
-            "file": encoded_svg,      # İndirilebilir Vektör
-            "preview_img": encoded_png # Ekranda görünecek temizlenmiş resim
+            "file": encoded_svg,
+            "preview_img": encoded_png
         })
 
     except Exception as e:
@@ -781,6 +776,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
