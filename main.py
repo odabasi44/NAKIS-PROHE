@@ -6,7 +6,6 @@ import io
 import json
 import base64
 import numpy as np
-from pillow_heif import register_heif_opener # Bunu app başlatılmadan önce bir kere çağırmak yeterli
 from PIL import Image
 from datetime import datetime, timedelta
 from PyPDF2 import PdfMerger
@@ -753,6 +752,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
