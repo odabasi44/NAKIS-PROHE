@@ -12,23 +12,24 @@ from flask import Flask, request, jsonify, render_template, session, redirect
 from flask_cors import CORS
 import onnxruntime as ort
 
-# --- AI MODEL YÜKLEME (GELİŞMİŞ) ---
+# --- AI MODEL YÜKLEME (WHITE-BOX CARTOONIZATION) ---
 gan_session = None
 
 # Projenin çalıştığı tam yolu al
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Olası model yolları (Sırayla dener - Volume mount dahil)
+# MODEL YOLLARI (Sırayla dener)
+# Coolify terminalinde dosyanın "/app/models" içinde olduğunu gördük.
 possible_model_paths = [
-    "/data/models/face_paint_512_v2.onnx",              # 1. Öncelik: Volume Mount
-    os.path.join(base_dir, "models", "face_paint_512_v2.onnx"), # 2. Öncelik: Proje içi models
-    os.path.join(base_dir, "face_paint_512_v2.onnx"),           # 3. Öncelik: main.py yanı
-    "/app/models/face_paint_512_v2.onnx"                        # 4. Öncelik: Docker app klasörü
+    "/app/models/whitebox_cartoon.onnx",               # 1. Öncelik: Senin Sunucudaki Yol (Coolify)
+    "/data/models/whitebox_cartoon.onnx",              # 2. Öncelik: Volume Yolu
+    os.path.join(base_dir, "models", "whitebox_cartoon.onnx"), # 3. Öncelik: Proje içi models
+    os.path.join(base_dir, "whitebox_cartoon.onnx"),           # 4. Öncelik: Ana dizin
 ]
 
 final_model_path = None
 
-print("--- AI MODEL ARAMA BAŞLADI ---")
+print("--- AI MODEL ARAMA BAŞLADI (White-box) ---")
 for path in possible_model_paths:
     if os.path.exists(path):
         print(f"✅ DOSYA BULUNDU: {path}")
@@ -39,14 +40,14 @@ for path in possible_model_paths:
 
 if final_model_path:
     try:
-        # Modeli Yükle
+        # Modeli Yükle (CPU)
         gan_session = ort.InferenceSession(final_model_path, providers=["CPUExecutionProvider"])
-        print(f"🚀 AI MODELİ BAŞARIYLA YÜKLENDİ! Giriş: {gan_session.get_inputs()[0].name}")
+        print("🚀 WHITE-BOX AI MODELİ BAŞARIYLA YÜKLENDİ!")
     except Exception as e:
-        print(f"⚠️ DOSYA VAR AMA YÜKLENEMEDİ (Kütüphane Hatası): {e}")
+        print(f"⚠️ MODEL DOSYASI VAR AMA YÜKLENEMEDİ: {e}")
         gan_session = None
 else:
-    print("🚨 KRİTİK HATA: Model dosyası hiçbir yerde bulunamadı! Lütfen 'models' klasörünü kontrol edin.")
+    print("🚨 KRİTİK HATA: 'whitebox_cartoon.onnx' bulunamadı! /app/models klasörünü kontrol edin.")
 
 print("--- AI MODEL ARAMA BİTTİ ---")
 
@@ -241,8 +242,7 @@ def increase_usage(email, tool, subtool):
     session["free_usage"][tool][subtool] = current + 1
     session.modified = True
 
-# --- VEKTÖR MOTORU (AI DESTEKLİ + GELİŞMİŞ) ---
-# --- GÜNCELLENMİŞ VEKTÖR MOTORU (MAIN.PY İÇİNE) ---
+# --- VEKTÖR MOTORU (AI WHITE-BOX + POSTERIZE) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -251,7 +251,7 @@ class VectorEngine:
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
 
-        # Şeffaflık varsa beyaz yap
+        # Şeffaflık varsa beyaz yap (AI şeffaflıkla çalışmaz)
         if len(self.original_img.shape) == 3 and self.original_img.shape[2] == 4:
             alpha = self.original_img[:, :, 3]
             rgb = self.original_img[:, :, :3]
@@ -261,10 +261,9 @@ class VectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
-        # İşlem hızı ve AI başarısı için boyutu sabitle (Örn: 800px genişlik)
-        # Çok büyük görsellerde "cartoon" efekti detaylarda kaybolur.
+        # İşlem hızı ve AI için makul boyuta getir (720p ideal)
         h, w = self.img.shape[:2]
-        target_dim = 800
+        target_dim = 720
         if max(h, w) > target_dim:
             scale = target_dim / max(h, w)
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -272,149 +271,123 @@ class VectorEngine:
         self.h, self.w = self.img.shape[:2]
 
     def process_with_ai_model(self):
-        """AI Modeli Varsa Yüzü Temizlemek İçin Kullanır"""
+        """White-box Cartoonization Modeli ile Yüzey Düzleştirme"""
         global gan_session
-        if gan_session is None: return
+        if gan_session is None: 
+            print("AI Modeli yüklü değil, OpenCV ile devam ediliyor.")
+            return
 
         try:
-            # AI için 512x512 resize
-            resized_input = cv2.resize(self.img, (512, 512))
-            x = cv2.cvtColor(resized_input, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
-            x = np.transpose(x, (2, 0, 1))
-            x = np.expand_dims(x, axis=0)
-
-            input_name = gan_session.get_inputs()[0].name
-            output = gan_session.run(None, {input_name: x})[0]
-
-            output = (output.squeeze().transpose(1, 2, 0) + 1.0) * 127.5
-            output = np.clip(output, 0, 255).astype(np.uint8)
-            output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+            # Model 256'nın katlarını sever (512x512)
+            process_h, process_w = 512, 512
+            img_resized = cv2.resize(self.img, (process_w, process_h))
             
-            # AI çıktısını orijinal boyuta geri getir
-            self.img = cv2.resize(output, (self.w, self.h))
+            # Preprocessing: BGR -> RGB ve Normalizasyon (-1 ile 1 arası)
+            img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
+            img_normalized = (img_rgb.astype(np.float32) / 127.5) - 1.0
+            
+            # (H, W, 3) -> (1, 3, H, W)
+            img_input = np.transpose(img_normalized, (2, 0, 1))
+            img_input = np.expand_dims(img_input, axis=0)
+
+            # Inference
+            input_name = gan_session.get_inputs()[0].name
+            output = gan_session.run(None, {input_name: img_input})[0]
+
+            # Postprocessing
+            output = output.squeeze().transpose(1, 2, 0) # (H, W, 3)
+            
+            # Denormalizasyon (-1..1 -> 0..255)
+            output = (output + 1.0) * 127.5
+            output = np.clip(output, 0, 255).astype(np.uint8)
+            
+            # RGB -> BGR
+            output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+            
+            # Orijinal boyuta geri getir (Lanczos4 kaliteli küçültme/büyütme yapar)
+            self.img = cv2.resize(output_bgr, (self.w, self.h), interpolation=cv2.INTER_LANCZOS4)
+            
         except Exception as e:
-            print(f"AI Hatası: {e}")
+            print(f"AI İşleme Hatası: {e}")
 
     def process_cartoon_smart(self):
         """
-        GÖNDERİLEN GÖRSELE UYGUN 'POP-ART VEKTÖR' STİLİ
-        Özellikler: Düz renkler, Kalın siyah çizgiler, Detay kaybı yok.
+        GELİŞMİŞ VEKTÖR STİLİ (AI + K-MEANS)
+        Hedef: Düz renk blokları, siyah kontursuz (Outline yok), Posterize görünüm.
         """
         
-        # 1. ADIM: Önce AI ile Yüzü "Düzleştir" (Eğer model yüklüyse)
-        # Bu işlem sakalları ve cilt kusurlarını yumuşatır, vektöre hazırlar.
+        # 1. ADIM: AI ile "Yapısal Düzleştirme"
+        # Bu, dokuları (saç telleri, cilt gözenekleri) siler, yüzeyleri düzleştirir.
         if gan_session:
             self.process_with_ai_model()
 
-        # 2. ADIM: Renkleri "Blok" Haline Getir (Yağlı Boya Efekti)
-        # sp=Spatial Window (Mesafe), sr=Color Window (Renk Farkı)
-        # Değerleri artırdıkça görsel daha "plastik" ve düz durur.
-        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=25, sr=45)
+        # 2. ADIM: Ekstra Pürüzsüzleştirme (Bilateral Filter)
+        # AI'dan kalan ufak renk gürültülerini alır, kenarları koruyarak yumuşatır.
+        self.img = cv2.bilateralFilter(self.img, d=5, sigmaColor=50, sigmaSpace=50)
 
-        # 3. ADIM: Kalın Siyah Çizgileri (Konturları) Çıkar
-        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        
-        # Gürültüyü azalt (Küçük noktalar çizgi olmasın)
-        gray = cv2.medianBlur(gray, 7) 
-        
-        # Kenar tespiti (Adaptive Threshold)
-        # blockSize: Komşuluk alanı (Büyük olmalı ki ana hatları alsın)
-        # C: Sabit değer (Çizgi kalınlığını etkiler)
-        edges = cv2.adaptiveThreshold(
-            gray, 
-            255, 
-            cv2.ADAPTIVE_THRESH_MEAN_C, 
-            cv2.THRESH_BINARY, 
-            blockSize=15, # 9 yerine 15 yaptık (daha temiz hatlar)
-            C=4 # 2 yerine 4 yaptık (gürültüyü azaltır)
-        )
+        # 3. ADIM: Renk Sayısını Azaltma (Poster Efekti / Cutout)
+        # Referans görseldeki o "kesik kağıt" hissi için renkleri kısıtlıyoruz.
+        # k=14 ideal bir dengedir.
+        self.reduce_colors_kmeans(k=14)
 
-        # Çizgileri kalınlaştır ve pürüzsüzleştir (Erode/Dilate işlemi)
-        # Görseldeki gibi "Kalın Siyah" hatlar için:
-        kernel = np.ones((2,2), np.uint8)
-        # Erode işlemi siyah alanları genişletir (Binary resimde siyah=0 olduğu için)
-        edges = cv2.erode(edges, kernel, iterations=1)
-        
-        # Çok ince kumlanmaları temizle
-        edges = cv2.medianBlur(edges, 3)
-
-        # 4. ADIM: Renk Sayısını Azalt (K-Means Quantization)
-        # Görseldeki gibi 6-8 ana renk kalsın (Ten, Saç, Arkaplan, Kıyafet, Dudak vb.)
-        self.reduce_colors_kmeans(k=9)
-
-        # 5. ADIM: Kenarları Renkli Görselle Birleştir
-        # Siyah çizgileri renkli resmin üzerine bas
-        self.img = cv2.bitwise_and(self.img, self.img, mask=edges)
-        
-        # 6. ADIM: Parlaklık ve Canlılık (Opsiyonel ama iyi durur)
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 20) # Doygunluğu artır (Daha "Cartoon" durur)
-        final_hsv = cv2.merge((h, s, v))
-        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        # 4. ADIM: Kenar Temizliği
+        # Bloklar arasındaki geçişleri yumuşatır
+        self.img = cv2.medianBlur(self.img, 3)
 
     def reduce_colors_kmeans(self, k=8):
-        """Görseldeki renk sayısını k adedine indirir (Düzleştirme)"""
+        """Piksel renklerini en yakın 'k' ana renge yuvarlar"""
         data = np.float32(self.img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
         try:
-            # Renkleri grupla
             _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
             center = np.uint8(center)
-            # Her pikseli grubunun merkez rengine eşitle
             self.img = center[label.flatten()].reshape((self.img.shape))
         except: pass
 
     def process_outline(self):
-        """Sadece Dış Hatlar (Boyama Kitabı Stili)"""
+        """Sadece Siyah Beyaz Çizgisel Görünüm (Opsiyonel Mod İçin)"""
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
         edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 3)
         self.img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        """SVG Oluşturucu - Renk Gruplarını Vektör Yolların Dönüştürür"""
-        # İşlem hızını artırmak için biraz küçültelim
+        """Renk bloklarını SVG Path'lerine dönüştürür"""
         proc_img = self.img
+        
         h, w = proc_img.shape[:2]
         
-        # Pikselleri düzleştir
         pixels = proc_img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
         svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {w} {h}">'
         
-        # Her bir renk için contour bul ve path oluştur
         for color in unique_colors:
             b, g, r = color
             
-            # Siyah çizgileri en son çizmek için veya beyaz arka planı atlamak için filtre koyulabilir
-            # Şimdilik hepsini çiziyoruz.
-            
-            # Maske oluştur: Sadece bu renge sahip yerler beyaz olsun
+            # Maske oluştur (Sadece şu anki rengi seç)
             mask = cv2.inRange(proc_img, color, color)
             
-            # Küçük gürültüleri temizle
+            # Gürültü temizliği (1-2 piksellik noktaları at)
             kernel = np.ones((3,3), np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel) # Açma (küçük noktaları sil)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel) # Kapama (delikleri kapat)
-
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             hex_c = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
             path_d = ""
             for cnt in contours:
-                # Çok küçük parçaları vektöre çevirme (Gereksiz detay)
-                if cv2.contourArea(cnt) < 20: continue
+                # Çok minik parçaları vektöre çevirme
+                if cv2.contourArea(cnt) < 40: continue
                 
-                # Köşeleri biraz yumuşat (Vektör kalitesi için)
+                # Vektör yumuşatma (Polygon Approximation)
                 epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 
                 if len(approx) < 3: continue
                 
                 pts = approx.reshape(-1, 2)
+                
                 path_d += f"M {pts[0][0]} {pts[0][1]} "
                 for p in pts[1:]:
                     path_d += f"L {p[0]} {p[1]} "
@@ -425,11 +398,10 @@ class VectorEngine:
         
         svg += '</svg>'
         return svg
-               
 
 # --- API ENDPOINTS ---
 
-# 1. VEKTÖR API (GÜNCELLENMİŞ)
+# 1. VEKTÖR API
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
@@ -446,15 +418,13 @@ def api_vectorize():
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            # --- YENİ KONTROL: AI Model Yoksa Uyarı Ver ---
+            # YENİ: White-box + Posterize Modu
             if gan_session is None:
-                return jsonify({"success": False, "message": "AI Modeli Yüklü Değil! Lütfen sunucu loglarını kontrol edin."}), 500
-            
-            # Gelişmiş Cartoon Modu (AI + Kontur + Aydınlatma)
+                # Model yoksa uyarı verebilir veya fallback yapabiliriz
+                print("UYARI: AI Modeli yüklü değil, sadece OpenCV çalışacak.")
             engine.process_cartoon_smart()
-        else: # normal mod
-            # Normal mod için de AI kullanabiliriz (daha pürüzsüz olur)
-            if gan_session: engine.process_with_ai_model()
+        else: 
+            # Normal mod (Basit renk azaltma)
             engine.reduce_colors_kmeans(k=16)
 
         svg_str = engine.generate_svg()
@@ -719,15 +689,3 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
