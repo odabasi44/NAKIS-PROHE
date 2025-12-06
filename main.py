@@ -20,9 +20,10 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Olası model yolları (Sırayla dener - Volume mount dahil)
 possible_model_paths = [
-    os.path.join(base_dir, "models", "face_paint_512_v2.onnx"), # /app/models/...
-    os.path.join(base_dir, "face_paint_512_v2.onnx"),           # /app/...
-    "/data/models/face_paint_512_v2.onnx"                        # Volume mount
+    "/data/models/face_paint_512_v2.onnx",              # 1. Öncelik: Volume Mount
+    os.path.join(base_dir, "models", "face_paint_512_v2.onnx"), # 2. Öncelik: Proje içi models
+    os.path.join(base_dir, "face_paint_512_v2.onnx"),           # 3. Öncelik: main.py yanı
+    "/app/models/face_paint_512_v2.onnx"                        # 4. Öncelik: Docker app klasörü
 ]
 
 final_model_path = None
@@ -34,7 +35,7 @@ for path in possible_model_paths:
         final_model_path = path
         break
     else:
-        print(f"❌ Dosya yok: {path}")
+        print(f"❌ Yol boş: {path}")
 
 if final_model_path:
     try:
@@ -245,29 +246,6 @@ class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
-
-        def enhance_image(self):
-        """
-        Karanlık fotoğrafları AI için hazırlar.
-        CLAHE kullanarak kontrastı ve parlaklığı dengeler.
-        """
-        # 1. Resmi LAB renk uzayına çevir (L: Lightness, A: Green-Red, B: Blue-Yellow)
-        lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        
-        # 2. Sadece L (Işık) kanalına CLAHE uygula
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l)
-        
-        # 3. Kanalları birleştir ve geri BGR'ye çevir
-        limg = cv2.merge((cl, a, b))
-        self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        # 4. Hafif parlaklık artışı (Gamma Correction)
-        # Gamma < 1.0 resmi aydınlatır
-        invGamma = 1.0 / 1.2 
-        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-        self.img = cv2.LUT(self.img, table)
         
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
@@ -290,6 +268,28 @@ class VectorEngine:
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         
         self.h, self.w = self.img.shape[:2]
+
+    def enhance_image(self):
+        """
+        Karanlık fotoğrafları AI için hazırlar.
+        CLAHE kullanarak kontrastı ve parlaklığı dengeler.
+        """
+        # 1. Resmi LAB renk uzayına çevir
+        lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # 2. Sadece L (Işık) kanalına CLAHE uygula
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        
+        # 3. Kanalları birleştir ve geri BGR'ye çevir
+        limg = cv2.merge((cl, a, b))
+        self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # 4. Hafif parlaklık artışı (Gamma Correction)
+        invGamma = 1.0 / 1.2 
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        self.img = cv2.LUT(self.img, table)
 
     def process_with_ai_model(self):
         """AI Modeli ile Anime/Çizim efekti uygular"""
@@ -316,17 +316,17 @@ class VectorEngine:
         except Exception as e:
             print(f"AI Hatası: {e}")
 
-  def process_cartoon_smart(self):
+    def process_cartoon_smart(self):
         """
         GELİŞMİŞ AVATAR MODU: Aydınlatma + AI + Kontur
         """
-        # 1. YENİ: Resmi aydınlat ve detayları aç (Karanlık fotolar için kritik)
+        # 1. YENİ: Resmi aydınlat ve detayları aç
         self.enhance_image()
 
         # 2. AI ile Yüzü Pürüzsüzleştir
         self.process_with_ai_model()
 
-        # 3. Siyah Kontur Çizgileri
+        # 3. Siyah Kontur Çizgilerini Çıkar
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
         # BlockSize'ı artırarak daha temiz çizgiler alalım (9 -> 11)
@@ -378,7 +378,7 @@ class VectorEngine:
         
         for color in unique_colors:
             b, g, r = color
-            # Beyaz arkaplanı atla
+            # Beyaza çok yakın renkleri (arka plan) atla
             if r > 245 and g > 245 and b > 245: continue
             
             mask = cv2.inRange(proc_img, color, color)
@@ -433,7 +433,7 @@ def api_vectorize():
             if gan_session is None:
                 return jsonify({"success": False, "message": "AI Modeli Yüklü Değil! Lütfen sunucu loglarını kontrol edin."}), 500
             
-            # Gelişmiş Cartoon Modu (AI + Kontur)
+            # Gelişmiş Cartoon Modu (AI + Kontur + Aydınlatma)
             engine.process_cartoon_smart()
         else: # normal mod
             # Normal mod için de AI kullanabiliriz (daha pürüzsüz olur)
@@ -702,5 +702,3 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
-
-
