@@ -316,29 +316,31 @@ class VectorEngine:
         except Exception as e:
             print(f"AI Hatası: {e}")
 
-    def process_cartoon_smart(self):
+  def process_cartoon_smart(self):
         """
-        GELİŞMİŞ AVATAR MODU: AI + Siyah Kontur Çizgileri
+        GELİŞMİŞ AVATAR MODU: Aydınlatma + AI + Kontur
         """
-        # 1. AI ile Yüzü Pürüzsüzleştir (Temel Boyama)
+        # 1. YENİ: Resmi aydınlat ve detayları aç (Karanlık fotolar için kritik)
+        self.enhance_image()
+
+        # 2. AI ile Yüzü Pürüzsüzleştir
         self.process_with_ai_model()
 
-        # 2. Siyah Kontur Çizgilerini Çıkar (Çizgi Roman Efekti)
+        # 3. Siyah Kontur Çizgileri
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
-        # Adaptive Threshold ile çizgileri bul
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
+        # BlockSize'ı artırarak daha temiz çizgiler alalım (9 -> 11)
+        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 9)
         
-        # 3. Renkleri Azalt (Posterize Et)
-        # Görüntüyü biraz daha düzleştir
-        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=10, sr=20)
+        # 4. Renkleri Düzleştir (MeanShift)
+        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=15, sr=30)
         
-        # 4. Çizgileri Resme Ekle
-        # Kenarların olduğu yerleri siyah yap, diğer yerleri renkle doldur
+        # 5. Çizgileri Ekle
         self.img = cv2.bitwise_and(self.img, self.img, mask=edges)
         
-        # 5. Son Renk Azaltma (K-Means)
-        self.reduce_colors_kmeans(k=8)
+        # 6. Son Renk Azaltma (K-Means)
+        # Renk sayısını biraz artıralım ki yüz detayları kaybolmasın (8 -> 12)
+        self.reduce_colors_kmeans(k=12)
 
     def reduce_colors_kmeans(self, k=8):
         """Standart K-Means Renk Azaltma"""
@@ -700,4 +702,5 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
