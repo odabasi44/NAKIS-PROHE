@@ -271,19 +271,20 @@ class VectorEngine:
 
     def enhance_image(self):
         """
-        GÜÇLENDİRİLMİŞ AYDINLATMA (Stüdyo Işığı Efekti)
-        Karanlık fotoğrafları hem aydınlatır hem de renkleri canlı hale getirir.
+        GÜÇLENDİRİLMİŞ AYDINLATMA VE DETAY ARTIRMA
+        1. Otomatik Beyaz Dengesi (Renkleri düzeltir)
+        2. CLAHE (Karanlık gölgeleri açar)
+        3. Gamma (Genel parlaklığı artırır)
+        4. Saturation (Renkleri canlandırır)
+        5. Sharpening & Detail (Yüz hatlarını belirginleştirir)
         """
-        # 1. Otomatik Beyaz Dengesi (Simple White Balance)
+        
+        # 1. Otomatik Beyaz Dengesi (Sarı/Mavi tonu düzelt)
         try:
-            # cv2.xphoto varsa kullan
             wb = cv2.xphoto.createSimpleWB()
             self.img = wb.balanceWhite(self.img)
         except (AttributeError, Exception):
-            # HATA DUZELTILDİ: except ile AttributeError arasına boşluk koyduk.
-            # Ayrıca genel hataları da yakalaması için Exception ekledik.
-            
-            # Modül yoksa manuel beyaz dengesi yap (Gray World Assumption)
+            # Yedek yöntem (Gray World)
             result = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
             avg_a = np.average(result[:, :, 1])
             avg_b = np.average(result[:, :, 2])
@@ -291,55 +292,40 @@ class VectorEngine:
             result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
             self.img = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
 
-        # 2. CLAHE (Kontrast Dengeleme) - Lab Renk Uzayında
+        # 2. CLAHE (Kontrast Dengeleme - Gölgeleri Aç)
         lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        # ClipLimit'i artırarak kontrastı açıyoruz
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
         limg = cv2.merge((cl, a, b))
         self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        # 3. Gamma Düzeltmesi (Parlaklık Artırma - Daha Agresif)
-        gamma = 1.6  # DEĞİŞTİ: 1.5 -> 1.9 (Gölgeleri iyice aç)
+        
+        # 3. Gamma Düzeltmesi (Parlaklık - Yüzü Aydınlat)
+        gamma = 1.6  # 1.6 idealdir (Ne çok patlak ne çok karanlık)
         invGamma = 1.0 / gamma
         table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         self.img = cv2.LUT(self.img, table)
 
-        # 4. Hafif Doygunluk (Saturation) - Daha Pastel Tonlar
+        # 4. Doygunluk (Saturation) Artışı - Canlı Renkler
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 20) # DEĞİŞTİ: 30 -> 10 (Renk patlamasını önle)
-        v = cv2.add(v, 20) 
+        s = cv2.add(s, 40) # Renkleri canlandır (Soluk ten rengini önler)
+        v = cv2.add(v, 10) 
         final_hsv = cv2.merge((h, s, v))
         self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
 
-        # 5. YENİ: Yüz Hatlarını ve Detayları Keskinleştir (Sharpening)
-        # Bu işlem dudak ve göz çizgilerini belirginleştirir.
+        # 5. Yüz Hatlarını Keskinleştirme (Sharpening) - YENİ
+        # Dudak, göz ve burun çizgilerini belirgin yapar
         kernel = np.array([[0, -1, 0],
                            [-1, 5,-1],
                            [0, -1, 0]])
         self.img = cv2.filter2D(self.img, -1, kernel)
         
-        # 6. YENİ: Detayları Ortaya Çıkar (Detail Enhancement)
-        # OpenCV'nin özel filtresi ile ince detayları güçlendir.
-        self.img = cv2.detailEnhance(self.img, sigma_s=10, sigma_r=0.15)
-        
-        # 7. Gamma Düzeltmesi (Parlaklık Artırma)
-        # Gamma değerini düşürerek (1.2 -> 1.5) daha fazla ışık veriyoruz.
-        # Bu sayede gölgelerdeki detaylar ortaya çıkar.
-        gamma = 1.5
-        invGamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-        self.img = cv2.LUT(self.img, table)
-
-        # 4. Hafif Doygunluk (Saturation) Artışı
-        # Renklerin soluk kalmaması için
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 30) # Doygunluğu artır
-        v = cv2.add(v, 20) # Parlaklığı biraz daha artır
-        final_hsv = cv2.merge((h, s, v))
-        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        # 6. Detay Artırma (Detail Enhancement) - YENİ
+        # Yüzdeki karakteristik özellikleri (gamze, çizgi) korur
+        try:
+            self.img = cv2.detailEnhance(self.img, sigma_s=10, sigma_r=0.15)
+        except: pass
 
     def process_with_ai_model(self):
         """AI Modeli ile Anime/Çizim efekti uygular"""
@@ -756,6 +742,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
