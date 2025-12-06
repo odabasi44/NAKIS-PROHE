@@ -299,18 +299,17 @@ class VectorEngine:
         cl = clahe.apply(l)
         limg = cv2.merge((cl, a, b))
         self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        # 3. Gamma Düzeltmesi (Parlaklık Artırma)
-        gamma = 1.5
+        # 3. Gamma Düzeltmesi (Daha Parlak Yap)
+        gamma = 1.8  # DEĞİŞTİ (1.5 -> 1.8)
         invGamma = 1.0 / gamma
         table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         self.img = cv2.LUT(self.img, table)
 
-        # 4. Hafif Doygunluk (Saturation) Artışı
+        # 4. Hafif Doygunluk Artışı (Daha Canlı Yap)
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 30) # Doygunluğu artır
-        v = cv2.add(v, 20) # Parlaklığı biraz daha artır
+        s = cv2.add(s, 50) # DEĞİŞTİ (30 -> 50)
+        v = cv2.add(v, 20) 
         final_hsv = cv2.merge((h, s, v))
         self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
         
@@ -742,6 +741,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
