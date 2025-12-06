@@ -279,7 +279,7 @@ class VectorEngine:
         try:
             wb = cv2.xphoto.createSimpleWB()
             self.img = wb.balanceWhite(self.img)
-        exceptAttributeError:
+        except AttributeError:
             # cv2.xphoto yoksa manuel beyaz dengesi yap (Gray World Assumption)
             result = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
             avg_a = np.average(result[:, :, 1])
@@ -726,6 +726,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
