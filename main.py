@@ -275,28 +275,44 @@ class VectorEngine:
         Karanlık fotoğrafları hem aydınlatır hem de renkleri canlı hale getirir.
         """
         # 1. Otomatik Beyaz Dengesi (Simple White Balance)
-        # Bu işlem, sarı veya karanlık tonları temizler.
         try:
+            # cv2.xphoto varsa kullan
             wb = cv2.xphoto.createSimpleWB()
             self.img = wb.balanceWhite(self.img)
-        except AttributeError:
-            # cv2.xphoto yoksa manuel beyaz dengesi yap (Gray World Assumption)
+        except (AttributeError, Exception):
+            # HATA DUZELTILDİ: except ile AttributeError arasına boşluk koyduk.
+            # Ayrıca genel hataları da yakalaması için Exception ekledik.
+            
+            # Modül yoksa manuel beyaz dengesi yap (Gray World Assumption)
             result = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
             avg_a = np.average(result[:, :, 1])
             avg_b = np.average(result[:, :, 2])
             result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
             result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
             self.img = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
-        except: pass
 
         # 2. CLAHE (Kontrast Dengeleme) - Lab Renk Uzayında
         lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        # ClipLimit'i artırarak (2.0 -> 3.0) kontrastı daha çok açıyoruz
+        # ClipLimit'i artırarak kontrastı açıyoruz
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
         limg = cv2.merge((cl, a, b))
         self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # 3. Gamma Düzeltmesi (Parlaklık Artırma)
+        gamma = 1.5
+        invGamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        self.img = cv2.LUT(self.img, table)
+
+        # 4. Hafif Doygunluk (Saturation) Artışı
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        s = cv2.add(s, 30) # Doygunluğu artır
+        v = cv2.add(v, 20) # Parlaklığı biraz daha artır
+        final_hsv = cv2.merge((h, s, v))
+        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
         
         # 3. Gamma Düzeltmesi (Parlaklık Artırma)
         # Gamma değerini düşürerek (1.2 -> 1.5) daha fazla ışık veriyoruz.
@@ -726,6 +742,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
