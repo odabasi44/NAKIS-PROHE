@@ -12,6 +12,58 @@ from flask import Flask, request, jsonify, render_template, session, redirect
 from flask_cors import CORS
 import onnxruntime as ort
 
+# --- AI MODEL YÜKLEME (GELİŞMİŞ) ---
+gan_session = None
+
+# Projenin çalıştığı tam yolu al
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Olası model yolları (Sırayla dener - Volume mount dahil)
+possible_model_paths = [
+    os.path.join(base_dir, "models", "face_paint_512_v2.onnx"), # /app/models/...
+    os.path.join(base_dir, "face_paint_512_v2.onnx"),           # /app/...
+    "/data/models/face_paint_512_v2.onnx"                        # Volume mount
+]
+
+final_model_path = None
+
+print("--- AI MODEL ARAMA BAŞLADI ---")
+for path in possible_model_paths:
+    if os.path.exists(path):
+        print(f"✅ DOSYA BULUNDU: {path}")
+        final_model_path = path
+        break
+    else:
+        print(f"❌ Dosya yok: {path}")
+
+if final_model_path:
+    try:
+        # Modeli Yükle
+        gan_session = ort.InferenceSession(final_model_path, providers=["CPUExecutionProvider"])
+        print(f"🚀 AI MODELİ BAŞARIYLA YÜKLENDİ! Giriş: {gan_session.get_inputs()[0].name}")
+    except Exception as e:
+        print(f"⚠️ DOSYA VAR AMA YÜKLENEMEDİ (Kütüphane Hatası): {e}")
+        gan_session = None
+else:
+    print("🚨 KRİTİK HATA: Model dosyası hiçbir yerde bulunamadı! Lütfen 'models' klasörünü kontrol edin.")
+
+print("--- AI MODEL ARAMA BİTTİ ---")
+
+# --- U2NET MODELİ (BG Remove) ---
+u2net_session = None
+u2net_input_name = "input"
+possible_u2net_paths = ["u2net.onnx", "models/u2net.onnx", "/app/models/u2net.onnx"]
+u2net_path = None
+for path in possible_u2net_paths:
+    if os.path.exists(path): u2net_path = path; break
+if u2net_path:
+    try:
+        u2net_session = ort.InferenceSession(u2net_path, providers=["CPUExecutionProvider"])
+        u2net_input_name = u2net_session.get_inputs()[0].name
+        print(f"U2Net Modeli Yüklendi: {u2net_path}")
+    except: pass
+
+
 app = Flask(__name__, static_folder=".", static_url_path="")
 app.secret_key = "BOTLAB_SECRET_123"
 CORS(app)
@@ -188,53 +240,7 @@ def increase_usage(email, tool, subtool):
     session["free_usage"][tool][subtool] = current + 1
     session.modified = True
 
-# --- GLOBAL MODEL YÜKLEYİCİLER ---
-
-# 1. VEKTÖR MODELİ (AnimeGAN) - VOLUME PATH
-gan_session = None
-gan_path = "/data/models/face_paint_512_v2.onnx" # Coolify Volume Path
-
-if os.path.exists(gan_path):
-    try:
-        gan_session = ort.InferenceSession(gan_path, providers=["CPUExecutionProvider"])
-        print(f"Cartoon AI Modeli Başarıyla Yüklendi: {gan_path}")
-    except Exception as e:
-        print(f"Cartoon AI Yüklenemedi: {e}")
-else:
-    print(f"DİKKAT: Model dosyası bulunamadı: {gan_path}")
-
-# --- DEBUG BAŞLANGICI (Bunu main.py'de gan_path altına ekleyin) ---
-print("--- MODEL KONTROLÜ BAŞLIYOR ---")
-print(f"Aranan Yol: {gan_path}")
-if os.path.exists(gan_path):
-    print("✅ DOSYA BULUNDU!")
-    print(f"Dosya Boyutu: {os.path.getsize(gan_path)} bytes")
-else:
-    print("❌ DOSYA YOK! Lütfen yolu kontrol edin.")
-    # Alternatif yolları dene (Belki klasör yapısı farklıdır)
-    alt_paths = ["models/face_paint_512_v2.onnx", "source/models/face_paint_512_v2.onnx", "/app/models/face_paint_512_v2.onnx"]
-    for p in alt_paths:
-        if os.path.exists(p):
-            print(f"💡 İPUCU: Dosya burada bulundu: {p}")
-print("--- MODEL KONTROLÜ BİTTİ ---")
-# --- DEBUG BİTİŞİ ---
-
-# 2. U2NET MODELİ (BG Remove)
-u2net_session = None
-u2net_input_name = "input"
-# U2Net için olası yollar (Lokal klasörler)
-possible_paths = ["u2net.onnx", "models/u2net.onnx", "/app/models/u2net.onnx"]
-u2net_path = None
-for path in possible_paths:
-    if os.path.exists(path): u2net_path = path; break
-if u2net_path:
-    try:
-        u2net_session = ort.InferenceSession(u2net_path, providers=["CPUExecutionProvider"])
-        u2net_input_name = u2net_session.get_inputs()[0].name
-        print(f"U2Net Modeli Yüklendi: {u2net_path}")
-    except: pass
-
-# --- VEKTÖR MOTORU (AI DESTEKLİ) ---
+# --- VEKTÖR MOTORU (AI DESTEKLİ + GELİŞMİŞ) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -253,8 +259,7 @@ class VectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
-        # İşlem hızını artırmak için boyutu makul bir seviyeye çekelim (örn: max 800px)
-        # Bu, özellikle MeanShift filtresinin çok yavaş çalışmasını engeller.
+        # İşlem hızı için max boyut
         h, w = self.img.shape[:2]
         max_dim = 800
         if max(h, w) > max_dim:
@@ -283,29 +288,34 @@ class VectorEngine:
             output = np.clip(output, 0, 255).astype(np.uint8)
             output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
             
-            # AI çıktısını, __init__'te belirlediğimiz çalışma boyutuna geri getir
+            # AI çıktısını çalışma boyutuna geri getir
             self.img = cv2.resize(output, (self.w, self.h))
         except Exception as e:
             print(f"AI Hatası: {e}")
 
     def process_cartoon_smart(self):
         """
-        YENİ YÖNTEM: AI + MeanShift Filtresi
-        Bu yöntem kenarları koruyarak renkleri düzleştirir (Cartoon etkisi).
+        GELİŞMİŞ AVATAR MODU: AI + Siyah Kontur Çizgileri
         """
-        # 1. Adım: AI Modeli ile temel çizim efektini ver
+        # 1. AI ile Yüzü Pürüzsüzleştir (Temel Boyama)
         self.process_with_ai_model()
 
-        # 2. Adım: MeanShift Filtresi (Kenar Koruyarak Düzleştirme)
-        # sp: Mekansal pencere yarıçapı (Büyüdükçe daha geniş alanlar düzleşir)
-        # sr: Renk penceresi yarıçapı (Büyüdükçe daha farklı renkler birbirine karışır)
-        # (20, 30) iyi bir başlangıç noktasıdır.
-        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=20, sr=30)
+        # 2. Siyah Kontur Çizgilerini Çıkar (Çizgi Roman Efekti)
+        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.medianBlur(gray, 5)
+        # Adaptive Threshold ile çizgileri bul
+        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
         
-        # 3. Adım: (İsteğe bağlı) Hafif bir K-Means ile renk paletini sabitle
-        # MeanShift zaten renkleri azalttığı için burada k değerini biraz yüksek tutabiliriz (örn: 12-16)
-        # Böylece detaylar kaybolmaz ama renkler yine de "posterize" olur.
-        self.reduce_colors_kmeans(k=12)
+        # 3. Renkleri Azalt (Posterize Et)
+        # Görüntüyü biraz daha düzleştir
+        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=10, sr=20)
+        
+        # 4. Çizgileri Resme Ekle
+        # Kenarların olduğu yerleri siyah yap, diğer yerleri renkle doldur
+        self.img = cv2.bitwise_and(self.img, self.img, mask=edges)
+        
+        # 5. Son Renk Azaltma (K-Means)
+        self.reduce_colors_kmeans(k=8)
 
     def reduce_colors_kmeans(self, k=8):
         """Standart K-Means Renk Azaltma"""
@@ -328,9 +338,9 @@ class VectorEngine:
         self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        """SVG Oluşturucu (Optimize Edilmiş)"""
-        # Görseli işlemeden önce biraz daha küçültelim ki SVG çok şişmesin (isteğe bağlı)
+        """SVG Oluşturucu"""
         proc_img = self.img
+        # SVG çok şişmesin diye işleme boyutunu biraz düşürebiliriz
         if max(self.h, self.w) > 600:
              scale = 600 / max(self.h, self.w)
              proc_img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
@@ -339,12 +349,11 @@ class VectorEngine:
         pixels = proc_img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
-        # Viewbox'ı orijinal boyuta göre ayarla
         svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {w} {h}">'
         
         for color in unique_colors:
             b, g, r = color
-            # Beyaza çok yakın renkleri (arka plan) atla
+            # Beyaz arkaplanı atla
             if r > 245 and g > 245 and b > 245: continue
             
             mask = cv2.inRange(proc_img, color, color)
@@ -358,11 +367,9 @@ class VectorEngine:
             
             path_d = ""
             for cnt in contours:
-                # Çok küçük alanları at
                 if cv2.contourArea(cnt) < 30: continue
                 
-                # Eğrileri basitleştir (Wilcom için daha iyi)
-                epsilon = 0.003 * cv2.arcLength(cnt, True)
+                epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 if len(approx) < 3: continue
                 
@@ -380,7 +387,7 @@ class VectorEngine:
 
 # --- API ENDPOINTS ---
 
-# 1. VEKTÖR API
+# 1. VEKTÖR API (GÜNCELLENMİŞ)
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
@@ -389,7 +396,6 @@ def api_vectorize():
 
     if "image" not in request.files: return jsonify({"success": False}), 400
     file = request.files["image"]
-    # Frontend'den gelen 'method' parametresi (cartoon, outline, normal)
     method = request.form.get("method", "normal")
     
     try:
@@ -398,16 +404,21 @@ def api_vectorize():
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            # YENİ: Akıllı Cartoon modunu kullan
+            # --- YENİ KONTROL: AI Model Yoksa Uyarı Ver ---
+            if gan_session is None:
+                return jsonify({"success": False, "message": "AI Modeli Yüklü Değil! Lütfen sunucu loglarını kontrol edin."}), 500
+            
+            # Gelişmiş Cartoon Modu (AI + Kontur)
             engine.process_cartoon_smart()
         else: # normal mod
-            # Normal mod için sadece basit K-Means yeterli
+            # Normal mod için de AI kullanabiliriz (daha pürüzsüz olur)
+            if gan_session: engine.process_with_ai_model()
             engine.reduce_colors_kmeans(k=16)
 
         svg_str = engine.generate_svg()
         b64_svg = base64.b64encode(svg_str.encode('utf-8')).decode('utf-8')
         
-        # Önizleme için PNG (Orijinal boyuta geri çekerek)
+        # Önizleme PNG
         preview_img = cv2.resize(engine.img, (engine.w, engine.h), interpolation=cv2.INTER_NEAREST)
         _, buf = cv2.imencode('.png', preview_img)
         b64_png = base64.b64encode(buf).decode('utf-8')
@@ -459,7 +470,7 @@ def api_remove_bg():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# 3. GÖRSEL SIKIŞTIRMA API (KB/MB Fix)
+# 3. GÖRSEL SIKIŞTIRMA API
 @app.route("/api/img/compress", methods=["POST"])
 def api_img_compress():
     email = session.get("user_email", "guest")
@@ -487,7 +498,7 @@ def api_img_compress():
     except Exception as e:
         return jsonify({"success": False, "message": "Hata."}), 500
 
-# 4. FORMAT ÇEVİRME API (Genişletilmiş)
+# 4. FORMAT ÇEVİRME API
 @app.route("/api/img/convert", methods=["POST"])
 def api_img_convert():
     email = session.get("user_email", "guest")
@@ -666,6 +677,3 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
-
-
-
