@@ -220,9 +220,38 @@ class VectorEngine:
     def __init__(self, image_stream):
         # Dosyayı OpenCV formatına çevir
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
-        self.img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        if self.img is None:
+        
+        # ÖNEMLİ DEĞİŞİKLİK: IMREAD_UNCHANGED ile yükle (Alpha kanalını koru)
+        image = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
+        
+        if image is None:
             raise ValueError("Görüntü okunamadı")
+
+        # Şeffaflık Kontrolü (4 Kanal var mı? B, G, R, Alpha)
+        if len(image.shape) == 3 and image.shape[2] == 4:
+            # Alpha kanalını al
+            alpha_channel = image[:, :, 3]
+            
+            # RGB kanallarını al
+            rgb_channels = image[:, :, :3]
+            
+            # Beyaz bir arka plan oluştur (Tuval)
+            white_bg = np.ones_like(rgb_channels, dtype=np.uint8) * 255
+            
+            # Alpha kanalını maske olarak kullan (0-255 arası değerleri 0-1 arasına çek)
+            alpha_factor = alpha_channel[:, :, np.newaxis] / 255.0
+            
+            # Ön planı ve arka planı birleştir: 
+            # (Resim * Alpha) + (Beyaz Zemin * (1 - Alpha))
+            base = (rgb_channels * alpha_factor + white_bg * (1 - alpha_factor)).astype(np.uint8)
+            
+            self.img = base
+        elif len(image.shape) == 2: # Gri tonlamalı gelirse
+             self.img = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            # Zaten 3 kanallı (JPG vb.) ise dokunma
+            self.img = image[:, :, :3] # Güvenlik için sadece ilk 3 kanalı al
+
         self.original_h, self.original_w = self.img.shape[:2]
 
     def process_enhanced_quality(self, mode='normal'):
@@ -752,6 +781,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
