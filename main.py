@@ -227,6 +227,7 @@ class VectorEngine:
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
 
+        # Şeffaflık varsa beyaz yap (AI için)
         if len(self.original_img.shape) == 3 and self.original_img.shape[2] == 4:
             alpha = self.original_img[:, :, 3]
             rgb = self.original_img[:, :, :3]
@@ -236,17 +237,26 @@ class VectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
+        # İşlem hızını artırmak için boyutu makul bir seviyeye çekelim (örn: max 800px)
+        # Bu, özellikle MeanShift filtresinin çok yavaş çalışmasını engeller.
+        h, w = self.img.shape[:2]
+        max_dim = 800
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        
         self.h, self.w = self.img.shape[:2]
 
     def process_with_ai_model(self):
+        """AI Modeli ile Anime/Çizim efekti uygular"""
         global gan_session
         if gan_session is None:
-            print("Model yok, klasik yöntem.")
-            return self.process_cartoon_classic()
+            return # Model yoksa işlem yapma
 
         try:
-            resized_img = cv2.resize(self.img, (512, 512))
-            x = cv2.cvtColor(resized_img, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
+            # AI için 512x512'ye yeniden boyutlandır
+            resized_input = cv2.resize(self.img, (512, 512))
+            x = cv2.cvtColor(resized_input, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
             x = np.transpose(x, (2, 0, 1))
             x = np.expand_dims(x, axis=0)
 
@@ -257,18 +267,33 @@ class VectorEngine:
             output = np.clip(output, 0, 255).astype(np.uint8)
             output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
             
+            # AI çıktısını, __init__'te belirlediğimiz çalışma boyutuna geri getir
             self.img = cv2.resize(output, (self.w, self.h))
         except Exception as e:
             print(f"AI Hatası: {e}")
-            self.process_cartoon_classic()
 
-    def process_cartoon_classic(self):
-        for _ in range(5):
-            self.img = cv2.bilateralFilter(self.img, 9, 75, 75)
+    def process_cartoon_smart(self):
+        """
+        YENİ YÖNTEM: AI + MeanShift Filtresi
+        Bu yöntem kenarları koruyarak renkleri düzleştirir (Cartoon etkisi).
+        """
+        # 1. Adım: AI Modeli ile temel çizim efektini ver
+        self.process_with_ai_model()
 
-    def reduce_colors(self, k=8):
-        blurred = cv2.medianBlur(self.img, 3)
-        data = np.float32(blurred).reshape((-1, 3))
+        # 2. Adım: MeanShift Filtresi (Kenar Koruyarak Düzleştirme)
+        # sp: Mekansal pencere yarıçapı (Büyüdükçe daha geniş alanlar düzleşir)
+        # sr: Renk penceresi yarıçapı (Büyüdükçe daha farklı renkler birbirine karışır)
+        # (20, 30) iyi bir başlangıç noktasıdır.
+        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=20, sr=30)
+        
+        # 3. Adım: (İsteğe bağlı) Hafif bir K-Means ile renk paletini sabitle
+        # MeanShift zaten renkleri azalttığı için burada k değerini biraz yüksek tutabiliriz (örn: 12-16)
+        # Böylece detaylar kaybolmaz ama renkler yine de "posterize" olur.
+        self.reduce_colors_kmeans(k=12)
+
+    def reduce_colors_kmeans(self, k=8):
+        """Standart K-Means Renk Azaltma"""
+        data = np.float32(self.img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
         try:
             _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
@@ -277,6 +302,7 @@ class VectorEngine:
         except: pass
 
     def process_outline(self):
+        """Sadece Dış Hatlar"""
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(gray, 50, 150)
@@ -286,26 +312,41 @@ class VectorEngine:
         self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        pixels = self.img.reshape(-1, 3)
+        """SVG Oluşturucu (Optimize Edilmiş)"""
+        # Görseli işlemeden önce biraz daha küçültelim ki SVG çok şişmesin (isteğe bağlı)
+        proc_img = self.img
+        if max(self.h, self.w) > 600:
+             scale = 600 / max(self.h, self.w)
+             proc_img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+        
+        h, w = proc_img.shape[:2]
+        pixels = proc_img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
-        svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {self.w} {self.h}">'
+        # Viewbox'ı orijinal boyuta göre ayarla
+        svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {w} {h}">'
         
         for color in unique_colors:
             b, g, r = color
-            if r > 240 and g > 240 and b > 240: continue
+            # Beyaza çok yakın renkleri (arka plan) atla
+            if r > 245 and g > 245 and b > 245: continue
             
-            mask = cv2.inRange(self.img, color, color)
+            mask = cv2.inRange(proc_img, color, color)
+            # Gürültü temizliği
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             hex_c = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
             path_d = ""
             for cnt in contours:
-                if cv2.contourArea(cnt) < 50: continue
-                epsilon = 0.002 * cv2.arcLength(cnt, True)
+                # Çok küçük alanları at
+                if cv2.contourArea(cnt) < 30: continue
+                
+                # Eğrileri basitleştir (Wilcom için daha iyi)
+                epsilon = 0.003 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 if len(approx) < 3: continue
                 
@@ -604,3 +645,4 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
