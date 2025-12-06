@@ -515,6 +515,80 @@ def postprocess_bg(mask, size):
     mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
     return mask
 
+@app.route("/api/img/convert", methods=["POST"])
+def api_img_convert():
+    # 1. Limit Kontrolü
+    email = session.get("user_email", "guest")
+    status = check_user_status(email, "image", "convert")
+    
+    if not status["allowed"]:
+        return jsonify({"success": False, "reason": "limit", "message": "Limit doldu."}), 403
+
+    # 2. Dosya Kontrolü
+    if "image" not in request.files:
+        return jsonify({"success": False}), 400
+        
+    file = request.files["image"]
+    # Frontend'den gelen format (jpeg, png, webp, pdf, ico, bmp, tiff, gif)
+    target_ext = request.form.get("format", "jpeg").lower()
+    
+    # PIL Format Eşleştirmesi (Frontend uzantısı -> PIL Format Adı)
+    format_map = {
+        'jpeg': 'JPEG', 'jpg': 'JPEG',
+        'png': 'PNG',
+        'webp': 'WEBP',
+        'pdf': 'PDF',
+        'ico': 'ICO',
+        'bmp': 'BMP',
+        'tiff': 'TIFF',
+        'gif': 'GIF'
+    }
+    
+    pil_format = format_map.get(target_ext, 'JPEG')
+
+    try:
+        img = Image.open(file.stream)
+        
+        # --- ÖZEL DURUMLAR VE DÖNÜŞÜMLER ---
+        
+        # A. PDF, JPG, BMP: Şeffaflık desteklemez, RGB'ye çevir
+        if pil_format in ['JPEG', 'PDF', 'BMP'] and img.mode in ("RGBA", "P"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == 'P': img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[3] if len(img.split()) > 3 else None) 
+            img = background
+            
+        # B. ICO: Favicon için boyut sınırlaması (Max 256x256 önerilir)
+        if pil_format == 'ICO':
+            if img.width > 256 or img.height > 256:
+                img.thumbnail((256, 256))
+                
+        # C. GIF: Hareketli GIF ise sadece ilk kareyi al (Basit dönüşüm için)
+        # Eğer tam GIF desteği isterseniz kod uzar, şimdilik statik çeviri yapıyoruz.
+        
+        # --- KAYDETME ---
+        output = io.BytesIO()
+        
+        # Parametreler
+        save_args = {"format": pil_format}
+        if pil_format == 'JPEG': save_args["quality"] = 95
+        if pil_format == 'WEBP': save_args["quality"] = 90
+        
+        img.save(output, **save_args)
+        
+        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
+        
+        increase_usage(email, "image", "convert")
+        
+        return jsonify({
+            "success": True,
+            "file": encoded_img
+        })
+        
+    except Exception as e:
+        print(f"Convert Error: {e}")
+        return jsonify({"success": False, "message": "Dönüştürme başarısız."}), 500
+
 @app.route("/api/remove_bg", methods=["POST"])
 def api_remove_bg():
     if not u2net_session: return jsonify({"success": False, "reason": "AI Modeli Yok"}), 503
@@ -579,6 +653,8 @@ def api_pdf_merge():
 def home(): return render_template("index.html")
 @app.route("/remove-bg")
 def remove_bg_page(): return render_template("background_remove.html")
+@app.route("/img/convert")
+def img_convert_page():return render_template("image_convert.html")
 @app.route("/img/compress")
 def img_compress_page(): return render_template("image_compress.html")
 @app.route("/pdf/merge")
@@ -676,6 +752,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
