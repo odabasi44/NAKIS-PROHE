@@ -243,6 +243,7 @@ def increase_usage(email, tool, subtool):
     session.modified = True
 
 # --- VEKTÖR MOTORU (AI WHITE-BOX + POSTERIZE) ---
+# --- VEKTÖR MOTORU (POP-ART STİLİ: ÇİZGİLİ + DÜZ RENK) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -251,7 +252,6 @@ class VectorEngine:
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
 
-        # Şeffaflık varsa beyaz yap (AI şeffaflıkla çalışmaz)
         if len(self.original_img.shape) == 3 and self.original_img.shape[2] == 4:
             alpha = self.original_img[:, :, 3]
             rgb = self.original_img[:, :, :3]
@@ -261,9 +261,9 @@ class VectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
-        # İşlem hızı ve AI için makul boyuta getir (720p ideal)
+        # Çizgi roman efekti için 800px-1000px arası idealdir
         h, w = self.img.shape[:2]
-        target_dim = 720
+        target_dim = 800
         if max(h, w) > target_dim:
             scale = target_dim / max(h, w)
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -271,40 +271,25 @@ class VectorEngine:
         self.h, self.w = self.img.shape[:2]
 
     def process_with_ai_model(self):
-        """White-box Cartoonization Modeli ile Yüzey Düzleştirme"""
+        """White-box Model: Dokuları temizle, yüzeyi düzleştir"""
         global gan_session
-        if gan_session is None: 
-            print("AI Modeli yüklü değil, OpenCV ile devam ediliyor.")
-            return
+        if gan_session is None: return
 
         try:
-            # Model 256'nın katlarını sever (512x512)
             process_h, process_w = 512, 512
             img_resized = cv2.resize(self.img, (process_w, process_h))
-            
-            # Preprocessing: BGR -> RGB ve Normalizasyon (-1 ile 1 arası)
             img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
             img_normalized = (img_rgb.astype(np.float32) / 127.5) - 1.0
-            
-            # (H, W, 3) -> (1, 3, H, W)
             img_input = np.transpose(img_normalized, (2, 0, 1))
             img_input = np.expand_dims(img_input, axis=0)
 
-            # Inference
             input_name = gan_session.get_inputs()[0].name
             output = gan_session.run(None, {input_name: img_input})[0]
 
-            # Postprocessing
-            output = output.squeeze().transpose(1, 2, 0) # (H, W, 3)
-            
-            # Denormalizasyon (-1..1 -> 0..255)
+            output = output.squeeze().transpose(1, 2, 0)
             output = (output + 1.0) * 127.5
             output = np.clip(output, 0, 255).astype(np.uint8)
-            
-            # RGB -> BGR
             output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
-            
-            # Orijinal boyuta geri getir (Lanczos4 kaliteli küçültme/büyütme yapar)
             self.img = cv2.resize(output_bgr, (self.w, self.h), interpolation=cv2.INTER_LANCZOS4)
             
         except Exception as e:
@@ -312,30 +297,51 @@ class VectorEngine:
 
     def process_cartoon_smart(self):
         """
-        GELİŞMİŞ VEKTÖR STİLİ (AI + K-MEANS)
-        Hedef: Düz renk blokları, siyah kontursuz (Outline yok), Posterize görünüm.
+        HEDEF: SAĞDAKİ GÖRSEL (Aamir Khan Örneği)
+        Strateji: AI Düzleştirme + K-Means (Düz Renkler) + Adaptive Threshold (Siyah Çizgiler)
         """
         
-        # 1. ADIM: AI ile "Yapısal Düzleştirme"
-        # Bu, dokuları (saç telleri, cilt gözenekleri) siler, yüzeyleri düzleştirir.
+        # 1. ADIM: AI ile Yüzeyi Temizle (Dokuları sil)
         if gan_session:
             self.process_with_ai_model()
 
-        # 2. ADIM: Ekstra Pürüzsüzleştirme (Bilateral Filter)
-        # AI'dan kalan ufak renk gürültülerini alır, kenarları koruyarak yumuşatır.
-        self.img = cv2.bilateralFilter(self.img, d=5, sigmaColor=50, sigmaSpace=50)
+        # 2. ADIM: Siyah Konturları (Çizgileri) Hazırla
+        # Resmi griye çevir ve kenarları bul
+        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        # Gürültüyü azaltmak için blur
+        gray = cv2.medianBlur(gray, 7)
+        
+        # Kenar Tespiti (Çizgi Roman efekti için en önemlisi)
+        edges = cv2.adaptiveThreshold(
+            gray, 
+            255, 
+            cv2.ADAPTIVE_THRESH_MEAN_C, 
+            cv2.THRESH_BINARY, 
+            blockSize=11, # Çizgi hassasiyeti (9-15 arası iyidir)
+            C=6           # Gürültü eşiği
+        )
+        
+        # Çizgileri biraz temizle ve belirginleştir
+        kernel = np.ones((2,2), np.uint8)
+        edges = cv2.erode(edges, kernel, iterations=1) # Siyah çizgileri kalınlaştırır
 
-        # 3. ADIM: Renk Sayısını Azaltma (Poster Efekti / Cutout)
-        # Referans görseldeki o "kesik kağıt" hissi için renkleri kısıtlıyoruz.
-        # k=14 ideal bir dengedir.
-        self.reduce_colors_kmeans(k=14)
+        # 3. ADIM: Renkleri "Blok" Haline Getir
+        # Hedef görselde çok az renk var, o yüzden k değerini düşürüyoruz.
+        # Önce biraz bulanıklaştır ki renkler birbirine girmesin
+        self.img = cv2.bilateralFilter(self.img, d=9, sigmaColor=75, sigmaSpace=75)
+        
+        # Renk sayısını 8'e düşür (Ten, Saç, Gömlek, Arka plan, Dudak vs.)
+        self.reduce_colors_kmeans(k=8)
 
-        # 4. ADIM: Kenar Temizliği
-        # Bloklar arasındaki geçişleri yumuşatır
+        # 4. ADIM: Çizgileri Renkli Resmin Üzerine Bas
+        # Bu işlem, o "vektör çizim" havasını veren işlemdir.
+        self.img = cv2.bitwise_and(self.img, self.img, mask=edges)
+
+        # 5. ADIM: Son Temizlik
         self.img = cv2.medianBlur(self.img, 3)
 
     def reduce_colors_kmeans(self, k=8):
-        """Piksel renklerini en yakın 'k' ana renge yuvarlar"""
+        """Renk sayısını radikal şekilde azalt"""
         data = np.float32(self.img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
         try:
@@ -345,18 +351,14 @@ class VectorEngine:
         except: pass
 
     def process_outline(self):
-        """Sadece Siyah Beyaz Çizgisel Görünüm (Opsiyonel Mod İçin)"""
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
         edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 3)
         self.img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        """Renk bloklarını SVG Path'lerine dönüştürür"""
         proc_img = self.img
-        
         h, w = proc_img.shape[:2]
-        
         pixels = proc_img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
@@ -365,10 +367,12 @@ class VectorEngine:
         for color in unique_colors:
             b, g, r = color
             
-            # Maske oluştur (Sadece şu anki rengi seç)
+            # Siyaha çok yakın renkleri (kontur) ayırıp en üste koymak için mantık kurabiliriz
+            # ama şimdilik standart tarama yapıyoruz.
+            
             mask = cv2.inRange(proc_img, color, color)
             
-            # Gürültü temizliği (1-2 piksellik noktaları at)
+            # SVG'yi hafifletmek için gürültü temizliği
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
@@ -377,17 +381,14 @@ class VectorEngine:
             
             path_d = ""
             for cnt in contours:
-                # Çok minik parçaları vektöre çevirme
-                if cv2.contourArea(cnt) < 40: continue
+                if cv2.contourArea(cnt) < 25: continue # Çok küçük noktaları at
                 
-                # Vektör yumuşatma (Polygon Approximation)
                 epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 
                 if len(approx) < 3: continue
                 
                 pts = approx.reshape(-1, 2)
-                
                 path_d += f"M {pts[0][0]} {pts[0][1]} "
                 for p in pts[1:]:
                     path_d += f"L {p[0]} {p[1]} "
@@ -398,7 +399,6 @@ class VectorEngine:
         
         svg += '</svg>'
         return svg
-
 # --- API ENDPOINTS ---
 
 # 1. VEKTÖR API
@@ -689,3 +689,4 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
