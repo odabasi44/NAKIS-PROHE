@@ -1,10 +1,9 @@
-# main.py dosyasının en üstüne, diğer importların yanına ekleyin:
-import cv2
-import random
 import os
 import io
 import json
 import base64
+import random
+import cv2
 import numpy as np
 from PIL import Image
 from datetime import datetime, timedelta
@@ -18,41 +17,34 @@ app.secret_key = "BOTLAB_SECRET_123"
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
-# --- AYARLAR SİSTEMİ (GÜNCELLENMİŞ) ---
+# --- AYARLAR SİSTEMİ ---
 def load_settings():
-    # Varsayılan Paket ve Limit Ayarları
     default_settings = {
         "admin": {"email": "admin@botlab.com", "password": "admin"},
         "limits": {
-            # GÖRSEL ARAÇLAR
             "image": {
                 "remove_bg": {"free": 2, "starter": 20, "pro": 200, "unlimited": 9999},
                 "compress": {"free": 5, "starter": 50, "pro": 500, "unlimited": 9999},
                 "convert": {"free": 5, "starter": 50, "pro": 500, "unlimited": 9999}
             },
-            # PDF ARAÇLARI
             "pdf": {
                 "merge": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
                 "split": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
                 "compress": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
                 "word2pdf": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999}
             },
-            # VEKTÖR & AI
             "vector": {
                 "default": {"free": 0, "starter": 5, "pro": 50, "unlimited": 9999}
             },
-            # YENİ ÜRETİCİLER (İndirme Limiti)
-            # Free pakete '0' vererek indirmeyi engelleyeceğiz ama sayfayı açacağız.
             "generator": {
                 "qr": {"free": 0, "starter": 10, "pro": 100, "unlimited": 9999},
                 "logo": {"free": 0, "starter": 5, "pro": 50, "unlimited": 9999}
             },
-            # Dosya Boyutu Limitleri (MB)
             "file_size": {
                 "free": 5, "starter": 10, "pro": 50, "unlimited": 100
             }
         },
-        "packages": {}, # Paket tanımları (daha önce eklediklerimiz korunur)
+        "packages": {},
         "site": {},
         "tool_status": {}
     }
@@ -63,10 +55,9 @@ def load_settings():
     try:
         with open("settings.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Eksik alanları varsayılanlarla doldur (migration)
             if "limits" not in data: data["limits"] = default_settings["limits"]
             
-            # Yeni eklenen araçları kontrol et ve eksikse ekle
+            # Eksik kategorileri tamamla
             defaults = default_settings["limits"]
             for main_cat, tools in defaults.items():
                 if main_cat not in data["limits"]:
@@ -76,18 +67,16 @@ def load_settings():
                         for tool, limits in tools.items():
                             if tool not in data["limits"][main_cat]:
                                 data["limits"][main_cat][tool] = limits
-            
             return data
     except:
         return default_settings
+
 def save_settings(data):
     with open("settings.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 # --- KULLANICI SİSTEMİ ---
 PREMIUM_FILE = "users.json"
-
-# Hangi araçlar hangi pakette tamamen yasaklı (Görünür ama kilitli)
 TIER_RESTRICTIONS = {
     "free": ["vector", "pdf_split", "word2pdf"], 
     "starter": ["vector"], 
@@ -118,7 +107,6 @@ def check_session_status():
         if not session.get("admin_logged"): return redirect("/admin_login")
 
     if "user_email" in session:
-        # Admin kontrolü
         settings = load_settings()
         if session["user_email"] == settings["admin"]["email"]: return
 
@@ -126,10 +114,8 @@ def check_session_status():
         if user:
              try:
                 end_date = datetime.strptime(user.get("end_date", "1970-01-01"), "%Y-%m-%d")
-                # Paket bilgisini session'a işle
                 session["user_tier"] = user.get("tier", "free")
                 session["is_premium"] = (end_date >= datetime.now())
-                # Süre bittiyse tier'ı free'ye çek
                 if not session["is_premium"]: session["user_tier"] = "free"
              except: 
                  session["is_premium"] = False
@@ -145,8 +131,6 @@ def check_session_status():
 # --- LİMİT KONTROL MOTORU ---
 def check_user_status(email, tool, subtool):
     settings = load_settings()
-    
-    # 1. Kullanıcı Paketini Belirle
     user_tier = "free"
     user_data = None
     
@@ -154,29 +138,23 @@ def check_user_status(email, tool, subtool):
         user_data = get_user_data_by_email(email)
         if user_data:
             try:
-                end_date = datetime.strptime(user_data.get("end_date"), "%Y-%m-%d")
-                if end_date >= datetime.now():
+                if datetime.strptime(user_data.get("end_date"), "%Y-%m-%d") >= datetime.now():
                     user_tier = user_data.get("tier", "free")
             except: pass
             
-    # 2. Kısıtlı Araç Kontrolü (Tier Restriction)
     check_key = subtool if subtool else tool
     if check_key in TIER_RESTRICTIONS.get(user_tier, []):
          return {"allowed": False, "reason": "tier_restricted", "tier": user_tier, "left": 0, "premium": (user_tier != "free")}
 
-    # 3. Bakım Modu
     tool_status = settings.get("tool_status", {}).get(subtool, {})
     if tool_status.get("maintenance", False):
         return {"allowed": False, "reason": "maintenance", "left": 0, "premium": (user_tier != "free")}
 
-    # 4. Limitleri Çek
     tool_limits = settings.get("limits", {}).get(tool, {})
     limit = tool_limits.get(subtool, {}).get(user_tier, 0)
     
-    # 5. Kullanım Miktarını Bul
     current_usage = 0
     if user_tier == "free":
-        # Session'dan oku
         if "free_usage" not in session: 
             session["free_usage"] = {}
             session.modified = True
@@ -185,11 +163,9 @@ def check_user_status(email, tool, subtool):
             session.modified = True
         current_usage = session["free_usage"][tool].get(subtool, 0)
     else:
-        # DB'den oku
         current_usage = user_data.get("usage_stats", {}).get(subtool, 0)
 
     left = limit - current_usage
-    
     if left <= 0:
         reason = "free_limit_full" if user_tier == "free" else "premium_limit_full"
         return {"allowed": False, "reason": reason, "left": 0, "premium": (user_tier != "free"), "tier": user_tier}
@@ -197,7 +173,6 @@ def check_user_status(email, tool, subtool):
     return {"allowed": True, "reason": "", "premium": (user_tier != "free"), "left": left, "tier": user_tier}
 
 def increase_usage(email, tool, subtool):
-    # Premium kullanıcı DB'ye yaz
     if email != "guest":
         users = load_premium_users()
         for u in users:
@@ -207,457 +182,288 @@ def increase_usage(email, tool, subtool):
                 save_premium_users(users)
                 return
 
-    # Misafir Session'a yaz (VE KAYDET)
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-    
     current = session["free_usage"][tool].get(subtool, 0)
     session["free_usage"][tool][subtool] = current + 1
-    session.modified = True # <--- LIMITIN DÜŞMESİ İÇİN ŞART
+    session.modified = True
 
-# --- VEKTÖR MOTORU (GELİŞMİŞ-v.2-ODABASI) ---
-# --- VEKTÖR MOTORU (GELİŞMİŞ AVATAR & ÇİZGİ ROMAN MODU) ---
+# --- GLOBAL MODEL YÜKLEYİCİLER ---
+
+# 1. VEKTÖR MODELİ (AnimeGAN) - VOLUME PATH
+gan_session = None
+gan_path = "/data/models/face_paint_512_v2.onnx" # Coolify Volume Path
+
+if os.path.exists(gan_path):
+    try:
+        gan_session = ort.InferenceSession(gan_path, providers=["CPUExecutionProvider"])
+        print(f"Cartoon AI Modeli Başarıyla Yüklendi: {gan_path}")
+    except Exception as e:
+        print(f"Cartoon AI Yüklenemedi: {e}")
+else:
+    print(f"DİKKAT: Model dosyası bulunamadı: {gan_path}")
+
+# 2. U2NET MODELİ (BG Remove)
+u2net_session = None
+u2net_input_name = "input"
+# U2Net için olası yollar (Lokal klasörler)
+possible_paths = ["u2net.onnx", "models/u2net.onnx", "/app/models/u2net.onnx"]
+u2net_path = None
+for path in possible_paths:
+    if os.path.exists(path): u2net_path = path; break
+if u2net_path:
+    try:
+        u2net_session = ort.InferenceSession(u2net_path, providers=["CPUExecutionProvider"])
+        u2net_input_name = u2net_session.get_inputs()[0].name
+        print(f"U2Net Modeli Yüklendi: {u2net_path}")
+    except: pass
+
+# --- VEKTÖR MOTORU (AI DESTEKLİ) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
-        # Şeffaflık (Alpha) varsa koruyarak yükle
-        image = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
+        self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
         
-        if image is None:
+        if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
 
-        # Şeffaflık Yönetimi (PNG ise arkasını beyaz yap)
-        if len(image.shape) == 3 and image.shape[2] == 4:
-            alpha_channel = image[:, :, 3]
-            rgb_channels = image[:, :, :3]
-            white_bg = np.ones_like(rgb_channels, dtype=np.uint8) * 255
-            alpha_factor = alpha_channel[:, :, np.newaxis] / 255.0
-            base = (rgb_channels * alpha_factor + white_bg * (1 - alpha_factor)).astype(np.uint8)
-            self.img = base
-        elif len(image.shape) == 2:
-             self.img = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        if len(self.original_img.shape) == 3 and self.original_img.shape[2] == 4:
+            alpha = self.original_img[:, :, 3]
+            rgb = self.original_img[:, :, :3]
+            white_bg = np.ones_like(rgb, dtype=np.uint8) * 255
+            alpha_factor = alpha[:, :, np.newaxis] / 255.0
+            self.img = (rgb * alpha_factor + white_bg * (1 - alpha_factor)).astype(np.uint8)
         else:
-            self.img = image[:, :, :3]
+            self.img = self.original_img[:, :, :3]
 
-        self.original_h, self.original_w = self.img.shape[:2]
+        self.h, self.w = self.img.shape[:2]
 
-    def resize_for_processing(self):
-        # İşlem hızı ve kalite dengesi için resmi optimize et (Max 800px)
-        max_dim = 800
-        h, w = self.img.shape[:2]
-        if max(h, w) > max_dim:
-            scale = max_dim / max(h, w)
-            self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    def process_with_ai_model(self):
+        global gan_session
+        if gan_session is None:
+            print("Model yok, klasik yöntem.")
+            return self.process_cartoon_classic()
 
-    def process_cartoon_avatar(self):
-        """
-        ULTRA KALİTE ÇİZGİ ROMAN MODU (Wilcom Uyumlu)
-        1. Resmi pürüzsüzleştir.
-        2. Renkleri 8-10 ana renge indir.
-        3. Keskin siyah kontur çizgileri ekle.
-        """
-        # 1. Boyutlandırma (Kalite için önemli)
-        self.resize_for_processing()
-        
-        # 2. Renk Düzleştirme (Bilateral Filter - Yağlı Boya Etkisi)
-        # Tekrarlayan filtreleme ile dokuları yok et, sadece renk blokları kalsın
-        color = self.img
-        for _ in range(7): 
-            color = cv2.bilateralFilter(color, 9, 75, 75)
+        try:
+            resized_img = cv2.resize(self.img, (512, 512))
+            x = cv2.cvtColor(resized_img, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
+            x = np.transpose(x, (2, 0, 1))
+            x = np.expand_dims(x, axis=0)
+
+            input_name = gan_session.get_inputs()[0].name
+            output = gan_session.run(None, {input_name: x})[0]
+
+            output = (output.squeeze().transpose(1, 2, 0) + 1.0) * 127.5
+            output = np.clip(output, 0, 255).astype(np.uint8)
+            output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
             
-        # 3. Kenar Çizgilerini Çıkarma (Line Art)
-        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 7)
-        # Adaptive Threshold: Siyah kalem efekti verir
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
-        
-        # 4. Renk Azaltma (K-Means) - Nakış için az renk şart
-        data = np.float32(color).reshape((-1, 3))
+            self.img = cv2.resize(output, (self.w, self.h))
+        except Exception as e:
+            print(f"AI Hatası: {e}")
+            self.process_cartoon_classic()
+
+    def process_cartoon_classic(self):
+        for _ in range(5):
+            self.img = cv2.bilateralFilter(self.img, 9, 75, 75)
+
+    def reduce_colors(self, k=8):
+        blurred = cv2.medianBlur(self.img, 3)
+        data = np.float32(blurred).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
-        # k=8 : Maksimum 8 renk olsun (Tişört baskı/Nakış için ideal)
-        _, label, center = cv2.kmeans(data, 8, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        center = np.uint8(center)
-        result_color = center[label.flatten()].reshape((color.shape))
-        
-        # 5. Birleştirme (Renkler + Siyah Çizgiler)
-        # Siyah çizgileri renkli resmin üzerine maske olarak uygula
-        self.img = cv2.bitwise_and(result_color, result_color, mask=edges)
-        
-        # Siyah çizgilerin olduğu yerler siyah olsun (Maske şeffaf yapmasın)
-        # Kenarların (edges) siyah olduğu yerleri resimde de siyah yap
-        edges_inv = cv2.bitwise_not(edges) # Siyah çizgiler şimdi beyaz oldu
-        self.img[edges_inv == 255] = [0, 0, 0] # Çizgileri SİYAH boya
+        try:
+            _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+            center = np.uint8(center)
+            self.img = center[label.flatten()].reshape((self.img.shape))
+        except: pass
 
     def process_outline(self):
-        # Sadece Dış Hatlar (Sargı Dikiş)
-        self.resize_for_processing()
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(gray, 50, 150)
-        # Çizgileri kalınlaştır
         kernel = np.ones((2,2), np.uint8)
         dilated = cv2.dilate(edges, kernel, iterations=1)
         self.img = cv2.bitwise_not(dilated)
         self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        # SVG oluştururken çok küçük detayları (gürültü) atla
         pixels = self.img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
-        svg_output = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.original_w}" height="{self.original_h}" viewBox="0 0 {self.img.shape[1]} {self.img.shape[0]}">'
+        svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {self.w} {self.h}">'
         
         for color in unique_colors:
             b, g, r = color
-            # Beyaza çok yakın alanları (Arka plan) çizme
             if r > 240 and g > 240 and b > 240: continue
             
             mask = cv2.inRange(self.img, color, color)
-            
-            # Gürültü temizliği (Küçük noktaları yok et)
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            
+
             contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            hex_c = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
-            hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
-            
-            path_data = ""
+            path_d = ""
             for cnt in contours:
-                # Çok küçük alanları vektör yapma
-                if cv2.contourArea(cnt) < 50: continue 
-                
+                if cv2.contourArea(cnt) < 50: continue
                 epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
-                
                 if len(approx) < 3: continue
                 
-                points = approx.reshape(-1, 2)
-                path_data += f"M {points[0][0]} {points[0][1]} "
-                for p in points[1:]:
-                    path_data += f"L {p[0]} {p[1]} "
-                path_data += "Z " 
+                pts = approx.reshape(-1, 2)
+                path_d += f"M {pts[0][0]} {pts[0][1]} "
+                for p in pts[1:]:
+                    path_d += f"L {p[0]} {p[1]} "
+                path_d += "Z "
             
-            if path_data:
-                svg_output += f'<path d="{path_data}" fill="{hex_color}" stroke="none" />'
+            if path_d:
+                svg += f'<path d="{path_d}" fill="{hex_c}" stroke="none" />'
         
-        svg_output += '</svg>'
-        return svg_output
+        svg += '</svg>'
+        return svg
 
-# --- API ENDPOINTLERİ ---
-# --- API ENDPOINTLERİ KISMINA EKLEYİN ---
+# --- API ENDPOINTS ---
 
-# --- API GÜNCELLEMESİ ---
+# 1. VEKTÖR API
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
     status = check_user_status(email, "vector", "default")
-    
-    if not status["allowed"]:
-        return jsonify({"success": False, "reason": "limit"}), 403
+    if not status["allowed"]: return jsonify({"success": False, "reason": "limit"}), 403
 
-    if "image" not in request.files:
-        return jsonify({"success": False}), 400
-    
+    if "image" not in request.files: return jsonify({"success": False}), 400
     file = request.files["image"]
-    method = request.form.get("method", "normal") 
-    quality = request.form.get("quality", "high") 
-
+    method = request.form.get("method", "normal")
+    
     try:
         engine = VectorEngine(file)
-        
-        # YENİ MANTIK:
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            # YENİ AVATAR MODU BURADA ÇAĞRILIYOR
-            engine.process_cartoon_avatar()
+            engine.process_with_ai_model()
+            engine.reduce_colors(k=6) 
         else: # normal
-            # Normal modda da biraz çizgi roman havası verelim ama çizgiler olmadan
-            engine.resize_for_processing()
-            engine.img = cv2.pyrMeanShiftFiltering(engine.img, 20, 45)
-            engine.quantize_colors(k=16) # Eski fonksiyon silindiği için buraya basit KMeans eklenebilir veya process_cartoon_avatar hafifletilebilir.
-            # Normal mod için basit KMeans (Eğer eski metodları sildiysek buraya inline yazalım)
-            data = np.float32(engine.img).reshape((-1, 3))
-            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-            _, label, center = cv2.kmeans(data, 16, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-            center = np.uint8(center)
-            engine.img = center[label.flatten()].reshape((engine.img.shape))
+            engine.process_with_ai_model()
+            engine.reduce_colors(k=10)
 
-        # SVG Oluştur
-        svg_string = engine.generate_svg()
-        
-        # Çıktıları Hazırla
-        encoded_svg = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
-        _, buffer = cv2.imencode('.png', engine.img)
-        encoded_png = base64.b64encode(buffer).decode('utf-8')
+        svg_str = engine.generate_svg()
+        b64_svg = base64.b64encode(svg_str.encode('utf-8')).decode('utf-8')
+        _, buf = cv2.imencode('.png', engine.img)
+        b64_png = base64.b64encode(buf).decode('utf-8')
         
         increase_usage(email, "vector", "default")
-        
-        return jsonify({
-            "success": True, 
-            "file": encoded_svg,
-            "preview_img": encoded_png
-        })
-
+        return jsonify({"success": True, "file": b64_svg, "preview_img": b64_png})
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route("/api/img/compress", methods=["POST"])
-def api_img_compress():
-    # 1. Limit Kontrolü
-    email = session.get("user_email", "guest")
-    status = check_user_status(email, "image", "compress")
-    
-    if not status["allowed"]:
-        return jsonify({"success": False, "reason": "limit", "message": "Günlük sıkıştırma limitiniz doldu."}), 403
-
-    # 2. Dosya Kontrolü
-    if "image" not in request.files:
-        return jsonify({"success": False, "message": "Dosya yok"}), 400
-        
-    file = request.files["image"]
-    quality = int(request.form.get("quality", 70))
-    
-    # 3. İşlem
-    try:
-        # Dosya boyutunu hesapla (Orijinal)
-        file.seek(0, os.SEEK_END)
-        orig_size = file.tell()
-        file.seek(0)
-        
-        img = Image.open(file.stream)
-        
-        # Eğer PNG ve şeffaf ise, JPEG'e çevirirken arka planı beyaz yap veya PNG olarak kaydet
-        # Basitlik için JPEG'e zorluyoruz (Sıkıştırma oranı en iyi JPEG'de çalışır)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-            
-        output = io.BytesIO()
-        img.save(output, format="JPEG", quality=quality, optimize=True)
-        new_size = output.tell()
-        
-        # Kazanç hesabı
-        saving = int(((orig_size - new_size) / orig_size) * 100) if orig_size > 0 else 0
-        
-        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
-
-        # --- GÜNCELLEME BAŞLANGICI: Akıllı Boyut Formatlama ---
-        if new_size < 1024 * 1024:
-            # 1 MB'dan küçükse KB göster
-            size_str = f"{new_size/1024:.2f} KB"
-        else:
-            # 1 MB'dan büyükse MB göster
-            size_str = f"{new_size/(1024*1024):.2f} MB"
-        # --- GÜNCELLEME SONU ---
-        
-        # 4. Limit Düşür
-        increase_usage(email, "image", "compress")
-        
-        return jsonify({
-            "success": True,
-            "file": encoded_img,
-            "new_size": size_str, # Artık dinamik (KB veya MB)
-            "saving": saving
-        })
-        
-    except Exception as e:
-        print(f"Compress Error: {e}")
-        return jsonify({"success": False, "message": "İşlem hatası."}), 500
-
-@app.route("/api/admin/save_packages", methods=["POST"])
-def save_packages_api():
-    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
-    
-    data = request.get_json()
-    new_packages = data.get("packages", {})
-    
-    settings = load_settings()
-    
-    # Mevcut "free" paketini koruyalım, diğerlerini güncelleyelim
-    current_packages = settings.get("packages", {})
-    
-    # Gelen veriyi işle
-    for tier, info in new_packages.items():
-        if tier in ["starter", "pro", "unlimited"]:
-            # Eğer settings'de yoksa oluştur, varsa güncelle
-            if tier not in current_packages: current_packages[tier] = {}
-            current_packages[tier].update(info)
-            
-    settings["packages"] = current_packages
-    save_settings(settings)
-    
-    return jsonify({"status": "ok", "message": "Paketler güncellendi."})
-
-@app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
-def check_tool_status_endpoint(tool, subtool):
-    email = session.get("user_email", "guest")
-    status = check_user_status(email, tool, subtool)
-    
-    # Kullanım miktarını döndür
-    usage = 0
-    if email != "guest":
-        user = get_user_data_by_email(email)
-        if user: usage = user.get("usage_stats", {}).get(subtool, 0)
-    else:
-        if "free_usage" in session and tool in session["free_usage"]:
-             usage = session["free_usage"][tool].get(subtool, 0)
-             
-    return jsonify({
-        "allowed": status.get("allowed", False),
-        "reason": status.get("reason", ""),
-        "left": status.get("left", 0),
-        "premium": status.get("premium", False),
-        "tier": status.get("tier", "free"),
-        "usage": usage
-    })
-
-# --- MODEL YÜKLEME ---
-u2net_session = None
-model_input_name = "input"
-possible_paths = ["/data/ai-models/u2net.onnx", "u2net.onnx", "models/u2net.onnx", "/app/models/u2net.onnx"]
-found_path = None
-for path in possible_paths:
-    if os.path.exists(path): found_path = path; break
-if found_path:
-    try:
-        u2net_session = ort.InferenceSession(found_path, providers=["CPUExecutionProvider"])
-        model_input_name = u2net_session.get_inputs()[0].name
-        print(f"Model OK: {model_input_name}")
-    except: pass
-
-def preprocess_bg(img):
-    img = img.convert("RGB").resize((320, 320))
-    arr = np.array(img).astype(np.float32) / 255.0
-    arr = np.transpose(arr, (2, 0, 1))
-    return arr.reshape(1, 3, 320, 320)
-
-def postprocess_bg(mask, size):
-    mask = mask.squeeze()
-    mask = cv2.resize(mask, size)
-    mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
-    return mask
-
-@app.route("/api/img/convert", methods=["POST"])
-def api_img_convert():
-    # 1. Limit Kontrolü
-    email = session.get("user_email", "guest")
-    status = check_user_status(email, "image", "convert")
-    
-    if not status["allowed"]:
-        return jsonify({"success": False, "reason": "limit", "message": "Limit doldu."}), 403
-
-    # 2. Dosya Kontrolü
-    if "image" not in request.files:
-        return jsonify({"success": False}), 400
-        
-    file = request.files["image"]
-    # Frontend'den gelen format (jpeg, png, webp, pdf, ico, bmp, tiff, gif)
-    target_ext = request.form.get("format", "jpeg").lower()
-    
-    # PIL Format Eşleştirmesi (Frontend uzantısı -> PIL Format Adı)
-    format_map = {
-        'jpeg': 'JPEG', 'jpg': 'JPEG',
-        'png': 'PNG',
-        'webp': 'WEBP',
-        'pdf': 'PDF',
-        'ico': 'ICO',
-        'bmp': 'BMP',
-        'tiff': 'TIFF',
-        'gif': 'GIF'
-    }
-    
-    pil_format = format_map.get(target_ext, 'JPEG')
-
-    try:
-        img = Image.open(file.stream)
-        
-        # --- ÖZEL DURUMLAR VE DÖNÜŞÜMLER ---
-        
-        # A. PDF, JPG, BMP: Şeffaflık desteklemez, RGB'ye çevir
-        if pil_format in ['JPEG', 'PDF', 'BMP'] and img.mode in ("RGBA", "P"):
-            background = Image.new("RGB", img.size, (255, 255, 255))
-            if img.mode == 'P': img = img.convert("RGBA")
-            background.paste(img, mask=img.split()[3] if len(img.split()) > 3 else None) 
-            img = background
-            
-        # B. ICO: Favicon için boyut sınırlaması (Max 256x256 önerilir)
-        if pil_format == 'ICO':
-            if img.width > 256 or img.height > 256:
-                img.thumbnail((256, 256))
-                
-        # C. GIF: Hareketli GIF ise sadece ilk kareyi al (Basit dönüşüm için)
-        # Eğer tam GIF desteği isterseniz kod uzar, şimdilik statik çeviri yapıyoruz.
-        
-        # --- KAYDETME ---
-        output = io.BytesIO()
-        
-        # Parametreler
-        save_args = {"format": pil_format}
-        if pil_format == 'JPEG': save_args["quality"] = 95
-        if pil_format == 'WEBP': save_args["quality"] = 90
-        
-        img.save(output, **save_args)
-        
-        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
-        
-        increase_usage(email, "image", "convert")
-        
-        return jsonify({
-            "success": True,
-            "file": encoded_img
-        })
-        
-    except Exception as e:
-        print(f"Convert Error: {e}")
-        return jsonify({"success": False, "message": "Dönüştürme başarısız."}), 500
-
+# 2. REMOVE BG API
 @app.route("/api/remove_bg", methods=["POST"])
 def api_remove_bg():
     if not u2net_session: return jsonify({"success": False, "reason": "AI Modeli Yok"}), 503
     email = session.get("user_email", "guest")
-    
-    # 1. Limit Kontrolü
     status = check_user_status(email, "image", "remove_bg")
     if not status["allowed"]: return jsonify(status), 403
 
     if "image" not in request.files: return jsonify({"success": False}), 400
     file = request.files["image"]
-    
-    # 2. Dosya Boyutu Kontrolü (Pakete göre)
     file.seek(0, os.SEEK_END); size = file.tell(); file.seek(0)
-    
     settings = load_settings()
-    tier = status.get("tier", "free")
-    limit_mb = settings["limits"]["file_size"].get(tier, 5) # Varsayılan 5MB
+    limit_mb = settings["limits"]["file_size"].get(status.get("tier", "free"), 5)
     
     if size > limit_mb * 1024 * 1024:
          return jsonify({"success": False, "reason": "file_size_limit", "message": f"Dosya limiti: {limit_mb}MB"}), 413
     
     try:
         img = Image.open(file.stream)
+        def preprocess_bg(i):
+            i = i.convert("RGB").resize((320, 320))
+            arr = np.array(i).astype(np.float32) / 255.0
+            arr = np.transpose(arr, (2, 0, 1))
+            return arr.reshape(1, 3, 320, 320)
+        def postprocess_bg(m, s):
+            m = m.squeeze(); m = cv2.resize(m, s)
+            m = (m - m.min()) / (m.max() - m.min() + 1e-8)
+            return m
+
         ow, oh = img.size
-        output = u2net_session.run(None, {model_input_name: preprocess_bg(img)})[0]
+        output = u2net_session.run(None, {u2net_input_name: preprocess_bg(img)})[0]
         mask = postprocess_bg(output, (ow, oh))
-        buf = io.BytesIO()
-        Image.fromarray((mask * 255).astype(np.uint8)).save(buf, format="PNG") # Maskeyi döndür (geçici) veya full işlem
-        
-        # Orijinal işlem
         rgba = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2RGBA)
         rgba[:, :, 3] = (mask * 255).astype(np.uint8)
         out_buf = io.BytesIO()
         Image.fromarray(rgba).save(out_buf, format="PNG")
-
         increase_usage(email, "image", "remove_bg")
         return jsonify({"success": True, "file": base64.b64encode(out_buf.getvalue()).decode()})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# --- DİĞER ROTALAR ---
+# 3. GÖRSEL SIKIŞTIRMA API (KB/MB Fix)
+@app.route("/api/img/compress", methods=["POST"])
+def api_img_compress():
+    email = session.get("user_email", "guest")
+    status = check_user_status(email, "image", "compress")
+    if not status["allowed"]: return jsonify({"success": False, "reason": "limit"}), 403
+
+    if "image" not in request.files: return jsonify({"success": False}), 400
+    file = request.files["image"]
+    quality = int(request.form.get("quality", 70))
+    
+    try:
+        file.seek(0, os.SEEK_END); orig_size = file.tell(); file.seek(0)
+        img = Image.open(file.stream)
+        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=quality, optimize=True)
+        new_size = output.tell()
+        
+        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
+        size_str = f"{new_size/1024:.2f} KB" if new_size < 1024*1024 else f"{new_size/(1024*1024):.2f} MB"
+        saving = int(((orig_size - new_size) / orig_size) * 100) if orig_size > 0 else 0
+        
+        increase_usage(email, "image", "compress")
+        return jsonify({"success": True, "file": encoded_img, "new_size": size_str, "saving": saving})
+    except Exception as e:
+        return jsonify({"success": False, "message": "Hata."}), 500
+
+# 4. FORMAT ÇEVİRME API (Genişletilmiş)
+@app.route("/api/img/convert", methods=["POST"])
+def api_img_convert():
+    email = session.get("user_email", "guest")
+    status = check_user_status(email, "image", "convert")
+    if not status["allowed"]: return jsonify({"success": False, "reason": "limit"}), 403
+
+    if "image" not in request.files: return jsonify({"success": False}), 400
+    file = request.files["image"]
+    target_ext = request.form.get("format", "jpeg").lower()
+    
+    format_map = {'jpeg':'JPEG', 'jpg':'JPEG', 'png':'PNG', 'webp':'WEBP', 'pdf':'PDF', 'ico':'ICO', 'bmp':'BMP', 'tiff':'TIFF', 'gif':'GIF'}
+    pil_format = format_map.get(target_ext, 'JPEG')
+
+    try:
+        img = Image.open(file.stream)
+        if pil_format in ['JPEG', 'PDF', 'BMP'] and img.mode in ("RGBA", "P"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == 'P': img = img.convert("RGBA")
+            bg.paste(img, mask=img.split()[3] if len(img.split()) > 3 else None)
+            img = bg
+        
+        if pil_format == 'ICO':
+            if img.width > 256 or img.height > 256: img.thumbnail((256, 256))
+            
+        output = io.BytesIO()
+        save_args = {"format": pil_format}
+        if pil_format == 'JPEG': save_args["quality"] = 95
+        
+        img.save(output, **save_args)
+        encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
+        increase_usage(email, "image", "convert")
+        return jsonify({"success": True, "file": encoded_img})
+    except Exception as e:
+        return jsonify({"success": False, "message": "Format hatası."}), 500
+
+# 5. PDF API
 @app.route("/api/pdf/merge", methods=["POST"])
 def api_pdf_merge():
-    # ... (PDF kodu aynı, increase_usage çağırıyor)
     email = session.get("user_email", "guest")
     status = check_user_status(email, "pdf", "merge")
     if not status["allowed"]: return jsonify(status), 403
@@ -672,31 +478,95 @@ def api_pdf_merge():
     increase_usage(email, "pdf", "merge")
     return jsonify({"success": True, "file": base64.b64encode(output.getvalue()).decode("utf-8")})
 
-# --- SAYFALAR & AUTH ---
+# --- ADMIN API ---
+@app.route("/api/admin/users", methods=["GET"])
+def get_all_users():
+    if not session.get("admin_logged"): return jsonify([]), 403
+    return jsonify(load_premium_users())
+
+@app.route("/api/admin/add_user", methods=["POST"])
+def add_premium_user():
+    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
+    data = request.get_json()
+    users = load_premium_users()
+    if any(u["email"] == data["email"] for u in users): return jsonify({"status": "error", "message": "Kayıtlı"}), 409
+    users.append({"email": data["email"], "end_date": data["end_date"], "tier": data.get("tier", "starter"), "usage_stats": {}})
+    save_premium_users(users)
+    return jsonify({"status": "ok", "message": "Kullanıcı Eklendi"})
+
+@app.route("/api/admin/delete_user/<email>", methods=["DELETE"])
+def delete_premium_user(email):
+    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
+    users = load_premium_users()
+    new_users = [u for u in users if u["email"] != email]
+    save_premium_users(new_users)
+    return jsonify({"status": "ok"})
+
+@app.route("/api/admin/save_limits", methods=["POST"])
+def save_tool_limits_api():
+    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
+    data = request.get_json()
+    settings = load_settings()
+    if "limits" in data: settings["limits"] = data["limits"]
+    save_settings(settings)
+    return jsonify({"status": "ok"})
+
+@app.route("/api/admin/save_packages", methods=["POST"])
+def save_packages_api():
+    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
+    data = request.get_json()
+    settings = load_settings()
+    settings["packages"] = data.get("packages", {})
+    save_settings(settings)
+    return jsonify({"status": "ok"})
+
+# --- GENEL ROUTE ---
+@app.route("/api/check_tool_status/<tool>/<subtool>", methods=["GET"])
+def check_tool_status_endpoint(tool, subtool):
+    email = session.get("user_email", "guest")
+    status = check_user_status(email, tool, subtool)
+    usage = 0
+    if email != "guest":
+        user = get_user_data_by_email(email)
+        if user: usage = user.get("usage_stats", {}).get(subtool, 0)
+    else:
+        if "free_usage" in session and tool in session["free_usage"]:
+             usage = session["free_usage"][tool].get(subtool, 0)
+    return jsonify({
+        "allowed": status.get("allowed", False),
+        "reason": status.get("reason", ""),
+        "left": status.get("left", 0),
+        "premium": status.get("premium", False),
+        "tier": status.get("tier", "free"),
+        "usage": usage
+    })
+
+@app.route("/get_settings", methods=["GET"])
+def api_get_settings(): return jsonify(load_settings())
+
+# --- SAYFALAR ---
 @app.route("/")
 def home(): return render_template("index.html")
 @app.route("/remove-bg")
 def remove_bg_page(): return render_template("background_remove.html")
-@app.route("/img/convert")
-def img_convert_page():return render_template("image_convert.html")
+@app.route("/vektor")
+def vektor_page(): return render_template("vektor.html")
 @app.route("/img/compress")
 def img_compress_page(): return render_template("image_compress.html")
+@app.route("/img/convert")
+def img_convert_page(): return render_template("image_convert.html")
 @app.route("/pdf/merge")
 def pdf_merge_page(): return render_template("pdf_merge.html")
-@app.route("/admin_login")
-def admin_login_page(): return render_template("admin_login.html")
-@app.route("/admin")
-def admin_panel(): return render_template("admin.html")
 @app.route("/dashboard")
 def dashboard_page():
     if not session.get("user_email"): return redirect("/")
     user = get_user_data_by_email(session.get("user_email"))
     return render_template("dashboard.html", user=user or {})
-@app.route("/vektor")
-def vektor_page(): return render_template("vektor.html")
 
-@app.route("/admin_login", methods=["POST"])
-def admin_login_post():
+# AUTH & ADMIN PAGES
+@app.route("/admin_login", methods=["GET", "POST"])
+def admin_login_route():
+    if request.method == "GET": return render_template("admin_login.html")
     data = request.get_json()
     settings = load_settings()
     if data.get("email") == settings["admin"]["email"] and data.get("password") == settings["admin"]["password"]:
@@ -713,7 +583,6 @@ def user_login_endpoint():
     email = data.get("email")
     settings = load_settings()
     if email == settings["admin"]["email"]: return jsonify({"status": "admin"})
-    
     user = get_user_data_by_email(email)
     if user:
         try:
@@ -727,65 +596,11 @@ def user_login_endpoint():
     return jsonify({"status": "not_found"})
 
 @app.route("/logout")
-def user_logout():
-    session.clear()
-    return redirect("/")
-    
+def user_logout(): session.clear(); return redirect("/")
 @app.route("/admin_logout")
-def admin_logout():
-    session.clear()
-    return redirect("/admin_login")
-
-# --- ADMIN API (AYARLAR & KULLANICILAR) ---
-@app.route("/api/admin/users", methods=["GET"])
-def get_all_users():
-    if not session.get("admin_logged"): return jsonify([]), 403
-    return jsonify(load_premium_users())
-
-@app.route("/api/admin/add_user", methods=["POST"])
-def add_premium_user():
-    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
-    data = request.get_json()
-    users = load_premium_users()
-    if any(u["email"] == data["email"] for u in users): return jsonify({"status": "error", "message": "Kayıtlı"}), 409
-    users.append({"email": data["email"], "end_date": data["end_date"], "tier": data.get("tier", "starter"), "usage_stats": {}})
-    save_premium_users(users)
-    return jsonify({"status": "ok"})
-
-@app.route("/api/admin/delete_user/<email>", methods=["DELETE"])
-def delete_premium_user(email):
-    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
-    users = load_premium_users()
-    new_users = [u for u in users if u["email"] != email]
-    save_premium_users(new_users)
-    return jsonify({"status": "ok"})
-
-@app.route("/api/admin/save_limits", methods=["POST"])
-def save_tool_limits_api():
-    if not session.get("admin_logged"): return jsonify({"status": "error"}), 403
-    data = request.get_json()
-    settings = load_settings()
-    # Frontend'den gelen tam limit yapısını kaydet
-    if "limits" in data: settings["limits"] = data["limits"]
-    save_settings(settings)
-    return jsonify({"status": "ok"})
-
-@app.route("/get_settings", methods=["GET"])
-def api_get_settings():
-    return jsonify(load_settings())
+def admin_logout(): session.clear(); return redirect("/admin_login")
+@app.route("/admin")
+def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
