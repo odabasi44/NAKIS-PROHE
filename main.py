@@ -373,28 +373,33 @@ def api_vectorize():
 
     if "image" not in request.files: return jsonify({"success": False}), 400
     file = request.files["image"]
+    # Frontend'den gelen 'method' parametresi (cartoon, outline, normal)
     method = request.form.get("method", "normal")
     
     try:
         engine = VectorEngine(file)
+        
         if method == "outline":
             engine.process_outline()
         elif method == "cartoon":
-            engine.process_with_ai_model()
-            engine.reduce_colors(k=6) 
-        else: # normal
-            engine.process_with_ai_model()
-            engine.reduce_colors(k=10)
+            # YENİ: Akıllı Cartoon modunu kullan
+            engine.process_cartoon_smart()
+        else: # normal mod
+            # Normal mod için sadece basit K-Means yeterli
+            engine.reduce_colors_kmeans(k=16)
 
         svg_str = engine.generate_svg()
         b64_svg = base64.b64encode(svg_str.encode('utf-8')).decode('utf-8')
-        _, buf = cv2.imencode('.png', engine.img)
+        
+        # Önizleme için PNG (Orijinal boyuta geri çekerek)
+        preview_img = cv2.resize(engine.img, (engine.w, engine.h), interpolation=cv2.INTER_NEAREST)
+        _, buf = cv2.imencode('.png', preview_img)
         b64_png = base64.b64encode(buf).decode('utf-8')
         
         increase_usage(email, "vector", "default")
         return jsonify({"success": True, "file": b64_svg, "preview_img": b64_png})
     except Exception as e:
-        print(f"Hata: {e}")
+        print(f"Vektör Hatası: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 # 2. REMOVE BG API
@@ -645,4 +650,5 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
