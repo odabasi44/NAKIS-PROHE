@@ -242,6 +242,7 @@ def increase_usage(email, tool, subtool):
     session.modified = True
 
 # --- VEKTÖR MOTORU (AI DESTEKLİ + GELİŞMİŞ) ---
+# --- GÜNCELLENMİŞ VEKTÖR MOTORU (MAIN.PY İÇİNE) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -250,7 +251,7 @@ class VectorEngine:
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
 
-        # Şeffaflık varsa beyaz yap (AI için)
+        # Şeffaflık varsa beyaz yap
         if len(self.original_img.shape) == 3 and self.original_img.shape[2] == 4:
             alpha = self.original_img[:, :, 3]
             rgb = self.original_img[:, :, :3]
@@ -260,81 +261,23 @@ class VectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
-        # İşlem hızı için max boyut
+        # İşlem hızı ve AI başarısı için boyutu sabitle (Örn: 800px genişlik)
+        # Çok büyük görsellerde "cartoon" efekti detaylarda kaybolur.
         h, w = self.img.shape[:2]
-        max_dim = 800
-        if max(h, w) > max_dim:
-            scale = max_dim / max(h, w)
+        target_dim = 800
+        if max(h, w) > target_dim:
+            scale = target_dim / max(h, w)
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         
         self.h, self.w = self.img.shape[:2]
 
-    def enhance_image(self):
-        """
-        GÜÇLENDİRİLMİŞ AYDINLATMA VE DETAY ARTIRMA
-        1. Otomatik Beyaz Dengesi (Renkleri düzeltir)
-        2. CLAHE (Karanlık gölgeleri açar)
-        3. Gamma (Genel parlaklığı artırır)
-        4. Saturation (Renkleri canlandırır)
-        5. Sharpening & Detail (Yüz hatlarını belirginleştirir)
-        """
-        
-        # 1. Otomatik Beyaz Dengesi (Sarı/Mavi tonu düzelt)
-        try:
-            wb = cv2.xphoto.createSimpleWB()
-            self.img = wb.balanceWhite(self.img)
-        except (AttributeError, Exception):
-            # Yedek yöntem (Gray World)
-            result = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
-            avg_a = np.average(result[:, :, 1])
-            avg_b = np.average(result[:, :, 2])
-            result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
-            result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
-            self.img = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
-
-        # 2. CLAHE (Kontrast Dengeleme - Gölgeleri Aç)
-        lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l)
-        limg = cv2.merge((cl, a, b))
-        self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        # 3. Gamma Düzeltmesi (Parlaklık - Yüzü Aydınlat)
-        gamma = 1.6  # 1.6 idealdir (Ne çok patlak ne çok karanlık)
-        invGamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-        self.img = cv2.LUT(self.img, table)
-
-        # 4. Doygunluk (Saturation) Artışı - Canlı Renkler
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 40) # Renkleri canlandır (Soluk ten rengini önler)
-        v = cv2.add(v, 10) 
-        final_hsv = cv2.merge((h, s, v))
-        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-
-        # 5. Yüz Hatlarını Keskinleştirme (Sharpening) - YENİ
-        # Dudak, göz ve burun çizgilerini belirgin yapar
-        kernel = np.array([[0, -1, 0],
-                           [-1, 5,-1],
-                           [0, -1, 0]])
-        self.img = cv2.filter2D(self.img, -1, kernel)
-        
-        # 6. Detay Artırma (Detail Enhancement) - YENİ
-        # Yüzdeki karakteristik özellikleri (gamze, çizgi) korur
-        try:
-            self.img = cv2.detailEnhance(self.img, sigma_s=10, sigma_r=0.15)
-        except: pass
-
     def process_with_ai_model(self):
-        """AI Modeli ile Anime/Çizim efekti uygular"""
+        """AI Modeli Varsa Yüzü Temizlemek İçin Kullanır"""
         global gan_session
-        if gan_session is None:
-            return # Model yoksa işlem yapma
+        if gan_session is None: return
 
         try:
-            # AI için 512x512'ye yeniden boyutlandır
+            # AI için 512x512 resize
             resized_input = cv2.resize(self.img, (512, 512))
             x = cv2.cvtColor(resized_input, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
             x = np.transpose(x, (2, 0, 1))
@@ -347,95 +290,128 @@ class VectorEngine:
             output = np.clip(output, 0, 255).astype(np.uint8)
             output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
             
-            # AI çıktısını çalışma boyutuna geri getir
+            # AI çıktısını orijinal boyuta geri getir
             self.img = cv2.resize(output, (self.w, self.h))
         except Exception as e:
             print(f"AI Hatası: {e}")
 
     def process_cartoon_smart(self):
         """
-        GELİŞMİŞ AVATAR MODU: Aydınlatma + AI + Kontur
+        GÖNDERİLEN GÖRSELE UYGUN 'POP-ART VEKTÖR' STİLİ
+        Özellikler: Düz renkler, Kalın siyah çizgiler, Detay kaybı yok.
         """
-        # 1. YENİ: Resmi aydınlat ve detayları aç
-        self.enhance_image()
+        
+        # 1. ADIM: Önce AI ile Yüzü "Düzleştir" (Eğer model yüklüyse)
+        # Bu işlem sakalları ve cilt kusurlarını yumuşatır, vektöre hazırlar.
+        if gan_session:
+            self.process_with_ai_model()
 
-        # 2. AI ile Yüzü Pürüzsüzleştir
-        self.process_with_ai_model()
+        # 2. ADIM: Renkleri "Blok" Haline Getir (Yağlı Boya Efekti)
+        # sp=Spatial Window (Mesafe), sr=Color Window (Renk Farkı)
+        # Değerleri artırdıkça görsel daha "plastik" ve düz durur.
+        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=25, sr=45)
 
-        # 3. Siyah Kontur Çizgilerini Çıkar
+        # 3. ADIM: Kalın Siyah Çizgileri (Konturları) Çıkar
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-        # BlockSize'ı artırarak daha temiz çizgiler alalım (9 -> 11)
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 9)
         
-        # 4. Renkleri Düzleştir (MeanShift)
-        self.img = cv2.pyrMeanShiftFiltering(self.img, sp=15, sr=30)
+        # Gürültüyü azalt (Küçük noktalar çizgi olmasın)
+        gray = cv2.medianBlur(gray, 7) 
         
-        # 5. Çizgileri Ekle
+        # Kenar tespiti (Adaptive Threshold)
+        # blockSize: Komşuluk alanı (Büyük olmalı ki ana hatları alsın)
+        # C: Sabit değer (Çizgi kalınlığını etkiler)
+        edges = cv2.adaptiveThreshold(
+            gray, 
+            255, 
+            cv2.ADAPTIVE_THRESH_MEAN_C, 
+            cv2.THRESH_BINARY, 
+            blockSize=15, # 9 yerine 15 yaptık (daha temiz hatlar)
+            C=4 # 2 yerine 4 yaptık (gürültüyü azaltır)
+        )
+
+        # Çizgileri kalınlaştır ve pürüzsüzleştir (Erode/Dilate işlemi)
+        # Görseldeki gibi "Kalın Siyah" hatlar için:
+        kernel = np.ones((2,2), np.uint8)
+        # Erode işlemi siyah alanları genişletir (Binary resimde siyah=0 olduğu için)
+        edges = cv2.erode(edges, kernel, iterations=1)
+        
+        # Çok ince kumlanmaları temizle
+        edges = cv2.medianBlur(edges, 3)
+
+        # 4. ADIM: Renk Sayısını Azalt (K-Means Quantization)
+        # Görseldeki gibi 6-8 ana renk kalsın (Ten, Saç, Arkaplan, Kıyafet, Dudak vb.)
+        self.reduce_colors_kmeans(k=9)
+
+        # 5. ADIM: Kenarları Renkli Görselle Birleştir
+        # Siyah çizgileri renkli resmin üzerine bas
         self.img = cv2.bitwise_and(self.img, self.img, mask=edges)
         
-        # 6. Son Renk Azaltma (K-Means)
-        # Renk sayısını biraz artıralım ki yüz detayları kaybolmasın (8 -> 12)
-        self.reduce_colors_kmeans(k=12)
-
-        # 7.--- YENİ EKLENEN SATIR (SON RÖTUŞ) ---
-        # Sonuçtaki tırtıkları ve küçük noktaları "ütüle"
-        self.img = cv2.medianBlur(self.img, 3)
+        # 6. ADIM: Parlaklık ve Canlılık (Opsiyonel ama iyi durur)
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        s = cv2.add(s, 20) # Doygunluğu artır (Daha "Cartoon" durur)
+        final_hsv = cv2.merge((h, s, v))
+        self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
 
     def reduce_colors_kmeans(self, k=8):
-        """Standart K-Means Renk Azaltma"""
+        """Görseldeki renk sayısını k adedine indirir (Düzleştirme)"""
         data = np.float32(self.img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
         try:
+            # Renkleri grupla
             _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
             center = np.uint8(center)
+            # Her pikseli grubunun merkez rengine eşitle
             self.img = center[label.flatten()].reshape((self.img.shape))
         except: pass
 
     def process_outline(self):
-        """Sadece Dış Hatlar"""
+        """Sadece Dış Hatlar (Boyama Kitabı Stili)"""
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(gray, 50, 150)
-        kernel = np.ones((2,2), np.uint8)
-        dilated = cv2.dilate(edges, kernel, iterations=1)
-        self.img = cv2.bitwise_not(dilated)
-        self.img = cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR)
+        gray = cv2.medianBlur(gray, 5)
+        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 3)
+        self.img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
     def generate_svg(self):
-        """SVG Oluşturucu"""
+        """SVG Oluşturucu - Renk Gruplarını Vektör Yolların Dönüştürür"""
+        # İşlem hızını artırmak için biraz küçültelim
         proc_img = self.img
-        # SVG çok şişmesin diye işleme boyutunu biraz düşürebiliriz
-        if max(self.h, self.w) > 600:
-             scale = 600 / max(self.h, self.w)
-             proc_img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
-        
         h, w = proc_img.shape[:2]
+        
+        # Pikselleri düzleştir
         pixels = proc_img.reshape(-1, 3)
         unique_colors = np.unique(pixels, axis=0)
         
         svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" viewBox="0 0 {w} {h}">'
         
+        # Her bir renk için contour bul ve path oluştur
         for color in unique_colors:
             b, g, r = color
-            # Beyaza çok yakın renkleri (arka plan) atla
-            if r > 245 and g > 245 and b > 245: continue
             
+            # Siyah çizgileri en son çizmek için veya beyaz arka planı atlamak için filtre koyulabilir
+            # Şimdilik hepsini çiziyoruz.
+            
+            # Maske oluştur: Sadece bu renge sahip yerler beyaz olsun
             mask = cv2.inRange(proc_img, color, color)
-            # Gürültü temizliği
+            
+            # Küçük gürültüleri temizle
             kernel = np.ones((3,3), np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel) # Açma (küçük noktaları sil)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel) # Kapama (delikleri kapat)
 
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
             hex_c = "#{:02x}{:02x}{:02x}".format(r, g, b)
             
             path_d = ""
             for cnt in contours:
-                if cv2.contourArea(cnt) < 30: continue
+                # Çok küçük parçaları vektöre çevirme (Gereksiz detay)
+                if cv2.contourArea(cnt) < 20: continue
                 
+                # Köşeleri biraz yumuşat (Vektör kalitesi için)
                 epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
+                
                 if len(approx) < 3: continue
                 
                 pts = approx.reshape(-1, 2)
@@ -449,6 +425,7 @@ class VectorEngine:
         
         svg += '</svg>'
         return svg
+               
 
 # --- API ENDPOINTS ---
 
@@ -742,6 +719,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
