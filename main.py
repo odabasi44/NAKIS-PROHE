@@ -245,6 +245,29 @@ class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
+
+        def enhance_image(self):
+        """
+        Karanlık fotoğrafları AI için hazırlar.
+        CLAHE kullanarak kontrastı ve parlaklığı dengeler.
+        """
+        # 1. Resmi LAB renk uzayına çevir (L: Lightness, A: Green-Red, B: Blue-Yellow)
+        lab = cv2.cvtColor(self.img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # 2. Sadece L (Işık) kanalına CLAHE uygula
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        
+        # 3. Kanalları birleştir ve geri BGR'ye çevir
+        limg = cv2.merge((cl, a, b))
+        self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # 4. Hafif parlaklık artışı (Gamma Correction)
+        # Gamma < 1.0 resmi aydınlatır
+        invGamma = 1.0 / 1.2 
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        self.img = cv2.LUT(self.img, table)
         
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı")
@@ -677,3 +700,4 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
