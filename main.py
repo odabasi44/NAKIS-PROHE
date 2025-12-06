@@ -418,6 +418,15 @@ def api_img_compress():
         saving = int(((orig_size - new_size) / orig_size) * 100) if orig_size > 0 else 0
         
         encoded_img = base64.b64encode(output.getvalue()).decode('utf-8')
+
+        # --- GÜNCELLEME BAŞLANGICI: Akıllı Boyut Formatlama ---
+        if new_size < 1024 * 1024:
+            # 1 MB'dan küçükse KB göster
+            size_str = f"{new_size/1024:.2f} KB"
+        else:
+            # 1 MB'dan büyükse MB göster
+            size_str = f"{new_size/(1024*1024):.2f} MB"
+        # --- GÜNCELLEME SONU ---
         
         # 4. Limit Düşür
         increase_usage(email, "image", "compress")
@@ -425,7 +434,7 @@ def api_img_compress():
         return jsonify({
             "success": True,
             "file": encoded_img,
-            "new_size": f"{new_size/1024/1024:.2f} MB",
+            "new_size": size_str, # Artık dinamik (KB veya MB)
             "saving": saving
         })
         
@@ -667,6 +676,7 @@ def api_get_settings():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
