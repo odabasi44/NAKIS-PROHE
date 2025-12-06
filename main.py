@@ -300,7 +300,7 @@ class VectorEngine:
         limg = cv2.merge((cl, a, b))
         self.img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         # 3. Gamma Düzeltmesi (Parlaklık Artırma - Daha Agresif)
-        gamma = 1.9  # DEĞİŞTİ: 1.5 -> 1.9 (Gölgeleri iyice aç)
+        gamma = 1.6  # DEĞİŞTİ: 1.5 -> 1.9 (Gölgeleri iyice aç)
         invGamma = 1.0 / gamma
         table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         self.img = cv2.LUT(self.img, table)
@@ -308,7 +308,7 @@ class VectorEngine:
         # 4. Hafif Doygunluk (Saturation) - Daha Pastel Tonlar
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 10) # DEĞİŞTİ: 30 -> 10 (Renk patlamasını önle)
+        s = cv2.add(s, 20) # DEĞİŞTİ: 30 -> 10 (Renk patlamasını önle)
         v = cv2.add(v, 20) 
         final_hsv = cv2.merge((h, s, v))
         self.img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
@@ -380,6 +380,10 @@ class VectorEngine:
         # 6. Son Renk Azaltma (K-Means)
         # Renk sayısını biraz artıralım ki yüz detayları kaybolmasın (8 -> 12)
         self.reduce_colors_kmeans(k=12)
+
+        # 7.--- YENİ EKLENEN SATIR (SON RÖTUŞ) ---
+        # Sonuçtaki tırtıkları ve küçük noktaları "ütüle"
+        self.img = cv2.medianBlur(self.img, 3)
 
     def reduce_colors_kmeans(self, k=8):
         """Standart K-Means Renk Azaltma"""
@@ -741,6 +745,7 @@ def admin_panel(): return render_template("admin.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
