@@ -337,10 +337,10 @@ class AdvancedVectorEngine:
         #"""Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
 
     # 1- Whitebox taban görüntü
-    if gan_session:
-        base = self.process_with_whitebox_cartoon(self.img)
-    else:
-        base = self.process_basic_cartoon()
+        if gan_session:
+            base = self.process_with_whitebox_cartoon(self.img)
+        else:
+            base = self.process_basic_cartoon()
 
     # 2- Hafif kenar (Canny)
     gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
@@ -898,6 +898,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
