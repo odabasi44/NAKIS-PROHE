@@ -223,6 +223,10 @@ def increase_usage(email, tool, subtool):
 # ---------------------- GELİŞMİŞ VEKTÖR MOTORU ----------------------
 # --------------------------------------------------------------------
 
+# --------------------------------------------------------------------
+# ---------------------- GELİŞMİŞ VEKTÖR MOTORU ----------------------
+# --------------------------------------------------------------------
+
 class AdvancedVectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -365,12 +369,17 @@ class AdvancedVectorEngine:
         edges = cv2.dilate(edges, kernel, iterations=1)
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3,3), np.uint8))
         
-        # 5. Renkleri düzleştir ve azalt
-        data = cartoon.reshape((-1, 3))
+        # 5. Renkleri düzleştir ve azalt (DÜZELTME BURADA YAPILDI)
+        # OpenCV kmeans float32 ister, o yüzden dönüştürüyoruz.
+        data = np.float32(cartoon).reshape((-1, 3)) 
+        
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-        _, label, center = cv2.kmeans(data, color_count, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        # color_count 0 olamaz, güvenlik kontrolü
+        k = max(2, color_count)
+        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        
+        center = np.uint8(center)
         flat = center[label.flatten()].reshape(cartoon.shape)
-        flat = flat.astype(np.uint8)
         
         # 6. Posterize efekti ekle
         flat = self.apply_posterize(flat, levels=6)
@@ -382,10 +391,16 @@ class AdvancedVectorEngine:
         
         # Kenar çizgilerini siyah yap
         edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-        edges_colored[np.where((edges_colored == [255, 255, 255]).all(axis=2))] = [0, 0, 0]
+        # Beyaz olan yerleri (kenar olmayan) siyah yapma, kenar olanları (siyah) koru mantığı
+        # Ama maskeleme zaten yukarıda yapıldı, burada sadece ekleme yapıyoruz
         
-        # Çizgileri ekle (biraz şeffaflık ile)
-        result = cv2.addWeighted(result, 1.0, edges_colored, 0.9, 0)
+        # Çizgileri ekle (biraz şeffaflık ile) - Siyah kenar ekliyoruz
+        # edges resminde kenarlar siyah(0) veya beyaz(255) olabilir metoda göre.
+        # Threshold binary: 0(siyah) ve 255(beyaz). Genelde kenarlar 0'dır (Adaptive mean c ile).
+        # Ama biz yukarıda bitwise_not kullandık, yani kenarlar 255 (beyaz) oldu maskede.
+        
+        # Basitçe: result zaten kenarları siyah içeriyor (bitwise_and sayesinde).
+        # Ekstra koyulaştırma gerekirse burası kalabilir ama gerek yoksa result yeterli.
         
         return result
 
@@ -413,7 +428,7 @@ class AdvancedVectorEngine:
             face_edges = self.extract_face_edges(bright)
             edges = cv2.bitwise_or(edges, face_edges)
         
-        # Renk azaltma
+        # Renk azaltma (DÜZELTME BURADA)
         data = np.float32(shifted).reshape((-1, 3))
         _, label, center = cv2.kmeans(
             data, 12, None,
@@ -421,8 +436,8 @@ class AdvancedVectorEngine:
             10,
             cv2.KMEANS_RANDOM_CENTERS
         )
+        center = np.uint8(center)
         flat = center[label.flatten()].reshape(shifted.shape)
-        flat = flat.astype(np.uint8)
         
         # Kenarları uygula
         mask_inv = cv2.bitwise_not(edges)
@@ -452,7 +467,6 @@ class AdvancedVectorEngine:
         
         edge_thickness = options.get("edge_thickness", 2)
         color_count = options.get("color_count", 16)
-        simplify_factor = options.get("simplify", 0.005)
         
         if style == "comic":
             # Çizgi roman stili
@@ -553,12 +567,16 @@ class AdvancedVectorEngine:
         """Daha sanatsal SVG çıktısı"""
         proc = self.img
         
-        # Renk sayısını azalt
+        # Renk sayısını azalt (DÜZELTME BURADA)
         data = np.float32(proc).reshape((-1, 3))
+        
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-        _, label, center = cv2.kmeans(data, num_colors, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        # num_colors 0 olamaz kontrolü
+        k = max(2, num_colors)
+        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        
+        center = np.uint8(center)
         quantized = center[label.flatten()].reshape(proc.shape)
-        quantized = quantized.astype(np.uint8)
         
         h, w = quantized.shape[:2]
         svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
@@ -615,9 +633,10 @@ class AdvancedVectorEngine:
 
     def get_dominant_color(self, img, k=1):
         """Dominant rengi bul"""
-        pixels = img.reshape(-1, 3)
+        # DÜZELTME BURADA
+        pixels = np.float32(img).reshape(-1, 3)
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        _, labels, centers = cv2.kmeans(pixels.astype(np.float32), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        _, labels, centers = cv2.kmeans(pixels, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         
         # En çok görülen rengi bul
         unique, counts = np.unique(labels, return_counts=True)
@@ -910,3 +929,4 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
