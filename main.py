@@ -251,7 +251,7 @@ class AdvancedVectorEngine:
 
         self.h, self.w = self.img.shape[:2]
 
-    # ---------------- MediaPipe Edge Extraction --------------------
+    # ---------------- MediaPipe Edge Extraction Düzeltilmiş ver. --------------------
     def extract_face_edges(self, img_in):
         if not HAS_MEDIAPIPE:
             return np.zeros(img_in.shape[:2], dtype=np.uint8)
@@ -279,7 +279,7 @@ class AdvancedVectorEngine:
                     mp_face_mesh.FACEMESH_RIGHT_EYE,
                     mp_face_mesh.FACEMESH_LEFT_EYEBROW,
                     mp_face_mesh.FACEMESH_RIGHT_EYEBROW,
-                    mp_face_mesh.FACEMESH_FACE_OVAL
+                   
                 ]
 
                 for group in contour_sets:
@@ -295,7 +295,7 @@ class AdvancedVectorEngine:
                     if len(pts) > 2:
                         hull = cv2.convexHull(pts)
                         # Daha kalın çizgiler
-                        cv2.polylines(mask, [hull], True, 255, 3)
+                        cv2.polylines(mask, [hull], True, 255, 1)
 
         return mask
 
@@ -921,6 +921,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
