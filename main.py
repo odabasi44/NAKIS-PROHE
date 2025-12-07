@@ -459,7 +459,7 @@ def process_hybrid_cartoon(self, edge_thickness=1, color_count=16):
         if options is None:
             options = {}
         
-        edge_thickness = options.get("edge_thickness", 2)
+        edge_thickness = options.get("edge_thickness", 1)
         color_count = options.get("color_count", 16)
         
         if style == "comic":
@@ -481,7 +481,8 @@ def process_hybrid_cartoon(self, edge_thickness=1, color_count=16):
             result = self.process_painting_style()
             
         else:  # "cartoon" - Varsayılan
-            result = self.process_hybrid_cartoon(edge_thickness=edge_thickness, color_count=color_count)
+            # Şimdilik sadece cartoon'u bağlıyoruz.
+        return self.process_hybrid_cartoon(edge_thickness=edge, color_count=colors)
         
         return result
 
@@ -923,6 +924,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
