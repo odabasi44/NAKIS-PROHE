@@ -333,79 +333,44 @@ class AdvancedVectorEngine:
 
     # -------------------- HYBRID CARTOON (WHITEBOX + OPENCV) --------------------
     # -------------------- HYBRID CARTOON (DÜZELTİLMİŞ) --------------------
-    def process_hybrid_cartoon(self, edge_thickness=2, color_count=16):
-        """Whitebox model + OpenCV ile hibrit karikatürleştirme (Düzeltilmiş Versiyon)"""
-        
-        # 1. Whitebox ile temel karikatür (Zemin Hazırlığı)
-        if gan_session:
-            cartoon = self.process_with_whitebox_cartoon(self.img)
-        else:
-            cartoon = self.process_basic_cartoon()
-        
-        # 2. Kenarları Tespit Et (Çizgiler BEYAZ, Zemin SİYAH olacak şekilde)
-        gray = cv2.cvtColor(cartoon, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-        
-        # İnce kenarlar (White Lines on Black BG)
-        edges_fine = cv2.adaptiveThreshold(gray, 255,
-            cv2.ADAPTIVE_THRESH_MEAN_C,
-            cv2.THRESH_BINARY_INV, 9, 2)
-        
-        # Kalın kenarlar (White Lines on Black BG)
-        edges_thick = cv2.adaptiveThreshold(gray, 255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV, 11, 2)
-        
-        # Kenarları birleştir
-        edges = cv2.bitwise_or(edges_fine, edges_thick)
-        
-        # 3. MediaPipe Yüz Çizgilerini Ekle
-        if HAS_MEDIAPIPE:
-            # extract_face_edges zaten Siyah zemin üzerine Beyaz çizgi verir
-            face_edges = self.extract_face_edges(cartoon)
-            edges = cv2.bitwise_or(edges, face_edges)
-        
-        # 4. Kenarları Temizle ve Kalınlaştır
-        # Çizgileri biraz birleştir
-        kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
-        edges = cv2.dilate(edges, kernel, iterations=1)
-        # Gürültüleri (tekil noktaları) sil
-        edges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, np.ones((2,2), np.uint8))
-        
-        # 5. Renkleri Düzleştir (K-Means Fix)
-        # OpenCV Kmeans kesinlikle float32 ister!
-        data = np.float32(cartoon).reshape((-1, 3))
-        
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-        k = max(2, color_count)
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        
-        # Veriyi tekrar resim formatına (uint8) çevir
-        center = np.uint8(center)
-        flat = center[label.flatten()].reshape(cartoon.shape)
-        
-        # 6. Posterize Efekti (Opsiyonel - Daha düz renkler için)
-        flat = self.apply_posterize(flat, levels=6)
-        
-        # 7. BİRLEŞTİRME (Kritik Nokta)
-        # Şu an elimizde:
-        # flat  -> Renkli resim
-        # edges -> Siyah zemin üzerinde BEYAZ çizgiler
-        
-        # Biz çizgilerin SİYAH olmasını istiyoruz.
-        # Maskeyi ters çevir: Beyaz zemin, Siyah çizgi yap.
-        mask_inv = cv2.bitwise_not(edges) 
-        mask_bgr = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
-        
-        # Renkli resim ile maskeyi çarp (Siyah olan yerler siyah kalır, beyaz olan yerler rengi gösterir)
-        result = cv2.bitwise_and(flat, mask_bgr)
-        
-        # (Opsiyonel) Çizgileri tam siyah değil, koyu renk yapmak istersen:
-        # edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-        # edges_colored[np.where((edges_colored == [255, 255, 255]).all(axis=2))] = [20, 20, 20] # Koyu gri
-        # result = cv2.addWeighted(result, 1.0, edges_colored, 0.5, 0)
+    def process_hybrid_cartoon(self, edge_thickness=1, color_count=12):
+    """Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
 
-        return result
+    # 1- Whitebox taban görüntü
+    if gan_session:
+        base = self.process_with_whitebox_cartoon(self.img)
+    else:
+        base = self.process_basic_cartoon()
+
+    # 2- Hafif kenar (Canny)
+    gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 40, 90)         # düşük threshold
+    edges = cv2.dilate(edges, np.ones((1,1), np.uint8), 1)
+
+    # 3- MediaPipe yüz çizgisi
+    if HAS_MEDIAPIPE:
+        face = self.extract_face_edges(base)
+        edges = cv2.bitwise_or(edges, face)
+
+    # Kenarları siyah yap
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    edges_colored = 255 - edges_colored     # white → black
+
+    # 4- Renkleri hafif düzleştir (çok agresif olmayan)
+    data = np.float32(base).reshape((-1, 3))
+    _, label, center = cv2.kmeans(
+        data, max(2, color_count), None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0),
+        10,
+        cv2.KMEANS_RANDOM_CENTERS
+    )
+    center = np.uint8(center)
+    flat = center[label.flatten()].reshape(base.shape)
+
+    # 5- Çizgileri overlay ile ekle
+    result = cv2.addWeighted(flat, 1.0, edges_colored, 0.25, 0)
+
+    return result
 
     # -------------------- BASIC CARTOON (FALLBACK) --------------------
     def process_basic_cartoon(self):
@@ -932,5 +897,6 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
