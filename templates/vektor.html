@@ -345,12 +345,12 @@
 
         // 2. Metot Ayarları (Vektör Metodu Butonları)
         if (selectedMethod === 'cartoon') {
-            style = 'cartoon'; // Hibrit motor çalışır
+            style = 'cartoon'; // ERC Engine (Temiz, Düz)
         } else if (selectedMethod === 'normal') {
-            style = 'painting'; // Daha yumuşak, resimsel stil
-            colorCount += 8;    // Normal modda biraz daha fazla renk olsun
+            style = 'cartoon'; // Normal modda da 'cartoon' kullan ki Preview temiz olsun
+            colorCount = 32;   // Ama renk sayısını zorla arttır (Daha detaylı)
+            edgeThickness = 1; // Çizgileri incelt (Daha kibar görünüm)
         } else if (selectedMethod === 'outline') {
-            // Outline modu backend'de ayrı işleniyor, parametreler önemsiz
             style = 'sketch'; 
         }
 
