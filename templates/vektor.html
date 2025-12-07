@@ -311,7 +311,7 @@
         document.getElementById('result-view').classList.add('hidden');
     }
 
-    // 4. İŞLEM BAŞLATMA (GÜNCELLENMİŞ)
+   // 4. İŞLEM BAŞLATMA (GÜNCELLENMİŞ & PARAMETRE EŞLEŞTİRMELİ)
     async function processVector() {
         if (!selectedFile) return alert("Lütfen önce bir resim seçin.");
         if (!userAllowed) return openModal('premiumModal');
@@ -322,7 +322,43 @@
         const formData = new FormData();
         formData.append('image', selectedFile);
         formData.append('method', selectedMethod);
-        formData.append('quality', selectedQuality);
+
+        // --- YENİ EŞLEŞTİRME MANTIĞI ---
+        // Kullanıcının seçtiği "Kalite" ve "Metot" ayarlarını
+        // Backend'in beklediği sayısal değerlere (renk, kalınlık) çeviriyoruz.
+        
+        let edgeThickness = 2; // Varsayılan
+        let colorCount = 16;   // Varsayılan
+        let style = 'cartoon'; // Varsayılan stil
+
+        // 1. Kalite Ayarları (Detay & Kalite Butonları)
+        if (selectedQuality === 'medium') {      // "Orta" -> Az renk, kalın çizgi (Basit)
+            edgeThickness = 3;
+            colorCount = 8;
+        } else if (selectedQuality === 'high') { // "Normal" -> Dengeli
+            edgeThickness = 2;
+            colorCount = 16;
+        } else if (selectedQuality === 'ultra') {// "Yüksek" -> Çok renk, ince çizgi (Detaylı)
+            edgeThickness = 1;
+            colorCount = 32;
+        }
+
+        // 2. Metot Ayarları (Vektör Metodu Butonları)
+        if (selectedMethod === 'cartoon') {
+            style = 'cartoon'; // Hibrit motor çalışır
+        } else if (selectedMethod === 'normal') {
+            style = 'painting'; // Daha yumuşak, resimsel stil
+            colorCount += 8;    // Normal modda biraz daha fazla renk olsun
+        } else if (selectedMethod === 'outline') {
+            // Outline modu backend'de ayrı işleniyor, parametreler önemsiz
+            style = 'sketch'; 
+        }
+
+        // Parametreleri ekle
+        formData.append('style', style);
+        formData.append('edge_thickness', edgeThickness);
+        formData.append('color_count', colorCount);
+        // ----------------------------------
 
         try {
             const res = await fetch('/api/vectorize', {
@@ -334,16 +370,14 @@
             loading.classList.add('hidden');
 
             if (data.success) {
-                // Backend'den gelen verileri sakla
-                window.vectorData = data.file;       // SVG
-                window.pngData = data.preview_img;   // PNG
+                window.vectorData = data.file;       
+                window.pngData = data.preview_img;   
 
-                // Önizleme alanına TEMİZLENMİŞ PNG'yi koy
                 const resultImg = document.getElementById('result-img');
                 resultImg.src = "data:image/png;base64," + data.preview_img; 
                 resultImg.style.opacity = "1";
                 
-                checkLimit(); // Bakiyeyi güncelle
+                checkLimit(); 
             } else {
                 alert("Hata: " + (data.message || "İşlem başarısız."));
                 if (data.reason === 'limit') openModal('premiumModal');
