@@ -347,10 +347,10 @@ class AdvancedVectorEngine:
         # 2- Edge Detection (Kenar Tespiti)
         gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
         # Bilateral: Yüzey pürüzlerini siler, kenarları korur
-        gray_blur = cv2.bilateralFilter(gray, 7, 50, 50)
+        gray_blur = cv2.bilateralFilter(gray, 9, 75, 75)
 
         # Daha temiz edge (Canny)
-        edges = cv2.Canny(gray_blur, 40, 120)
+        edges = cv2.Canny(gray_blur, 100, 200)
 
         # 3- MediaPipe yüz çizgisi (Varsa ekle)
         if HAS_MEDIAPIPE:
@@ -360,13 +360,15 @@ class AdvancedVectorEngine:
         # --- Gürültü Temizleme (Küçük noktaları sil) ---
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
-            # 20 pikselden küçük adacıkları siyah boya (yok et)
-            if cv2.contourArea(cnt) < 20:
+            # 30 pikselden küçük adacıkları siyah boya (yok et)
+            if cv2.contourArea(cnt) < 30:
                 cv2.drawContours(edges, [cnt], -1, 0, -1)
 
         # 4- Çizgileri Kalınlaştır
-        kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
-        edges = cv2.dilate(edges, kernel, iterations=1)
+        # Eğer edge_thickness 1 ise dilate yapma, görüntü bozulmasın.
+        if edge_thickness > 1:
+            kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
+            edges = cv2.dilate(edges, kernel, iterations=1)
 
         # 5- Renkleri Düzleştir (K-Means)
         # K-Means float32 formatı ister
@@ -921,6 +923,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
