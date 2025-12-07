@@ -334,7 +334,7 @@ class AdvancedVectorEngine:
     # -------------------- HYBRID CARTOON (WHITEBOX + OPENCV) --------------------
     # -------------------- HYBRID CARTOON (DÜZELTİLMİŞ) --------------------
     def process_hybrid_cartoon(self, edge_thickness=1, color_count=12):
-    """Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
+        #"""Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
 
     # 1- Whitebox taban görüntü
     if gan_session:
@@ -898,6 +898,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
