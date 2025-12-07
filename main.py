@@ -333,44 +333,67 @@ class AdvancedVectorEngine:
 
     # -------------------- HYBRID CARTOON (WHITEBOX + OPENCV) --------------------
     # -------------------- HYBRID CARTOON (DÜZELTİLMİŞ) --------------------
-    def process_hybrid_cartoon(self, edge_thickness=1, color_count=12):
-        #"""Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
+    def process_hybrid_cartoon(self, edge_thickness=2, color_count=12):
+        """
+        Whitebox + Minimal Edge – En Temiz Cartoon Çözümü
+        """
 
-    # 1- Whitebox taban görüntü
+        # 1- Whitebox taban görüntü
         if gan_session:
             base = self.process_with_whitebox_cartoon(self.img)
         else:
             base = self.process_basic_cartoon()
 
-    # 2- Hafif kenar (Canny)
-    gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 40, 90)         # düşük threshold
-    edges = cv2.dilate(edges, np.ones((1,1), np.uint8), 1)
+        # 2- Edge Detection (Kenar Tespiti)
+        gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
+        # Bilateral: Yüzey pürüzlerini siler, kenarları korur
+        gray_blur = cv2.bilateralFilter(gray, 7, 50, 50)
 
-    # 3- MediaPipe yüz çizgisi
-    if HAS_MEDIAPIPE:
-        face = self.extract_face_edges(base)
-        edges = cv2.bitwise_or(edges, face)
+        # Daha temiz edge (Canny)
+        edges = cv2.Canny(gray_blur, 40, 120)
 
-    # Kenarları siyah yap
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    edges_colored = 255 - edges_colored     # white → black
+        # 3- MediaPipe yüz çizgisi (Varsa ekle)
+        if HAS_MEDIAPIPE:
+            face = self.extract_face_edges(base)
+            edges = cv2.bitwise_or(edges, face)
 
-    # 4- Renkleri hafif düzleştir (çok agresif olmayan)
-    data = np.float32(base).reshape((-1, 3))
-    _, label, center = cv2.kmeans(
-        data, max(2, color_count), None,
-        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0),
-        10,
-        cv2.KMEANS_RANDOM_CENTERS
-    )
-    center = np.uint8(center)
-    flat = center[label.flatten()].reshape(base.shape)
+        # --- Gürültü Temizleme (Küçük noktaları sil) ---
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            # 20 pikselden küçük adacıkları siyah boya (yok et)
+            if cv2.contourArea(cnt) < 20:
+                cv2.drawContours(edges, [cnt], -1, 0, -1)
 
-    # 5- Çizgileri overlay ile ekle
-    result = cv2.addWeighted(flat, 1.0, edges_colored, 0.25, 0)
+        # 4- Çizgileri Kalınlaştır
+        kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
+        edges = cv2.dilate(edges, kernel, iterations=1)
 
-    return result
+        # 5- Renkleri Düzleştir (K-Means)
+        # K-Means float32 formatı ister
+        data = np.float32(base).reshape((-1, 3))
+        
+        _, label, center = cv2.kmeans(
+            data, 
+            max(2, color_count), 
+            None,
+            (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0),
+            10,
+            cv2.KMEANS_RANDOM_CENTERS
+        )
+        
+        center = np.uint8(center)
+        flat = center[label.flatten()].reshape(base.shape)
+
+        # 6- Kenarları renge uygula (Hard Mask)
+        # Maskeyi ters çevir: Beyaz zemin, Siyah çizgi
+        mask_inv = cv2.bitwise_not(edges)
+        mask_bgr = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
+
+        # Siyah çizgileri renkli resmin üzerine bas
+        result = cv2.bitwise_and(flat, mask_bgr)
+
+        return result
+
 
 
     # -------------------- BASIC CARTOON (FALLBACK) --------------------
@@ -898,6 +921,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
