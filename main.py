@@ -225,6 +225,7 @@ def increase_usage(email, tool, subtool):
     session.modified = True
 
 # --- VEKTÖR MOTORU (MediaPipe + AI + Clean Style) ---
+# --- VEKTÖR MOTORU (MediaPipe + AI + Clean Style) ---
 class VectorEngine:
     def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
@@ -252,29 +253,7 @@ class VectorEngine:
         
         self.h, self.w = self.img.shape[:2]
 
-    # 1. AI MODEL (Surface Flattening)
-    def apply_ai_cartoon(self, img_in):
-        global gan_session
-        if not gan_session: return img_in
-        try:
-            h_orig, w_orig = img_in.shape[:2]
-            # Model 512x512 sever
-            resized = cv2.resize(img_in, (512, 512))
-            rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 127.5 - 1.0
-            blob = np.expand_dims(np.transpose(rgb, (2, 0, 1)), 0)
-            
-            res = gan_session.run(None, {gan_session.get_inputs()[0].name: blob})[0]
-            res = (res.squeeze().transpose(1, 2, 0) + 1.0) * 127.5
-            res = np.clip(res, 0, 255).astype(np.uint8)
-            res_bgr = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
-            
-            # Geri döndür
-            return cv2.resize(res_bgr, (w_orig, h_orig), interpolation=cv2.INTER_LANCZOS4)
-        except Exception as e:
-            print(f"AI Hatası: {e}")
-            return img_in
-
-    # 2. MEDIAPIPE FACE EDGES (Anatomik Çizgi Çıkarma)
+    # MediaPipe Face Edges
     def extract_face_edges(self, img_in):
         if not HAS_MEDIAPIPE: 
             return np.zeros((img_in.shape[0], img_in.shape[1]), dtype=np.uint8)
@@ -293,8 +272,6 @@ class VectorEngine:
 
             if results.multi_face_landmarks:
                 lm = results.multi_face_landmarks[0].landmark
-                
-                # Çizilecek hatlar (Connections)
                 contours_indices = [
                     mp_face_mesh.FACEMESH_LIPS,
                     mp_face_mesh.FACEMESH_LEFT_EYE,
@@ -303,106 +280,104 @@ class VectorEngine:
                     mp_face_mesh.FACEMESH_RIGHT_EYEBROW,
                     mp_face_mesh.FACEMESH_FACE_OVAL
                 ]
-
-                # Hatları tek tek çiz
                 for indices in contours_indices:
-                    # Connection listesini düzelt
                     points_set = set()
                     for connection in indices:
                         points_set.add(connection[0])
                         points_set.add(connection[1])
-                    
-                    # Noktaları al
                     pts = []
                     for idx in points_set:
                         x = int(lm[idx].x * w)
                         y = int(lm[idx].y * h)
                         pts.append((x, y))
-                    
-                    # Convex Hull ile birleştirip çiz (Daha düzgün hatlar için)
                     if pts:
                         hull = cv2.convexHull(np.array(pts))
-                        cv2.polylines(mask, [hull], True, 255, 2) # Kalınlık 2
-
+                        cv2.polylines(mask, [hull], True, 255, 2)
         return mask
 
-    # 3. RENK DÜZLEŞTİRME (Posterize)
-    def posterize_image(self, img_in, k=7):
-        # 1. Bilateral (Doku silme)
-        img_blur = cv2.bilateralFilter(img_in, d=10, sigmaColor=75, sigmaSpace=75)
-        
-        # 2. Gamma (Renk canlandırma)
-        gamma = 1.2
-        table = np.array([((i / 255.0) ** gamma) * 255 for i in range(256)]).astype("uint8")
-        img_gamma = cv2.LUT(img_blur, table)
+    # --- YENİ ALGORİTMA: Yüzdeki Gölgeleri Temizleyen V2 ---
+    def process_cartoon_style_v2(self):
+        """
+        DÜZELTME: Yüz ortasındaki 'banding' (kalın gölge çizgileri) sorununu çözer.
+        Yöntem: Gamma Correction (Aydınlatma) + Canny Edge (Sadece keskin kenar)
+        """
+        h, w = self.img.shape[:2]
 
-        # 3. K-Means (Renk azaltma)
-        data = np.float32(img_gamma).reshape((-1, 3))
+        # 1. GAMMA CORRECTION (Gölge Açma)
+        # Yüzdeki hafif gölgeleri uçurmak için resmi aydınlatıyoruz
+        gamma = 1.3  # Değer 1.0'dan büyük olmalı (1.3 ideal)
+        invGamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in range(256)]).astype("uint8")
+        bright_img = cv2.LUT(self.img, table)
+
+        # 2. YUMUŞATMA (Detay Azaltma)
+        # Sivilce, benek gibi detayları yok etmek için güçlü blur
+        blurred = cv2.bilateralFilter(bright_img, d=15, sigmaColor=100, sigmaSpace=100)
+
+        # 3. RENK DÜZLEŞTİRME (K-Means)
+        data = np.float32(blurred).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-        # Random centers ile renkleri grupla
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        # 9 Renk bloğu yeterli
+        _, label, center = cv2.kmeans(data, 9, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
-        return center[label.flatten()].reshape(img_gamma.shape)
+        flat_color = center[label.flatten()].reshape(blurred.shape)
 
-    # 4. ANA İŞLEM: FLAT STYLE
-    def process_flat_style(self):
-        """
-        1. Görseldeki gibi temiz, anatomik çizgili vektör oluşturur.
-        Strateji: AI Zemin + Posterize Renk + MediaPipe Anatomik Çizgi + Canny Dış Hat
-        """
-        
-        # A. AI ile zemini hazırla (Cilt dokusunu siler)
-        if gan_session:
-            base_img = self.apply_ai_cartoon(self.img)
-        else:
-            base_img = cv2.bilateralFilter(self.img, 15, 75, 75) # AI yoksa filtre kullan
-
-        # B. Renkleri Posterize Et (Dümdüz yap)
-        flat_color = self.posterize_image(base_img, k=7)
-
-        # C. Yüz Hatlarını Çıkar (MediaPipe - Anatomik Çizgi)
-        # Orijinal resim üzerinden çıkarırız ki AI bozulmalarından etkilenmesin
-        face_edges = self.extract_face_edges(self.img) 
-        # Çizgileri biraz kalınlaştır
-        face_edges = cv2.dilate(face_edges, np.ones((2,2), np.uint8), iterations=1)
-
-        # D. Dış Hatları Çıkar (Canny - Genel Kontur: Saç, Omuz vb.)
+        # 4. KENAR TESPİTİ (CANNY)
+        # AdaptiveThreshold yerine Canny kullanıyoruz. 
+        # Canny, gölge geçişlerini değil, sadece keskin renk farklarını çizer.
         gray = cv2.cvtColor(flat_color, cv2.COLOR_BGR2GRAY)
-        external_edges = cv2.Canny(gray, 50, 150)
-        external_edges = cv2.dilate(external_edges, np.ones((2,2), np.uint8), iterations=1)
-
-        # E. Çizgileri Birleştir
-        all_edges = cv2.bitwise_or(face_edges, external_edges)
+        gray = cv2.medianBlur(gray, 5)
         
-        # F. Sonuç: Düz renklerin üzerine siyah çizgileri bas
-        self.img = flat_color
-        # Çizgileri tam siyah değil, çok koyu gri yap (daha yumuşak durur)
-        self.img[all_edges > 0] = [20, 20, 20] 
+        # 50-150 eşik değerleri yüzdeki yumuşak gölgeleri görmezden gelir
+        edges = cv2.Canny(gray, 50, 150)
         
-        # Son bir temizlik (Anti-alias etkisi için)
-        self.img = cv2.medianBlur(self.img, 3)
+        # Çizgileri biraz kalınlaştır
+        kernel = np.ones((2,2), np.uint8)
+        edges = cv2.dilate(edges, kernel, iterations=1)
 
-    # 5. ESKİ YÖNTEMLER (Outline vb.)
+        # 5. MEDIAPIPE İLE BİRLEŞTİRME
+        if HAS_MEDIAPIPE:
+            mp_mask = self.extract_face_edges(self.img)
+            # mp_mask: Siyah zemin, Beyaz çizgi
+            # edges: Siyah zemin, Beyaz çizgi
+            combined_edges = cv2.bitwise_or(edges, mp_mask)
+        else:
+            combined_edges = edges
+
+        # 6. SONUÇ BİRLEŞTİRME
+        # Maskeyi ters çevir (Beyaz zemin, Siyah çizgi)
+        mask_inv = cv2.bitwise_not(combined_edges)
+        mask_bgr = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
+        
+        # Renkli resim ile maskeyi çarp (Siyah çizgiler basılır)
+        self.img = cv2.bitwise_and(flat_color, mask_bgr)
+
+    # Eski outline metodu (Dursun, zarar gelmez)
     def process_outline(self):
         gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
         edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
         self.img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
+    # SVG Çıktı
     def generate_svg(self):
         h, w = self.img.shape[:2]
         proc_img = self.img
-        pixels = proc_img.reshape(-1, 3)
-        unique_colors = np.unique(pixels, axis=0)
+        
+        # SVG boyutu şişmesin diye renkleri biraz daha azalt (32 renk)
+        data = np.float32(proc_img).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        _, label, center = cv2.kmeans(data, 32, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        center = np.uint8(center)
+        proc_img = center[label.flatten()].reshape(proc_img.shape)
+        
+        unique_colors = np.unique(proc_img.reshape(-1, 3), axis=0)
         
         svg = f'<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
         
-        # Renkleri koyudan açığa sırala (Konturlar üste gelsin diye mantık kurabiliriz)
-        # Basitçe hepsini çizelim
         for color in unique_colors:
             b, g, r = color
             mask = cv2.inRange(proc_img, color, color)
-            # Gürültü temizle
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
@@ -411,7 +386,7 @@ class VectorEngine:
             
             path_d = ""
             for cnt in contours:
-                if cv2.contourArea(cnt) < 40: continue
+                if cv2.contourArea(cnt) < 25: continue
                 epsilon = 0.002 * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 if len(approx) < 3: continue
@@ -431,6 +406,7 @@ class VectorEngine:
 # --- API ENDPOINTS ---
 
 # 1. VEKTÖR API (GÜNCELLENMİŞ)
+# 1. VEKTÖR API (GÜNCELLENMİŞ)
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
@@ -439,21 +415,18 @@ def api_vectorize():
 
     if "image" not in request.files: return jsonify({"success": False}), 400
     file = request.files["image"]
-    method = request.form.get("method", "normal") # Frontend'den gelen değer
+    method = request.form.get("method", "normal") 
     
     try:
         engine = VectorEngine(file)
         
         if method == "outline":
             engine.process_outline()
-        elif method == "cartoon" or method == "normal":
-            # Varsayılan olarak YENİ FLAT STYLE (MediaPipe + AI)
-            if gan_session is None:
-                print("UYARI: AI Modeli yok, filtreler kullanılıyor.")
-            engine.process_flat_style()
         else:
-            # Yedek
-            engine.process_flat_style()
+            # ARTIK "Cartoon" veya "Normal" seçildiğinde 
+            # YENİ V2 MOTORU (Gamma + Canny) çalışacak.
+            # Eski lekeli yöntem devre dışı bırakıldı.
+            engine.process_cartoon_style_v2()
 
         svg_str = engine.generate_svg()
         b64_svg = base64.b64encode(svg_str.encode('utf-8')).decode('utf-8')
@@ -631,3 +604,4 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
