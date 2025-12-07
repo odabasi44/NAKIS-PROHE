@@ -228,7 +228,7 @@ class AdvancedVectorEngine:
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
         
-        # SVG için temiz base tutucu
+        # SVG ve Preview için base tutucu
         self.vector_base = None
 
         if self.original_img is None:
@@ -243,7 +243,7 @@ class AdvancedVectorEngine:
         else:
             self.img = self.original_img[:, :, :3]
 
-        # Wilcom Optimizasyonu: Çözünürlük 1000px idealdir.
+        # Wilcom Optimizasyonu: 1000px idealdir.
         h, w = self.img.shape[:2]
         if max(h, w) > 1000:
             scale = 1000 / max(h, w)
@@ -251,75 +251,216 @@ class AdvancedVectorEngine:
 
         self.h, self.w = self.img.shape[:2]
 
-    # ---------------- YÜZ HATLARINI KURTARMA (GARANTİ HATLAR) ----------------
-    def get_face_lines_mask(self, img):
-        """Yüz hatlarını (göz, kaş, dudak) SİYAH çizgi olarak döndüren maske"""
-        if not HAS_MEDIAPIPE:
-            return None
-
-        h, w = img.shape[:2]
-        # Beyaz zemin, üzerine siyah çizgi çizeceğiz
-        mask = np.ones((h, w), dtype=np.uint8) * 255 
+    # ---------------- 1. XDoG (Extended Difference of Gaussians) ----------------
+    def get_xdog_edges(self, img, gamma=0.97, phi=200, epsilon=0.01, k=1.6, sigma=0.8):
+        """
+        GERÇEK XDoG FORMÜLÜ:
+        1. İki farklı Gaussian Blur al (g1, g2).
+        2. Farkı ağırlıklı çıkar: D = g1 - (gamma * g2).
+        3. Soft Thresholding (Tanh) uygula: E = 1 if D < eps else 1 + tanh(phi*(D-eps)).
+        """
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
         
-        with mp_face_mesh.FaceMesh(
-            static_image_mode=True, 
-            max_num_faces=1, 
-            refine_landmarks=True,
-            min_detection_confidence=0.5
-        ) as face_mesh:
+        # 1. Gaussian Blur aşamaları
+        g1 = cv2.GaussianBlur(gray, (0, 0), sigma)
+        g2 = cv2.GaussianBlur(gray, (0, 0), sigma * k)
+        
+        # 2. Ağırlıklı Fark (XDoG Difference)
+        diff = g1 - (gamma * g2)
+        
+        # 3. Soft Thresholding (Tanh fonksiyonu ile)
+        # Nakış için "beyaz zemin üzerine siyah çizgi" istiyoruz.
+        # Formülü tersine çevirerek siyah çizgileri (düşük değerleri) yakalıyoruz.
+        
+        # Kenarları vurgula
+        edges = diff - epsilon
+        edges = np.tanh(phi * edges)
+        
+        # 0-1 aralığına çek (Siyah çizgiler 0'a, beyaz zemin 1'e yaklaşır)
+        edges = (edges + 1) / 2.0
+        
+        # Binary'e çevir (Keskin hatlar için)
+        edges = (edges * 255).astype(np.uint8)
+        _, binary_edges = cv2.threshold(edges, 200, 255, cv2.THRESH_BINARY)
+        
+        # Temizlik (Tekil pikselleri at)
+        binary_edges = cv2.medianBlur(binary_edges, 3)
+        
+        return binary_edges # Siyah Çizgi (0), Beyaz Zemin (255)
+
+    # ---------------- 2. BÖLGESEL MASKELEME (FACE vs BODY) ----------------
+    def get_face_mask(self, img):
+        """Yüz bölgesini (cilt + yüz ovali) beyaz maske olarak döndürür."""
+        if not HAS_MEDIAPIPE: return None
+        
+        h, w = img.shape[:2]
+        mask = np.zeros((h, w), dtype=np.uint8)
+        
+        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True) as face_mesh:
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb)
-
+            
             if results.multi_face_landmarks:
                 lm = results.multi_face_landmarks[0].landmark
+                # Yüz ovalini al (Face Contour)
+                contour = mp_face_mesh.FACEMESH_FACE_OVAL
+                pts = []
+                for source_idx, target_idx in contour:
+                    pt = lm[source_idx]
+                    pts.append([int(pt.x * w), int(pt.y * h)])
                 
-                # Wilcom için en kritik hatlar
-                contours_list = [
+                if pts:
+                    pts = np.array(pts)
+                    hull = cv2.convexHull(pts)
+                    cv2.fillPoly(mask, [hull], 255)
+                    
+                    # Maskeyi biraz yumuşat (Keskin geçiş olmasın)
+                    mask = cv2.GaussianBlur(mask, (21, 21), 0)
+        
+        return mask
+
+    # ---------------- 3. MEDIAPIPE YARDIMCI ÇİZGİLER (Complementary) ----------------
+    def get_complementary_face_lines(self, img):
+        """XDoG'un kaçırdığı kaş, göz ve dudak çizgilerini tamamlar."""
+        if not HAS_MEDIAPIPE: return None
+        h, w = img.shape[:2]
+        mask = np.ones((h, w), dtype=np.uint8) * 255 # Beyaz zemin
+        
+        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1) as face_mesh:
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            res = face_mesh.process(rgb)
+            if res.multi_face_landmarks:
+                lm = res.multi_face_landmarks[0].landmark
+                
+                # Yüz boyutuna göre dinamik kalınlık
+                face_width = abs(lm[454].x - lm[234].x) * w
+                th = max(1, int(face_width * 0.006)) # Biraz daha belirgin
+                
+                # Sadece kritik iç hatlar (Dış oval yok)
+                lines = [
                     mp_face_mesh.FACEMESH_LIPS,
-                    mp_face_mesh.FACEMESH_LEFT_EYEBROW,
-                    mp_face_mesh.FACEMESH_RIGHT_EYEBROW,
-                    mp_face_mesh.FACEMESH_LEFT_EYE,
-                    mp_face_mesh.FACEMESH_RIGHT_EYE,
+                    mp_face_mesh.FACEMESH_LEFT_EYEBROW, mp_face_mesh.FACEMESH_RIGHT_EYEBROW,
+                    mp_face_mesh.FACEMESH_LEFT_EYE, mp_face_mesh.FACEMESH_RIGHT_EYE,
                     mp_face_mesh.FACEMESH_NOSE
                 ]
-
-                for group in contours_list:
-                    for a, b in group:
-                        x1, y1 = int(lm[a].x * w), int(lm[a].y * h)
-                        x2, y2 = int(lm[b].x * w), int(lm[b].y * h)
-                        # Siyah çizgi (0)
-                        # DÜZELTME: Nakışta kaybolmaması için thickness 2 yapıldı
-                        cv2.line(mask, (x1, y1), (x2, y2), 0, 2)
-
+                for grp in lines:
+                    for a,b in grp:
+                        p1 = (int(lm[a].x*w), int(lm[a].y*h))
+                        p2 = (int(lm[b].x*w), int(lm[b].y*h))
+                        cv2.line(mask, p1, p2, 0, th) # Siyah çizgi
         return mask
+
+    # ---------------- 4. QUANTIZATION ENGINE (K-Means) ----------------
+    def quantize_region(self, img, k):
+        data = np.float32(img).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        center = np.uint8(center)
+        return center[label.flatten()].reshape(img.shape)
+
+    # -------------------- ERC ENGINE V3 (WAR MACHINE) --------------------
+    def process_hybrid_cartoon(self, edge_thickness=2, color_count=16):
+        """
+        ERC V3 MİMARİSİ:
+        1. Region Split: Yüz (High K, OilPaint) vs. Vücut (Low K, Bilateral).
+        2. XDoG Edges: Gerçek karikatür çizgileri.
+        3. Smart Blending: Yüz çizgileri XDoG'yi kesmez, tamamlar.
+        """
+        
+        # --- ADIM 1: Bölgesel Maskeleme ---
+        face_mask_gray = self.get_face_mask(self.img)
+        
+        if face_mask_gray is None:
+            # Yüz bulunamazsa tüm resme standart uygula (Fallback)
+            return self.process_basic_cartoon()
+
+        # Maskeleri 3 kanala çevir (Renkli işlem için)
+        face_mask = cv2.cvtColor(face_mask_gray, cv2.COLOR_GRAY2BGR)
+        inv_mask = cv2.bitwise_not(face_mask)
+        
+        face_mask_f = face_mask.astype(float) / 255.0
+        inv_mask_f = inv_mask.astype(float) / 255.0
+
+        # --- ADIM 2: YÜZ İŞLEME (Oil Painting + High K) ---
+        # Sadece yüze özel ışık ve renk
+        face_part = self.img.copy()
+        try:
+            # Oil Painting sadece yüze! (Giysiyi bozmaz)
+            face_part = cv2.xphoto.oilPainting(face_part, 5, 1)
+        except:
+            face_part = cv2.bilateralFilter(face_part, 5, 75, 75)
+            
+        # Yüz için yüksek renk sayısı (Ten tonu bozulmasın diye: 16-24)
+        k_face = max(16, min(color_count + 8, 24))
+        face_quant = self.quantize_region(face_part, k_face)
+
+        # --- ADIM 3: VÜCUT/ARKA PLAN İŞLEME (Bilateral + Low K) ---
+        body_part = self.img.copy()
+        # Vücut için güçlü Bilateral (Doku yok etme)
+        body_part = cv2.bilateralFilter(body_part, 9, 100, 100)
+        
+        # Vücut için düşük renk sayısı (Giysi blokları net olsun: 8-12)
+        k_body = max(8, min(color_count - 4, 12))
+        body_quant = self.quantize_region(body_part, k_body)
+
+        # --- ADIM 4: MULTI-RESOLUTION BLENDING ---
+        # İki farklı işlenmiş görüntüyü maske ile birleştir
+        # (face_quant * mask) + (body_quant * inv_mask)
+        final_color = (face_quant * face_mask_f + body_quant * inv_mask_f).astype(np.uint8)
+
+        # --- ADIM 5: ÇİZGİ MOTORU (XDoG + FaceMesh Fusion) ---
+        
+        # A) XDoG Çizgileri (Siyah çizgi, Beyaz zemin)
+        xdog_edges = self.get_xdog_edges(self.img, gamma=0.96, phi=150, epsilon=0.005)
+        
+        # B) FaceMesh Tamamlayıcı Çizgiler (Siyah çizgi, Beyaz zemin)
+        fm_lines = self.get_complementary_face_lines(self.img)
+        
+        # C) Smart Fusion (Anti-Ghosting)
+        # Siyah çizgileri birleştirmek için 'bitwise_and' (0 yutan eleman)
+        # VEYA pixel wise multiplication (Normalize edip)
+        # En temizi: Her ikisi de Beyaz zemin/Siyah çizgi olduğu için 'minimum' operatörü (darkest pixel wins)
+        combined_edges = cv2.min(xdog_edges, fm_lines)
+
+        # Kenar Kalınlaştırma (Opsiyonel)
+        if edge_thickness > 1:
+            # Siyah çizgileri kalınlaştırmak için ERODE kullanılır (Beyazı yer)
+            kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
+            combined_edges = cv2.erode(combined_edges, kernel, iterations=1)
+
+        # --- ADIM 6: FİNAL OVERLAY ---
+        # Renkli resim üzerine Siyah çizgileri bas
+        # Maskeleme: combined_edges siyah (0) ise Siyah yap, yoksa renkli kalsın.
+        
+        edges_bgr = cv2.cvtColor(combined_edges, cv2.COLOR_GRAY2BGR)
+        
+        # Anti-aliasing (Nakış için sert değil, yumuşak geçişli çizgi iyidir)
+        edges_bgr = cv2.GaussianBlur(edges_bgr, (3,3), 0)
+        
+        # Overlay
+        final_result = cv2.bitwise_and(final_color, edges_bgr)
+        
+        # SVG için temiz kopya
+        self.vector_base = final_result.copy()
+
+        return final_result
 
     # ---------------- ÖZEL FONKSİYON: Gözleri Canlandır ----------------
     def enhance_facial_features(self, img):
-        if not HAS_MEDIAPIPE:
-            return img
-
+        if not HAS_MEDIAPIPE: return img
         out = img.copy()
         h, w = out.shape[:2]
-        
-        with mp_face_mesh.FaceMesh(
-            static_image_mode=True, max_num_faces=1, 
-            refine_landmarks=True, min_detection_confidence=0.5
-        ) as face_mesh:
-            
+        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True) as face_mesh:
             rgb = cv2.cvtColor(out, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb)
-
             if results.multi_face_landmarks:
                 lm = results.multi_face_landmarks[0].landmark
-                
                 left_eye = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
                 right_eye = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
-                
                 mask = np.zeros((h, w), dtype=np.uint8)
                 for indices in [left_eye, right_eye]:
                     pts = np.array([[int(lm[i].x * w), int(lm[i].y * h)] for i in indices])
                     cv2.fillPoly(mask, [pts], 255)
-
                 mask = cv2.GaussianBlur(mask, (3, 3), 1)
                 hsv = cv2.cvtColor(out, cv2.COLOR_BGR2HSV)
                 h_ch, s_ch, v_ch = cv2.split(hsv)
@@ -327,7 +468,6 @@ class AdvancedVectorEngine:
                 s_ch = np.where(mask > 0, np.clip(s_ch - 30, 0, 255), s_ch)
                 final_hsv = cv2.merge((h_ch, s_ch, v_ch))
                 out = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-
         return out
 
     # -------------------- WHITEBOX MODEL --------------------
@@ -348,131 +488,39 @@ class AdvancedVectorEngine:
             return cv2.cvtColor(cartoon, cv2.COLOR_RGB2BGR)
         except: return img_input
 
-    # -------------------- ERC ENGINE V3 (WILCOM READY) --------------------
-    def process_hybrid_cartoon(self, edge_thickness=2, color_count=12):
-        """
-        ERC ENGINE V3: Nakış için Mükemmel Düzeltmeler.
-        ✔ Bilateral Turbo (90/120) -> Doku SIFIR.
-        ✔ Adaptive Mean (13,7) -> Jilet gibi çizgiler.
-        ✔ Contour Fill YASAK -> Sadece thickness.
-        ✔ SVG Base Protection -> Efektlerden önce temiz vektör sakla.
-        """
-
-        # 0. Adım: Gözleri Canlandır
-        img_pre = self.enhance_facial_features(self.img)
-
-        # 1. Adım: Whitebox Taban
-        if gan_session:
-            base = self.process_with_whitebox_cartoon(img_pre)
-        else:
-            base = img_pre
-
-        # 2. Adım: Bilateral Turbo (DOKU KATİLİ)
-        # 1. Aşama: Yüksek renk sigması (90)
-        filtered = cv2.bilateralFilter(base, 7, 90, 90) 
-        # 2. Aşama: Daha da yüksek (120) - Tatami için zemin hazırlar
-        smooth = cv2.bilateralFilter(filtered, 9, 120, 120)
-
-        # 3. Adım: Color Quantization (Stabil Renkler)
-        data = np.float32(smooth).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-        
-        # Dinamik renk sayısı
-        brightness = np.mean(cv2.cvtColor(base, cv2.COLOR_BGR2HSV)[:,:,2])
-        if brightness < 80: k = 12
-        elif brightness < 140: k = 16
-        else: k = 22
-        k = max(8, min(k, 24))
-        
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        center = np.uint8(center)
-        flat_colors = center[label.flatten()].reshape(smooth.shape)
-
-        # 4. Adım: Adaptive Threshold (Mean - Jilet Çizgi)
-        gray = cv2.cvtColor(flat_colors, cv2.COLOR_BGR2GRAY)
-        
-        # DÜZELTME: Gaussian değil MEAN_C, 13, 7. Dalgalanma yapmaz.
-        edges = cv2.adaptiveThreshold(
-            gray, 255, 
-            cv2.ADAPTIVE_THRESH_MEAN_C, 
-            cv2.THRESH_BINARY, 
-            13, 7 
-        )
-        # Siyah zemin, Beyaz çizgi formatına çevir
-        edges_inv = cv2.bitwise_not(edges)
-
-        # 5. Adım: Gürültü ve Contour Temizliği (ASLA FILL YAPMA)
-        contours, _ = cv2.findContours(edges_inv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        clean_edges = np.zeros_like(edges_inv)
-        
-        for cnt in contours:
-            if cv2.contourArea(cnt) > 20: # 20px altı çöp
-                # DÜZELTME: -1 YASAK. Sadece kenar kalınlığı.
-                cv2.drawContours(clean_edges, [cnt], -1, 255, edge_thickness)
-
-        # 6. Adım: Yüz Hatlarını Geri Çağırma
-        if HAS_MEDIAPIPE:
-            face_mask = self.get_face_lines_mask(self.img) # Beyaz zemin, siyah çizgi
-            if face_mask is not None:
-                face_inv = cv2.bitwise_not(face_mask)
-                kernel_mp = np.ones((2,2), np.uint8)
-                face_inv = cv2.dilate(face_inv, kernel_mp, iterations=1)
-                clean_edges = cv2.bitwise_or(clean_edges, face_inv)
-
-        # 7. Adım: Final Birleştirme (Overlay)
-        final_result = flat_colors.copy()
-        final_result[clean_edges > 0] = (0, 0, 0)
-        
-        # SVG İÇİN TEMİZ KOPYAYI SAKLA
-        self.vector_base = final_result.copy()
-
-        return final_result
-
     # -------------------- BASIC CARTOON (FALLBACK) --------------------
     def process_basic_cartoon(self):
-        # Basic modunda da vector_base'i ayarla ki hata almasın
-        img = self.img
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
-        color = cv2.bilateralFilter(img, 9, 75, 75)
-        result = cv2.bitwise_and(color, color, mask=edges)
+        # Fallback için XDoG kullan (Daha iyi sonuç verir)
+        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        edges = self.get_xdog_edges(self.img)
+        color = cv2.bilateralFilter(self.img, 9, 75, 75)
+        quant = self.quantize_region(color, 12)
+        edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        result = cv2.bitwise_and(quant, edges_bgr)
         self.vector_base = result
         return result
 
     # -------------------- SKETCH STYLE --------------------
     def process_sketch_style(self):
-        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        inv = 255 - gray
-        blur = cv2.GaussianBlur(inv, (21, 21), 0)
-        sketch = cv2.divide(gray, 255 - blur, scale=256)
-        _, sketch = cv2.threshold(sketch, 200, 255, cv2.THRESH_BINARY)
-        res = cv2.cvtColor(sketch, cv2.COLOR_GRAY2BGR)
-        self.vector_base = res # Sketch zaten vektördür
+        # Sketch için XDoG mükemmeldir.
+        dog = self.get_xdog_edges(self.img, phi=250) # Biraz daha sert çizgiler
+        res = cv2.cvtColor(dog, cv2.COLOR_GRAY2BGR)
+        self.vector_base = res
         return res
 
-    # -------------------- ARTISTIC STYLES (EFEKT AYRIMI) --------------------
+    # -------------------- ARTISTIC STYLES --------------------
     def process_artistic_style(self, style="cartoon", options=None):
         if options is None: options = {}
         edge = options.get("edge_thickness", 2)
         colors = options.get("color_count", 16)
         
-        # ÖNCE VEKTÖR TABANI OLUŞTUR (self.vector_base dolar)
         base_result = self.process_hybrid_cartoon(edge_thickness=edge, color_count=colors)
-        
-        # Efektleri bu base üzerine değil, kopyasına uygula
-        # Ve sadece PNG çıktısı (self.img) değişsin. SVG (self.vector_base) temiz kalsın.
         effect_result = base_result.copy()
-
-        if style == "comic":
-            effect_result = self.apply_comic_effect(effect_result)
-        elif style == "anime":
-            effect_result = self.apply_anime_effect(effect_result)
-        elif style == "painting":
-            effect_result = self.process_painting_style(effect_result)
         
-        # self.img artık efektli (Kullanıcı ekranda bunu görecek)
-        # Ama SVG motoru self.vector_base kullanacak.
+        if style == "comic": effect_result = self.apply_comic_effect(effect_result)
+        elif style == "anime": effect_result = self.apply_anime_effect(effect_result)
+        elif style == "painting": effect_result = self.process_painting_style(effect_result)
+        
         return effect_result
 
     # -------------------- STYLE EFFECTS --------------------
@@ -497,83 +545,46 @@ class AdvancedVectorEngine:
         return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
     def process_painting_style(self, img):
-        # Input parametresi eklendi, self.img yerine bunu kullan
-        size = 8
-        kernel = np.ones((size, size), np.uint8)
-        opened = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
-        filtered = cv2.bilateralFilter(opened, 15, 75, 75)
-        hsv = cv2.cvtColor(filtered, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 20)
-        hsv = cv2.merge([h, s, v])
-        return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        try:
+            return cv2.xphoto.oilPainting(img, 7, 1)
+        except:
+            return cv2.bilateralFilter(img, 9, 75, 75)
 
-    # -------------------- SVG OUTPUT (OPTIMIZED) --------------------
+    # -------------------- SVG OUTPUT --------------------
     def generate_artistic_svg(self, num_colors=16, simplify_factor=0.007, stroke_width=1):
-        """
-        DÜZELTME: simplify_factor 0.007 yapıldı (Daha az path)
-        DÜZELTME: self.vector_base kullanıldı (Efektsiz, temiz renkler)
-        """
-        # Eğer vector_base varsa onu kullan, yoksa mecburen img kullan
         proc = self.vector_base if self.vector_base is not None else self.img
-        
-        # K-Means'i tekrar çalıştırmaya gerek yok, zaten vector_base quantize edilmiş halde.
-        # Ama formatı sağlamak için dummy reshape yapalım ya da direkt kullanalım.
-        # SVG kodu renkleri gruplamak için K-Means kullanıyor, bu doğru.
-        # Temiz resim üzerinde çalışacağı için sonuç bozulmayacak.
-        
         data = np.float32(proc).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
         k = max(2, num_colors)
         _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        
         center = np.uint8(center)
         quantized = center[label.flatten()].reshape(proc.shape)
         
         h, w = quantized.shape[:2]
         svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
-        
         bg_color = self.get_dominant_color(quantized)
         r, g, b = int(bg_color[2]), int(bg_color[1]), int(bg_color[0])
         svg += f'<rect width="{w}" height="{h}" fill="#{r:02x}{g:02x}{b:02x}"/>'
         
         colors = np.unique(quantized.reshape(-1, 3), axis=0)
         for color in colors:
-            if np.array_equal(color, bg_color):
-                continue
-                
+            if np.array_equal(color, bg_color): continue
             b, g, r = color.astype(int)
             mask = cv2.inRange(quantized, color, color)
-            
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3,3), np.uint8))
-            
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
             for cnt in contours:
-                area = cv2.contourArea(cnt)
-                if area < 50: 
-                    continue
-                
-                # Simplify factor artırıldı (0.007)
+                if cv2.contourArea(cnt) < 50: continue
                 epsilon = simplify_factor * cv2.arcLength(cnt, True)
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
-                
                 points = approx.reshape(-1, 2)
-                if len(points) < 3:
-                    continue
-                
+                if len(points) < 3: continue
                 path_data = f"M {points[0][0]} {points[0][1]}"
-                for point in points[1:]:
-                    path_data += f" L {point[0]} {point[1]}"
+                for point in points[1:]: path_data += f" L {point[0]} {point[1]}"
                 path_data += " Z"
-                
-                stroke_r = max(0, r - 40)
-                stroke_g = max(0, g - 40)
-                stroke_b = max(0, b - 40)
-                
+                stroke_r, stroke_g, stroke_b = max(0, r-40), max(0, g-40), max(0, b-40)
                 svg += f'<path d="{path_data}" fill="#{r:02x}{g:02x}{b:02x}" stroke="#{stroke_r:02x}{stroke_g:02x}{stroke_b:02x}" stroke-width="{stroke_width}"/>'
-        
         svg += "</svg>"
         return svg
 
@@ -582,8 +593,7 @@ class AdvancedVectorEngine:
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         _, labels, centers = cv2.kmeans(pixels, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         unique, counts = np.unique(labels, return_counts=True)
-        dominant_idx = unique[np.argmax(counts)]
-        return centers[dominant_idx]
+        return centers[unique[np.argmax(counts)]]
 
 # ------------------------------------------------------------------------
 # ---------------------------- API ENDPOINTS ------------------------------
@@ -869,3 +879,4 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
