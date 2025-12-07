@@ -333,44 +333,66 @@ class AdvancedVectorEngine:
 
     # -------------------- HYBRID CARTOON (WHITEBOX + OPENCV) --------------------
     # -------------------- HYBRID CARTOON (DÜZELTİLMİŞ) --------------------
-    def process_hybrid_cartoon(self, edge_thickness=1, color_count=12):
-    """Whitebox + Minimal Edge – En Temiz Cartoon Çözümü"""
+    def process_hybrid_cartoon(self, edge_thickness=2, color_count=12):
+        """Whitebox + Clean Lineart (Düzeltilmiş Versiyon)"""
 
-    # 1- Whitebox taban görüntü
-    if gan_session:
-        base = self.process_with_whitebox_cartoon(self.img)
-    else:
-        base = self.process_basic_cartoon()
+        # 1- Whitebox taban görüntü (Zemin Hazırlığı)
+        if gan_session:
+            base = self.process_with_whitebox_cartoon(self.img)
+        else:
+            base = self.process_basic_cartoon()
 
-    # 2- Hafif kenar (Canny)
-    gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 40, 90)         # düşük threshold
-    edges = cv2.dilate(edges, np.ones((1,1), np.uint8), 1)
+        # 2- Kenar Tespiti (Canny yerine Adaptive daha iyidir ama Canny istiyorsan ayarı budur)
+        gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
+        # Gürültüyü azaltmak için hafif blur
+        gray_blur = cv2.bilateralFilter(gray, 7, 50, 50) 
+        
+        # Eşik değerlerini yükselttik (Kirli çizgileri almasın diye)
+        edges = cv2.Canny(gray_blur, 50, 150)
 
-    # 3- MediaPipe yüz çizgisi
-    if HAS_MEDIAPIPE:
-        face = self.extract_face_edges(base)
-        edges = cv2.bitwise_or(edges, face)
+        # 3- MediaPipe yüz çizgisi (Varsa ekle)
+        if HAS_MEDIAPIPE:
+            face = self.extract_face_edges(base)
+            edges = cv2.bitwise_or(edges, face)
 
-    # Kenarları siyah yap
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    edges_colored = 255 - edges_colored     # white → black
+        # --- NOKTA TEMİZLİĞİ (Gürültü Giderici) ---
+        # 20 pikselden küçük lekeleri temizle
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            if cv2.contourArea(cnt) < 20: 
+                cv2.drawContours(edges, [cnt], -1, 0, -1)
+        # ------------------------------------------
 
-    # 4- Renkleri hafif düzleştir (çok agresif olmayan)
-    data = np.float32(base).reshape((-1, 3))
-    _, label, center = cv2.kmeans(
-        data, max(2, color_count), None,
-        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0),
-        10,
-        cv2.KMEANS_RANDOM_CENTERS
-    )
-    center = np.uint8(center)
-    flat = center[label.flatten()].reshape(base.shape)
+        # 4- Çizgileri Kalınlaştır
+        # (1,1) etkisizdir, en az (2,2) yaptık
+        kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
+        edges = cv2.dilate(edges, kernel, iterations=1)
 
-    # 5- Çizgileri overlay ile ekle
-    result = cv2.addWeighted(flat, 1.0, edges_colored, 0.25, 0)
+        # 5- Renkleri Düzleştir (K-Means)
+        # Kmeans float32 ister
+        data = np.float32(base).reshape((-1, 3))
+        _, label, center = cv2.kmeans(
+            data, max(2, color_count), None,
+            (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0),
+            10,
+            cv2.KMEANS_RANDOM_CENTERS
+        )
+        center = np.uint8(center)
+        flat = center[label.flatten()].reshape(base.shape)
 
-    return result
+        # 6- BİRLEŞTİRME (MASKELEME YÖNTEMİ)
+        # addWeighted YERİNE bitwise işlemleri kullanıyoruz.
+        
+        # edges şu an: Siyah Zemin, Beyaz Çizgi
+        # Bizim istediğimiz: Beyaz Zemin, Siyah Çizgi (Maske olarak)
+        mask_inv = cv2.bitwise_not(edges) 
+        mask_bgr = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
+
+        # Renkli resim (flat) ile maskeyi çarp
+        # (Maskedeki Siyah yerler resimde Siyah olur, Beyaz yerler rengi korur)
+        result = cv2.bitwise_and(flat, mask_bgr)
+
+        return result
 
     # -------------------- BASIC CARTOON (FALLBACK) --------------------
     def process_basic_cartoon(self):
