@@ -332,76 +332,69 @@ class AdvancedVectorEngine:
             return img_input
 
     # -------------------- HYBRID CARTOON (FINAL SMOOTH FIX) --------------------
-    def process_hybrid_cartoon(self, edge_thickness=1, color_count=16):
-        """
-        Whitebox + MeanShift (Pürüzsüz Cilt) + Temiz Kenarlar
-        """
+def process_hybrid_cartoon(self, edge_thickness=1, color_count=16):
+    """
+    Commercial-Grade Cartoon Engine (Final Version)
+    """
 
-        # 1- Whitebox Model Çıktısını Al (Temel Karikatür)
-        if gan_session:
-            base = self.process_with_whitebox_cartoon(self.img)
-        else:
-            base = self.process_basic_cartoon()
+    # 1) Göz/Diş düzeltme (hafif)
+    img = self.enhance_facial_features(self.img)
 
-        # 2- CİLT PÜRÜZSÜZLEŞTİRME (Kritik Adım)
-        # pyrMeanShiftFiltering: Renkleri birbirine yaklaştırır, dokuyu yok eder (vektör hissi verir).
-        # sp: Mekansal pencere (ne kadar geniş alana bakacağı)
-        # sr: Renk penceresi (birbirine ne kadar yakın renkleri birleştireceği)
-        # Bebek yüzü için sr değerini yüksek (40-60 arası) tutmak cildi tek renk yapar.
-        smooth = cv2.pyrMeanShiftFiltering(base, sp=10, sr=50)
+    # 2) Whitebox taban (varsa)
+    if gan_session:
+        base = self.process_with_whitebox_cartoon(img)
+    else:
+        base = img
 
-        # 3- KENAR TESPİTİ (Edge Detection)
-        gray = cv2.cvtColor(smooth, cv2.COLOR_BGR2GRAY)
-        gray_blur = cv2.bilateralFilter(gray, 9, 75, 75)
-        
-        # Kenarları bul (Canny)
-        edges = cv2.Canny(gray_blur, 100, 200)
+    # 3) Renk smooth (yalnızca bilateral)
+    smooth = cv2.bilateralFilter(base, 9, 50, 50)
 
-        # MediaPipe yüz hatlarını ekle (Daha önce yaptığımız ince ayar)
-        if HAS_MEDIAPIPE:
-            face = self.extract_face_edges(base)
-            edges = cv2.bitwise_or(edges, face)
+    # -- Dinamik Color Count (ortalama parlaklığa göre) --
+    brightness = np.mean(cv2.cvtColor(base, cv2.COLOR_BGR2HSV)[:,:,2])
+    if brightness < 80:
+        k = 12  # koyu foto: düşük renk
+    elif brightness < 140:
+        k = 16  # normal
+    else:
+        k = 22  # bebek / açık ten / çok ışık
 
-        # Gürültü temizleme (küçük noktaları sil)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            if cv2.contourArea(cnt) < 30: # 30 pikselden küçük çizikleri yok et
-                cv2.drawContours(edges, [cnt], -1, 0, -1)
+    k = max(8, min(k, 26))
 
-        # Çizgi kalınlığı
-        if edge_thickness > 1:
-            kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
-            edges = cv2.dilate(edges, kernel, iterations=1)
+    # 4) K-Means color quant
+    data = np.float32(smooth).reshape((-1,3))
+    _, label, center = cv2.kmeans(
+        data, k, None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
+        10, cv2.KMEANS_RANDOM_CENTERS)
+    center = np.uint8(center)
+    quant = center[label.flatten()].reshape(smooth.shape)
 
-        # 4- RENK GRUPLAMA (K-Means - Artık daha temiz çalışacak)
-        # Önce MeanShift yaptığımız için data zaten pürüzsüz, K-Means sapıtmayacak.
-        data = np.float32(smooth).reshape((-1, 3))
-        
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        _, label, center = cv2.kmeans(
-            data, 
-            color_count, # Renk sayısı
-            None,
-            criteria,
-            10,
-            cv2.KMEANS_RANDOM_CENTERS
-        )
-        
-        center = np.uint8(center)
-        flat = center[label.flatten()].reshape(smooth.shape)
+    # 5) Temiz Kenar Çizimi (kararlı)
+    gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3,3), 0)
 
-        # 5- BİRLEŞTİRME
-        # Renkli zemin üzerine siyah kenarları bas
-        mask_inv = cv2.bitwise_not(edges)
-        mask_bgr = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
-        
-        # Kenarları yumuşat (Anti-aliasing benzeri etki için hafif blur)
-        # Bu işlem çizgilerin çok keskin ve piksel piksel durmasını engeller
-        mask_bgr = cv2.GaussianBlur(mask_bgr, (3, 3), 0)
+    edges = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
+        cv2.THRESH_BINARY_INV,
+        11, 5
+    )
 
-        result = cv2.bitwise_and(flat, mask_bgr)
+    # MediaPipe yüz hatları
+    if HAS_MEDIAPIPE:
+        mp_edges = self.extract_face_edges(base)
+        edges = cv2.bitwise_or(edges, mp_edges)
 
-        return result
+    # Çizgi kalınlaştırma
+    if edge_thickness > 1:
+        edges = cv2.dilate(edges, np.ones((edge_thickness,edge_thickness), np.uint8), iterations=1)
+
+    # 6) Birleştirme
+    mask = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    final = cv2.bitwise_and(quant, mask)
+
+    return final
+
 
 
 
@@ -930,6 +923,7 @@ def render_page(page):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
 
 
