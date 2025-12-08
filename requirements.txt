@@ -1,12 +1,14 @@
 flask
 flask_cors
 onnxruntime
-opencv-python-headless
+opencv-contrib-python-headless
 numpy
 Pillow
 PyPDF2
 mediapipe
 gunicorn
+pyembroidery
+
 
 
 
