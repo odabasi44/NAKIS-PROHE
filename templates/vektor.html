@@ -228,9 +228,63 @@
         }
     }
 
-    function convertEmbroidery() {
-        if (!vectorData) return alert("Vektör yok!");
-        alert("🚧 Nakış modülü (pyembroidery) bir sonraki aşamada backend'e eklenecek.");
+    // NAKIŞ DÖNÜŞTÜRME (CANLI)
+    async function convertEmbroidery() {
+        if (!selectedFile) return alert("Lütfen önce bir dosya yükleyin!");
+        
+        // Format Seçimi
+        const isMachine = document.getElementById('content-drawing').classList.contains('hidden');
+        let format = '';
+        if (isMachine) {
+            format = document.getElementById('machine-format-select').value; // dst, pes
+        } else {
+            const radio = document.querySelector('input[name="emb_format"]:checked');
+            format = radio ? radio.value : 'emb';
+        }
+
+        // EMB formatı pyembroidery ile yazılamaz, uyarı verelim
+        if (format === 'emb' || format === 'art') {
+            alert("⚠️ .EMB ve .ART formatları tescilli olduğu için yazılamaz. Size en yakın format olan .DST verilecektir.");
+            format = 'dst';
+        }
+
+        // Butonu Kilitle
+        const btn = document.querySelector("button[onclick='convertEmbroidery()']");
+        const oldText = btn.innerHTML;
+        btn.innerHTML = "⏳ Dönüştürülüyor...";
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('image', selectedFile); // Orijinal resmi gönderip tekrar işliyoruz
+        formData.append('format', format);
+
+        try {
+            const res = await fetch('/api/convert_embroidery', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // İndirme İşlemi
+                const link = document.createElement('a');
+                link.href = "data:application/octet-stream;base64," + data.file;
+                link.download = "nakis_tasarim." + format;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert("✅ Başarılı! Nakış dosyanız indirildi.");
+            } else {
+                alert("Hata: " + data.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Sunucu bağlantı hatası!");
+        } finally {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
     }
 
     function downloadVector() { if(vectorData) { const a = document.createElement('a'); a.href = "data:image/svg+xml;base64," + vectorData; a.download = "vektor.svg"; a.click(); } }
