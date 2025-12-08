@@ -4,56 +4,21 @@
 
 {% block head_extra %}
 <style>
-    /* CAM PANEL EFEKTLERİ */
-    .glass-panel {
-        background: rgba(17, 24, 39, 0.6);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        transition: all 0.3s ease;
-    }
-
-    /* MOD SEÇİM KARTLARI */
-    .mode-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-    }
-    .mode-card:hover {
-        transform: translateY(-5px);
-        border-color: #8b5cf6;
-        box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2);
-    }
-    .mode-card.selected {
-        background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(17, 24, 39, 0.9));
-        border-color: #8b5cf6;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5);
-    }
-    .mode-card.selected .check-icon { opacity: 1; transform: scale(1); }
-
-    /* TARAMA EFEKTİ (LOADING) */
-    .scan-line {
-        position: absolute; width: 100%; height: 2px;
-        background: #8b5cf6; box-shadow: 0 0 15px #8b5cf6;
-        animation: scan 2s linear infinite;
-        z-index: 10;
-    }
-    @keyframes scan { 0% {top: 0%} 50% {top: 100%} 100% {top: 0%} }
-
-    /* RADYO BUTON & CHECKBOX STİLLERİ */
-    input[type="radio"]:checked + div {
-        border-color: #8b5cf6;
-        background-color: rgba(139, 92, 246, 0.1);
-    }
+    /* MOD KARTLARI */
+    .mode-card { transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden; }
+    .mode-card:hover { transform: translateY(-5px); border-color: #8b5cf6; }
+    .mode-card.selected { background: linear-gradient(145deg, rgba(139,92,246,0.15), rgba(17,24,39,0.9)); border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,0.5); }
+    
+    /* RADYO & CHECKBOX */
+    input[type="radio"]:checked + div { border-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.1); }
     input[type="radio"]:checked + div span { color: white; }
     
     /* KALİTE BUTONLARI */
-    .quality-btn.active {
-        background: rgba(139, 92, 246, 0.2);
-        border-color: #8b5cf6;
-        color: white;
-        box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
-    }
+    .quality-btn.active { background: rgba(139,92,246,0.2); border-color: #8b5cf6; color: white; }
+    
+    /* LOADING ANIMASYONU */
+    .scan-line { position: absolute; width: 100%; height: 2px; background: #8b5cf6; box-shadow: 0 0 15px #8b5cf6; animation: scan 2s linear infinite; }
+    @keyframes scan { 0% {top: 0%} 50% {top: 100%} 100% {top: 0%} }
 </style>
 {% endblock head_extra %}
 
@@ -61,282 +26,142 @@
 <div class="w-full max-w-6xl mx-auto space-y-12 pb-20">
 
     <div class="text-center animate-fade-in">
-        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-            AI <span class="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Nakış Stüdyosu</span>
-        </h1>
-        <p class="text-gray-400 max-w-2xl mx-auto text-lg">
-            Görselinizi yükleyin, yapay zeka saniyeler içinde Wilcom uyumlu vektör çizimini ve makine dosyasını hazırlasın.
-        </p>
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">AI <span class="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Nakış Stüdyosu</span></h1>
+        <p class="text-gray-400">Görselinizi yükleyin, ERC v4 motoru ile nakışa uygun vektör çizimini hazırlayın.</p>
     </div>
 
     <div id="step-1" class="animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">1. Ne Dönüştüreceksiniz?</h3>
-        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onclick="selectMode('logo')" id="card-logo" class="mode-card bg-[#0c1120] border border-white/10 rounded-2xl p-6 flex items-start gap-5">
                 <div class="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 </div>
-                <div>
-                    <h4 class="text-lg font-bold text-white mb-1">Logo & Grafik</h4>
-                    <p class="text-sm text-gray-400 leading-relaxed">Vektörel, net kenarlı çizimler. Arka plan otomatik temizlenir.</p>
-                    <div class="mt-3 flex gap-2">
-                        <span class="text-[9px] bg-blue-500/10 text-blue-300 px-2 py-1 rounded border border-blue-500/20">Auto BG Silme</span>
-                        <span class="text-[9px] bg-blue-500/10 text-blue-300 px-2 py-1 rounded border border-blue-500/20">Keskin Hat</span>
-                    </div>
-                </div>
-                <div class="check-icon absolute top-4 right-4 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center opacity-0 transform scale-50 transition-all duration-300 shadow-lg shadow-blue-500/50">
-                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                </div>
+                <div><h4 class="text-lg font-bold text-white">Logo & Grafik</h4><p class="text-sm text-gray-400">Keskin hatlar, net renk ayrımı.</p></div>
             </div>
-
             <div onclick="selectMode('photo')" id="card-photo" class="mode-card bg-[#0c1120] border border-white/10 rounded-2xl p-6 flex items-start gap-5">
                 <div class="w-14 h-14 rounded-xl bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400 shrink-0">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 </div>
-                <div>
-                    <h4 class="text-lg font-bold text-white mb-1">Fotoğraf & Resim</h4>
-                    <p class="text-sm text-gray-400 leading-relaxed">İnsan veya manzara. ERC v4 motoru ile nakışa uygun cartoon stili.</p>
-                    <div class="mt-3 flex gap-2">
-                        <span class="text-[9px] bg-fuchsia-500/10 text-fuchsia-300 px-2 py-1 rounded border border-fuchsia-500/20">Cartoonize</span>
-                        <span class="text-[9px] bg-fuchsia-500/10 text-fuchsia-300 px-2 py-1 rounded border border-fuchsia-500/20">Yüz Koruma</span>
-                    </div>
-                </div>
-                <div class="check-icon absolute top-4 right-4 w-6 h-6 bg-fuchsia-500 rounded-full flex items-center justify-center opacity-0 transform scale-50 transition-all duration-300 shadow-lg shadow-fuchsia-500/50">
-                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                </div>
+                <div><h4 class="text-lg font-bold text-white">Fotoğraf & Resim</h4><p class="text-sm text-gray-400">ERC v4 Cartoon motoru ile nakış stili.</p></div>
             </div>
         </div>
     </div>
 
     <div id="step-upload" class="hidden animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">2. Görseli Yükle</h3>
-        
-        <div class="glass-panel rounded-2xl p-8">
-            <div id="dropZone" class="border-2 border-dashed border-white/10 rounded-xl p-12 text-center hover:border-violet-500/50 hover:bg-white/5 transition cursor-pointer mb-0 relative group">
-                <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" class="hidden" onchange="handleFile(this.files[0])">
-                <div class="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-xl">
-                    <svg class="w-10 h-10 text-gray-400 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                </div>
-                <h4 class="text-xl font-bold text-white mb-2">Görseli Buraya Bırakın</h4>
-                <p class="text-sm text-gray-500">veya dosya seçmek için tıklayın</p>
-                <p class="text-xs text-gray-600 mt-4 font-mono">JPG, PNG • Max 15MB</p>
+        <div class="glass-panel rounded-2xl p-8 border border-white/10 bg-gray-900/50">
+            <div id="dropZone" class="border-2 border-dashed border-white/10 rounded-xl p-12 text-center hover:border-violet-500/50 hover:bg-white/5 transition cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFile(this.files[0])">
+                <p class="text-gray-400 font-medium">Görseli buraya bırakın veya tıklayın</p>
+                <p class="text-xs text-gray-600 mt-2">JPG, PNG, WEBP (Max 15MB)</p>
             </div>
 
             <div id="preview-area" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="lg:col-span-1">
-                    <div class="relative rounded-xl overflow-hidden border border-white/10 bg-black/40 shadow-2xl">
-                        <img id="img-preview" class="w-full h-auto object-cover opacity-80">
-                        <button onclick="resetUpload()" class="absolute top-3 right-3 bg-black/60 hover:bg-red-600 text-white p-2 rounded-lg transition backdrop-blur-sm group">
-                            <svg class="w-4 h-4 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
-                    
-                    <div class="mt-4 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl">
-                        <h5 class="text-xs font-bold text-blue-400 mb-2 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            İpucu
-                        </h5>
-                        <p class="text-[11px] text-gray-400 leading-relaxed">
-                            Nakış için en iyi sonuç: Yüksek çözünürlüklü, gölgesiz ve net görsellerdir. Uzak çekimlerde yüz detayları kaybolabilir.
-                        </p>
-                    </div>
+                    <img id="img-preview" class="rounded-xl w-full border border-white/10">
+                    <button onclick="resetUpload()" class="mt-2 text-xs text-red-400 hover:text-red-300">Görseli Değiştir</button>
                 </div>
-
-                <div class="lg:col-span-2 flex flex-col justify-between">
-                    <div class="space-y-6">
-                        <div class="flex items-center justify-between p-5 bg-white/5 rounded-xl border border-white/5 hover:border-yellow-500/30 transition cursor-pointer group">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                </div>
-                                <div>
-                                    <h5 class="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">4K Kalite Artırma (Upscale)</h5>
-                                    <p class="text-xs text-gray-400">Bulanık görseli onarır, pikselleri netleştirir.</p>
-                                </div>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="upscale-toggle" class="sr-only peer">
-                                <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
-                            </label>
-                        </div>
-
-                        <div class="p-5 bg-white/5 rounded-xl border border-white/5">
-                            <label class="text-xs font-bold text-gray-400 mb-3 block uppercase tracking-wide">Vektör Detay Seviyesi</label>
-                            <div class="grid grid-cols-3 gap-3">
-                                <button onclick="setQuality('medium')" id="q-medium" class="quality-btn py-3 rounded-lg border border-white/10 text-xs font-medium text-gray-400 hover:bg-white/5 transition">Basit</button>
-                                <button onclick="setQuality('high')" id="q-high" class="quality-btn active py-3 rounded-lg border border-white/10 text-xs font-medium text-gray-400 hover:bg-white/5 transition">Dengeli</button>
-                                <button onclick="setQuality('ultra')" id="q-ultra" class="quality-btn py-3 rounded-lg border border-white/10 text-xs font-medium text-gray-400 hover:bg-white/5 transition">Yüksek</button>
-                            </div>
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/5">
+                        <label class="text-xs font-bold text-gray-400 mb-3 block">Detay Seviyesi</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="setQuality('medium')" id="q-medium" class="quality-btn py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Basit</button>
+                            <button onclick="setQuality('high')" id="q-high" class="quality-btn active py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Dengeli</button>
+                            <button onclick="setQuality('ultra')" id="q-ultra" class="quality-btn py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Yüksek</button>
                         </div>
                     </div>
-
-                    <button onclick="startProcessing()" class="mt-8 w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold shadow-lg shadow-violet-900/40 transition flex items-center justify-center gap-3 text-lg group">
-                        <span>Vektörleştirmeyi Başlat</span>
-                        <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </button>
+                    <button onclick="startProcessing()" class="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold shadow-lg shadow-violet-900/30 hover:opacity-90 transition">Vektörleştirmeyi Başlat</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="processing-overlay" class="hidden fixed inset-0 bg-[#02040a]/95 z-[60] flex flex-col items-center justify-center backdrop-blur-md animate-fade-in">
-        <div class="w-72 h-72 relative rounded-2xl overflow-hidden mb-8 border border-white/10 bg-black shadow-2xl">
-            <img id="process-preview-img" class="w-full h-full object-cover opacity-40">
-            <div class="scan-line"></div>
-            <div class="absolute inset-0 flex items-center justify-center">
-                <div class="text-5xl font-mono text-violet-400 font-bold drop-shadow-[0_0_10px_rgba(139,92,246,0.5)]" id="progress-percent">0%</div>
-            </div>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2 animate-pulse" id="process-step">Başlatılıyor...</h3>
-        <p class="text-sm text-gray-400">Yapay zeka nakış optimizasyonu yapıyor.</p>
-    </div>
-
-    <div id="result-screen" class="hidden animate-fade-in pb-20">
+    <div id="result-screen" class="hidden animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">3. Sonuç ve Nakış Dosyası</h3>
-        
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2">
-                <div class="glass-panel rounded-2xl p-2 relative h-full flex flex-col">
-                    <div class="bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] bg-[#111827] rounded-xl overflow-hidden flex items-center justify-center flex-grow min-h-[500px]">
-                        <img id="final-result-img" class="max-w-full max-h-[600px] object-contain drop-shadow-2xl">
-                    </div>
-                    
-                    <div class="absolute top-6 right-6">
-                        <span class="bg-green-500/20 text-green-400 text-xs font-bold px-3 py-1.5 rounded-full border border-green-500/20 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Vektör Hazır
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 mt-4 px-2 pb-2">
-                        <button onclick="downloadVector()" class="py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 flex items-center justify-center gap-2 transition">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            SVG İndir
-                        </button>
-                        <button onclick="downloadPNG()" class="py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 flex items-center justify-center gap-2 transition">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            PNG İndir
-                        </button>
-                    </div>
+                <div class="glass-panel rounded-2xl p-2 bg-[#111827] flex items-center justify-center min-h-[500px] border border-white/10">
+                    <img id="final-result-img" class="max-w-full max-h-[600px] object-contain">
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <button onclick="downloadVector()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">SVG İndir</button>
+                    <button onclick="downloadPNG()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">PNG İndir</button>
                 </div>
             </div>
 
             <div class="lg:col-span-1">
-                <div class="glass-panel rounded-2xl p-1 border border-violet-500/30 bg-gradient-to-b from-violet-900/10 to-[#0c1120] h-full flex flex-col">
-                    
-                    <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-lg shadow-violet-500/30 shrink-0">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-bold text-white">Nakış Dönüştürücü</h4>
-                            <span class="text-[10px] uppercase font-bold text-violet-300">Auto-Digitize v4</span>
-                        </div>
+                <div class="glass-panel rounded-2xl p-5 border border-violet-500/30 bg-gradient-to-b from-violet-900/10 to-[#0c1120] h-full flex flex-col">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                        <div class="w-10 h-10 rounded-lg bg-violet-600 flex items-center justify-center text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg></div>
+                        <div><h4 class="text-sm font-bold text-white">Nakış Dönüştürücü</h4><span class="text-[10px] text-violet-300">Auto-Digitize v4</span></div>
                     </div>
 
-                    <div class="p-5 flex-grow flex flex-col">
-                        <div class="flex p-1 bg-black/40 rounded-lg mb-6 border border-white/5">
-                            <button onclick="switchTab('drawing')" id="tab-drawing" class="flex-1 py-2 rounded-md text-xs font-bold text-white bg-violet-600 shadow-md transition-all">Çizim Dosyası</button>
-                            <button onclick="switchTab('machine')" id="tab-machine" class="flex-1 py-2 rounded-md text-xs font-bold text-gray-400 hover:text-white transition-all">Makine Dosyası</button>
-                        </div>
-
-                        <div id="content-drawing" class="space-y-3 flex-grow">
-                            <p class="text-[10px] text-gray-400 mb-2">Wilcom/Corel ile düzenlenebilir ham formatlar.</p>
-                            <label class="cursor-pointer block">
-                                <input type="radio" name="emb_format" value="emb" class="peer hidden" checked>
-                                <div class="p-3 rounded-lg border border-white/10 bg-white/5 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 hover:bg-white/10 transition flex items-center justify-between group">
-                                    <span class="text-sm font-bold text-gray-300 group-hover:text-white">.EMB</span>
-                                    <span class="text-[9px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">Wilcom</span>
-                                </div>
-                            </label>
-                            <label class="cursor-pointer block">
-                                <input type="radio" name="emb_format" value="art" class="peer hidden">
-                                <div class="p-3 rounded-lg border border-white/10 bg-white/5 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 hover:bg-white/10 transition flex items-center justify-between group">
-                                    <span class="text-sm font-bold text-gray-300 group-hover:text-white">.ART</span>
-                                    <span class="text-[9px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">Bernina</span>
-                                </div>
-                            </label>
-                            <label class="cursor-pointer block">
-                                <input type="radio" name="emb_format" value="pxf" class="peer hidden">
-                                <div class="p-3 rounded-lg border border-white/10 bg-white/5 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 hover:bg-white/10 transition flex items-center justify-between group">
-                                    <span class="text-sm font-bold text-gray-300 group-hover:text-white">.PXF</span>
-                                    <span class="text-[9px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">Tajima</span>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div id="content-machine" class="hidden space-y-4 flex-grow">
-                            <p class="text-[10px] text-gray-400 mb-2">Makineye direkt yüklenen dikiş dosyaları.</p>
-                            <div class="relative">
-                                <select id="machine-format-select" class="w-full bg-[#02040a] border border-white/10 text-gray-300 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-3">
-                                    <option value="dst">DST - Tajima (Standart)</option>
-                                    <option value="pes">PES - Brother</option>
-                                    <option value="jef">JEF - Janome</option>
-                                    <option value="xxx">XXX - Singer</option>
-                                    <option value="exp">EXP - Melco</option>
-                                    <option value="vp3">VP3 - Husqvarna</option>
-                                </select>
-                            </div>
-                            <div class="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-[10px] text-yellow-200 flex gap-2">
-                                <span>⚠️</span>
-                                <span>Makine dosyasında renkler kaybolabilir (DST standardı). İplik sırasını kontrol edin.</span>
-                            </div>
-                        </div>
-
-                        <button onclick="convertEmbroidery()" class="mt-6 w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-violet-900/40 transition flex items-center justify-center gap-2 group">
-                            <span>Dönüştür ve İndir</span>
-                            <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
-                        </button>
+                    <div class="flex bg-black/40 p-1 rounded-lg mb-4">
+                        <button onclick="switchTab('drawing')" id="tab-drawing" class="flex-1 py-2 text-xs font-bold bg-violet-600 text-white rounded-md transition">Çizim</button>
+                        <button onclick="switchTab('machine')" id="tab-machine" class="flex-1 py-2 text-xs font-bold text-gray-400 hover:text-white rounded-md transition">Makine</button>
                     </div>
+
+                    <div id="content-drawing" class="space-y-3 flex-grow">
+                        <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
+                            <input type="radio" name="emb_format" value="emb" checked class="hidden">
+                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.EMB</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Wilcom</span></div>
+                        </label>
+                        <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
+                            <input type="radio" name="emb_format" value="dst" class="hidden">
+                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.SVG</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Vektör</span></div>
+                        </label>
+                    </div>
+
+                    <div id="content-machine" class="hidden space-y-4 flex-grow">
+                        <select id="machine-format-select" class="w-full bg-[#02040a] border border-white/10 text-gray-300 text-sm rounded-lg p-3 focus:border-violet-500 outline-none">
+                            <option value="dst">DST - Tajima</option>
+                            <option value="pes">PES - Brother</option>
+                            <option value="jef">JEF - Janome</option>
+                        </select>
+                        <p class="text-[10px] text-yellow-200 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">⚠️ Makine dosyalarında renk bilgisi kaybolabilir.</p>
+                    </div>
+
+                    <button onclick="convertEmbroidery()" class="w-full py-3 mt-auto bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition">Dönüştür ve İndir</button>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="processing-overlay" class="hidden fixed inset-0 bg-[#02040a]/95 z-[60] flex flex-col items-center justify-center backdrop-blur-md">
+        <div class="w-64 h-64 relative rounded-2xl overflow-hidden mb-6 border border-white/10 bg-black">
+            <img id="process-preview-img" class="w-full h-full object-cover opacity-40">
+            <div class="scan-line"></div>
+        </div>
+        <h3 class="text-xl font-bold text-white animate-pulse">İşleniyor...</h3>
+        <p class="text-sm text-gray-400 mt-2">ERC v4 motoru çalışıyor</p>
     </div>
 
 </div>
 
 <script>
-    // DEĞİŞKENLER
-    let currentMode = null;
-    let currentQuality = 'high';
-    let selectedFile = null;
-    let vectorData = null; // SVG Base64 (Backend'den gelecek)
-    let pngData = null;    // PNG Base64
+    let currentMode = null, currentQuality = 'high', selectedFile = null, vectorData = null, pngData = null;
 
-    // MOD SEÇİMİ
     function selectMode(mode) {
         currentMode = mode;
-        
-        document.getElementById('card-logo').classList.remove('selected');
-        document.getElementById('card-photo').classList.remove('selected');
-        
+        document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('selected'));
         document.getElementById('card-' + mode).classList.add('selected');
-        
         document.getElementById('step-upload').classList.remove('hidden');
         setTimeout(() => document.getElementById('step-upload').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     }
 
-    // KALİTE SEÇİMİ
     function setQuality(q) {
         currentQuality = q;
-        ['medium', 'high', 'ultra'].forEach(qv => {
-            const el = document.getElementById('q-' + qv);
-            if (qv === q) el.classList.add('active');
-            else el.classList.remove('active');
-        });
+        document.querySelectorAll('.quality-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('q-' + q).classList.add('active');
     }
 
-    // DOSYA YÜKLEME
     function handleFile(file) {
-        if (!file) return;
         selectedFile = file;
-        
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = e => {
             document.getElementById('img-preview').src = e.target.result;
             document.getElementById('process-preview-img').src = e.target.result;
-            
             document.getElementById('dropZone').classList.add('hidden');
             document.getElementById('preview-area').classList.remove('hidden');
         };
@@ -350,134 +175,65 @@
         document.getElementById('fileInput').value = '';
     }
 
-    // İŞLEM BAŞLATMA (BACKEND BAĞLANTISI BURAYA GELECEK)
     async function startProcessing() {
-        if (!selectedFile) return alert("Lütfen dosya seçin.");
+        if (!selectedFile) return alert("Dosya seçin!");
+        document.getElementById('processing-overlay').classList.remove('hidden');
 
-        const overlay = document.getElementById('processing-overlay');
-        const stepText = document.getElementById('process-step');
-        const percentText = document.getElementById('progress-percent');
-        
-        overlay.classList.remove('hidden');
-
-        // --- BACKEND İÇİN FORM DATA HAZIRLIĞI ---
         const formData = new FormData();
         formData.append('image', selectedFile);
-        formData.append('method', currentMode === 'logo' ? 'outline' : 'cartoon'); // Logo ise outline, foto ise cartoon
+        formData.append('method', currentMode === 'logo' ? 'outline' : 'cartoon');
         
-        // Kalite eşleştirme
-        let edgeThickness = 2;
-        let colorCount = 16;
-        if (currentQuality === 'medium') { edgeThickness = 3; colorCount = 8; }
-        else if (currentQuality === 'ultra') { edgeThickness = 1; colorCount = 32; }
+        let thickness = 2, count = 16;
+        if (currentQuality === 'medium') { thickness = 3; count = 8; }
+        else if (currentQuality === 'ultra') { thickness = 1; count = 32; }
         
-        formData.append('edge_thickness', edgeThickness);
-        formData.append('color_count', colorCount);
-        formData.append('style', 'cartoon'); // ERC motoru
-        // ----------------------------------------
+        formData.append('edge_thickness', thickness);
+        formData.append('color_count', count);
+        formData.append('style', 'cartoon');
 
         try {
-            // SİMÜLASYON BAŞLANGICI (Backend'e istek atıyor gibi davranıyoruz)
-            let progress = 0;
-            const steps = [
-                {p: 10, t: "Görsel Yükleniyor..."},
-                {p: 30, t: currentMode === 'logo' ? "Vektör Çizgileri Ayrıştırılıyor..." : "ERC v4 Motoru Başlatılıyor..."},
-                {p: 50, t: "Yüz ve Detay Analizi Yapılıyor..."},
-                {p: 75, t: "Renkler Nakış İçin Optimize Ediliyor..."},
-                {p: 90, t: "SVG Oluşturuluyor..."},
-                {p: 100, t: "Tamamlanıyor!"}
-            ];
-
-            // Gerçek fetch isteği buraya gelecek:
             const res = await fetch('/api/vectorize', { method: 'POST', body: formData });
-            const data = await res.json(); 
-
-            // Simüle edilmiş progress bar (Gerçekte backend'den yanıt beklerken döner)
-            const interval = setInterval(() => {
-                progress += Math.floor(Math.random() * 10) + 5;
-                if (progress > 100) progress = 100;
-                
-                percentText.innerText = progress + "%";
-                const currentStep = steps.find(s => progress >= s.p);
-                if (currentStep) stepText.innerText = currentStep.t;
-
-                if (progress === 100) {
-                    clearInterval(interval);
-                    
-                    if (data.success) {
-                        // SONUÇLARI GÖSTER
-                        vectorData = data.file;
-                        pngData = data.preview_img;
-                        
-                        document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
-                        
-                        setTimeout(() => {
-                            overlay.classList.add('hidden');
-                            document.getElementById('result-screen').classList.remove('hidden');
-                            document.getElementById('result-screen').scrollIntoView({ behavior: 'smooth' });
-                        }, 500);
-                    } else {
-                        alert("Hata: " + data.message);
-                        overlay.classList.add('hidden');
-                    }
-                }
-            }, 300); // Hızlı simülasyon (300ms)
-
+            const data = await res.json();
+            if (data.success) {
+                vectorData = data.file;
+                pngData = data.preview_img;
+                document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
+                document.getElementById('processing-overlay').classList.add('hidden');
+                document.getElementById('result-screen').classList.remove('hidden');
+            } else {
+                alert("Hata: " + data.message);
+                document.getElementById('processing-overlay').classList.add('hidden');
+            }
         } catch (e) {
             console.error(e);
-            alert("Sunucu hatası veya simülasyon modundasınız (Backend yok).");
-            overlay.classList.add('hidden');
+            alert("Sunucu hatası!");
+            document.getElementById('processing-overlay').classList.add('hidden');
         }
     }
 
-    // NAKIŞ TABLARI
     function switchTab(tab) {
+        const draw = document.getElementById('content-drawing');
+        const mach = document.getElementById('content-machine');
         const btnDraw = document.getElementById('tab-drawing');
         const btnMach = document.getElementById('tab-machine');
-        const contentDraw = document.getElementById('content-drawing');
-        const contentMach = document.getElementById('content-machine');
 
         if (tab === 'drawing') {
-            btnDraw.className = "flex-1 py-2 rounded-md text-xs font-bold text-white bg-violet-600 shadow-md transition-all";
-            btnMach.className = "flex-1 py-2 rounded-md text-xs font-bold text-gray-400 hover:text-white transition-all";
-            contentDraw.classList.remove('hidden');
-            contentMach.classList.add('hidden');
+            draw.classList.remove('hidden'); mach.classList.add('hidden');
+            btnDraw.className = "flex-1 py-2 text-xs font-bold bg-violet-600 text-white rounded-md shadow-md";
+            btnMach.className = "flex-1 py-2 text-xs font-bold text-gray-400 hover:text-white rounded-md";
         } else {
-            btnMach.className = "flex-1 py-2 rounded-md text-xs font-bold text-white bg-blue-600 shadow-md transition-all";
-            btnDraw.className = "flex-1 py-2 rounded-md text-xs font-bold text-gray-400 hover:text-white transition-all";
-            contentDraw.classList.add('hidden');
-            contentMach.classList.remove('hidden');
+            draw.classList.add('hidden'); mach.classList.remove('hidden');
+            btnMach.className = "flex-1 py-2 text-xs font-bold bg-blue-600 text-white rounded-md shadow-md";
+            btnDraw.className = "flex-1 py-2 text-xs font-bold text-gray-400 hover:text-white rounded-md";
         }
     }
 
-    // NAKIŞ DÖNÜŞTÜRME (AŞAMA 4 - Placeholder)
     function convertEmbroidery() {
-        if (!vectorData) return alert("Lütfen önce vektör oluşturun.");
-        
-        // Seçilen formatı al
-        const isMachine = document.getElementById('content-drawing').classList.contains('hidden');
-        let format = isMachine ? document.getElementById('machine-format-select').value : document.querySelector('input[name="emb_format"]:checked').value;
-
-        alert(`🚧 Geliştirme Aşamasında:\n\nSeçilen Format: .${format.toUpperCase()}\n\nBu özellik backend'e 'pyembroidery' eklendikten sonra çalışacaktır.`);
+        if (!vectorData) return alert("Vektör yok!");
+        alert("🚧 Nakış modülü (pyembroidery) bir sonraki aşamada backend'e eklenecek.");
     }
 
-    // İNDİRME BUTONLARI
-    function downloadVector() {
-        if (!vectorData) return;
-        const link = document.createElement('a');
-        link.href = "data:image/svg+xml;base64," + vectorData;
-        link.download = `vektor_${currentMode}.svg`;
-        link.click();
-    }
-
-    function downloadPNG() {
-        if (!pngData) return;
-        const link = document.createElement('a');
-        link.href = "data:image/png;base64," + pngData;
-        link.download = `vektor_onizleme_${currentMode}.png`;
-        link.click();
-    }
+    function downloadVector() { if(vectorData) { const a = document.createElement('a'); a.href = "data:image/svg+xml;base64," + vectorData; a.download = "vektor.svg"; a.click(); } }
+    function downloadPNG() { if(pngData) { const a = document.createElement('a'); a.href = "data:image/png;base64," + pngData; a.download = "preview.png"; a.click(); } }
 </script>
-
-</body>
-</html>
+{% endblock content %}
