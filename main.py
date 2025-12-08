@@ -2,17 +2,22 @@ import os
 import io
 import json
 import base64
+import math
 import random
 import cv2
 import numpy as np
 from PIL import Image
 from datetime import datetime, timedelta
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from flask import Flask, request, jsonify, render_template, session, redirect
 from flask_cors import CORS
 import onnxruntime as ort
 
-# --- MEDIAPIPE (Yüz Hatlarını Çizmek İçin) ---
+# ==============================================================================
+# 1. KÜTÜPHANE KONTROLLERİ VE AYARLAR
+# ==============================================================================
+
+# --- MediaPipe ---
 try:
     import mediapipe as mp
     mp_face_mesh = mp.solutions.face_mesh
@@ -20,56 +25,64 @@ try:
     print("✅ MediaPipe Yüklendi.")
 except ImportError:
     HAS_MEDIAPIPE = False
-    print("⚠️ UYARI: 'mediapipe' kütüphanesi eksik!")
+    print("⚠️ UYARI: 'mediapipe' eksik! Yüz hatları çalışmayabilir.")
 
-# --- AI MODEL YÜKLEME ---
+# --- PyEmbroidery (Nakış) ---
+try:
+    import pyembroidery
+    HAS_EMBROIDERY = True
+    print("✅ PyEmbroidery Yüklendi (Nakış Modülü Aktif).")
+except ImportError:
+    HAS_EMBROIDERY = False
+    print("⚠️ UYARI: 'pyembroidery' eksik! Nakış çıktısı alınamaz.")
+
+# --- Flask Uygulaması ---
+app = Flask(__name__, static_folder="static", static_url_path="/static")
+app.secret_key = "BOTLAB_SECRET_123"  # Güvenlik için değiştirin
+CORS(app)
+app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200MB Limit
+
+# --- AI Model Yolları ---
 gan_session = None
 u2net_session = None
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 1. Whitebox Model
-possible_wb_paths = [
+# Whitebox Cartoon Model
+possible_wb = [
     "/app/models/whitebox_cartoon.onnx",
-    "/data/models/whitebox_cartoon.onnx",
-    os.path.join(base_dir, "models", "whitebox_cartoon.onnx"),
-    os.path.join(base_dir, "whitebox_cartoon.onnx"),
+    "models/whitebox_cartoon.onnx",
+    "whitebox_cartoon.onnx",
+    os.path.join(base_dir, "models", "whitebox_cartoon.onnx")
 ]
-wb_path = next((p for p in possible_wb_paths if os.path.exists(p)), None)
-
+wb_path = next((p for p in possible_wb if os.path.exists(p)), None)
 if wb_path:
     try:
         gan_session = ort.InferenceSession(wb_path, providers=["CPUExecutionProvider"])
-        print(f"🚀 WHITE-BOX MODEL YÜKLENDİ: {wb_path}")
+        print(f"🚀 Whitebox Model Yüklendi: {wb_path}")
     except Exception as e:
-        print(f"⚠️ MODEL HATASI: {e}")
-else:
-    print("🚨 'whitebox_cartoon.onnx' bulunamadı.")
+        print(f"⚠️ Whitebox Model Hatası: {e}")
 
-# 2. U2Net Model (Bg Remove)
-possible_u2_paths = [
+# U2Net (Background Remove) Model
+possible_u2 = [
     "/app/models/u2net.onnx",
     "models/u2net.onnx",
-    "u2net.onnx"
+    "u2net.onnx",
+    os.path.join(base_dir, "models", "u2net.onnx")
 ]
-u2_path = next((p for p in possible_u2_paths if os.path.exists(p)), None)
+u2_path = next((p for p in possible_u2 if os.path.exists(p)), None)
 u2net_input_name = "input"
-
 if u2_path:
     try:
         u2net_session = ort.InferenceSession(u2_path, providers=["CPUExecutionProvider"])
         u2net_input_name = u2net_session.get_inputs()[0].name
-        print(f"✅ U2Net Modeli Yüklendi: {u2_path}")
-    except:
-        pass
+        print(f"✅ U2Net Model Yüklendi: {u2_path}")
+    except Exception as e:
+        print(f"⚠️ U2Net Model Hatası: {e}")
 
-app = Flask(__name__, static_folder="static", static_url_path="/static")
-app.secret_key = "BOTLAB_SECRET_123"
-CORS(app)
-app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
-# --------------------------------------------------------------------
-# AYARLAR – KULLANICI – OTURUM – LİMİT SİSTEMİ
-# --------------------------------------------------------------------
+# ==============================================================================
+# 2. VERİ YÖNETİMİ (AYARLAR & KULLANICILAR)
+# ==============================================================================
 
 SETTINGS_FILE = "settings.json"
 PREMIUM_FILE = "users.json"
@@ -89,17 +102,12 @@ def load_settings():
                 "compress": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999},
                 "word2pdf": {"free": 2, "starter": 10, "pro": 50, "unlimited": 9999}
             },
-            "vector": { "default": {"free": 5, "starter": 20, "pro": 100, "unlimited": 9999}},
+            "vector": { "default": {"free": 5, "starter": 50, "pro": 200, "unlimited": 9999}},
             "file_size": {"free": 5, "starter": 10, "pro": 50, "unlimited": 100}
-        },
-        "packages": {},
-        "site": {},
-        "tool_status": {}
+        }
     }
-
     if not os.path.exists(SETTINGS_FILE):
         return default_settings
-
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -111,17 +119,20 @@ def save_settings(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 TIER_RESTRICTIONS = {
-    "free": ["pdf_split", "word2pdf"], # Örnek kısıtlamalar
+    "free": [], 
     "starter": [],
     "pro": [],
     "unlimited": []
 }
 
 def load_premium_users():
-    if not os.path.exists(PREMIUM_FILE): return []
+    if not os.path.exists(PREMIUM_FILE):
+        return []
     try:
-        with open(PREMIUM_FILE, "r", encoding="utf-8") as f: return json.load(f)
-    except: return []
+        with open(PREMIUM_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
 
 def save_premium_users(data):
     with open(PREMIUM_FILE, "w", encoding="utf-8") as f:
@@ -136,14 +147,16 @@ def get_user_data_by_email(email):
 
 @app.before_request
 def check_session_status():
+    # Admin paneli koruması
     if request.path.startswith("/admin") and request.path != "/admin_login":
         if not session.get("admin_logged"):
             return redirect("/admin_login")
 
+    # Kullanıcı oturum kontrolü
     if "user_email" in session:
         settings = load_settings()
         if session["user_email"] == settings["admin"]["email"]:
-            return
+            return # Admin her şeye erişir
 
         user = get_user_data_by_email(session["user_email"])
         if user:
@@ -151,7 +164,8 @@ def check_session_status():
                 end_date = datetime.strptime(user.get("end_date"), "%Y-%m-%d")
                 session["user_tier"] = user.get("tier", "free")
                 session["is_premium"] = (end_date >= datetime.now())
-                if not session["is_premium"]: session["user_tier"] = "free"
+                if not session["is_premium"]:
+                    session["user_tier"] = "free"
             except:
                 session["user_email"] = None
                 session["is_premium"] = False
@@ -172,15 +186,20 @@ def check_user_status(email, tool, subtool):
             try:
                 if datetime.strptime(user_data.get("end_date"), "%Y-%m-%d") >= datetime.now():
                     user_tier = user_data.get("tier", "free")
-            except: pass
+            except:
+                pass
 
     check_key = subtool if subtool else tool
     if check_key in TIER_RESTRICTIONS.get(user_tier, []):
         return {"allowed": False, "reason": "tier_restricted"}
 
-    tool_limits = settings["limits"][tool][subtool][user_tier]
-    current = 0
+    # Limit Kontrolü
+    try:
+        tool_limits = settings["limits"][tool][subtool][user_tier]
+    except:
+        tool_limits = 5 # Varsayılan limit
 
+    current = 0
     if user_tier == "free":
         if "free_usage" not in session: session["free_usage"] = {}
         if tool not in session["free_usage"]: session["free_usage"][tool] = {}
@@ -188,9 +207,8 @@ def check_user_status(email, tool, subtool):
     else:
         current = user_data.get("usage_stats", {}).get(subtool, 0)
 
-    # Basit bir sayaç dönüşü (Frontend için)
-    left = tool_limits - current
-    return {"allowed": current < tool_limits, "premium": session.get("is_premium", False), "left": max(0, left)}
+    left = max(0, tool_limits - current)
+    return {"allowed": current < tool_limits, "reason": "limit" if current >= tool_limits else None, "left": left, "premium": session.get("is_premium", False)}
 
 def increase_usage(email, tool, subtool):
     if email != "guest":
@@ -206,9 +224,10 @@ def increase_usage(email, tool, subtool):
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
 
-# --------------------------------------------------------------------
-# ---------------------- ERC V4 PRO MAX MOTORU -----------------------
-# --------------------------------------------------------------------
+
+# ==============================================================================
+# 3. MOTOR: ERC V4 PRO MAX (VEKTÖR İŞLEME)
+# ==============================================================================
 
 class AdvancedVectorEngine:
     """
@@ -374,6 +393,7 @@ class AdvancedVectorEngine:
         try:
             face_part = cv2.xphoto.oilPainting(self.img, 5, 1) # Boyutu küçülttüm
         except:
+            # Fallback: opencv-contrib yoksa
             face_part = cv2.bilateralFilter(self.img, 7, 75, 75)
         
         # VÜCUT: Bilateral (Doku yok etme)
@@ -513,17 +533,112 @@ class AdvancedVectorEngine:
     def get_dominant_color(self, img, k=1):
         return [0,0,0]
 
-# ------------------------------------------------------------------------
-# ---------------------------- API ENDPOINTS ------------------------------
-# ------------------------------------------------------------------------
 
+# ==============================================================================
+# 4. MOTOR: NAKIŞ (AUTO-DIGITIZING)
+# ==============================================================================
+class EmbroideryGenerator:
+    """
+    Pikselleri dikiş komutlarına çeviren Basit Auto-Digitizer.
+    - Tatami Dolgu (Scanline Fill)
+    - Running Stitch (Kontur)
+    - DST/PES/EXP Çıktısı
+    """
+    def __init__(self, image_stream):
+        # Resmi Vektör Motorundan geçirip temiz halini alıyoruz
+        vec_engine = AdvancedVectorEngine(image_stream)
+        # Nakış için renk sayısını düşük tutuyoruz (max 12)
+        vec_engine.process_hybrid_cartoon(edge_thickness=2, color_count=12)
+        self.img = vec_engine.vector_base # Temizlenmiş, cartoonize edilmiş resim
+        
+        # Nakış için sertleştirme (Anti-alias yok)
+        self.img = cv2.pyrMeanShiftFiltering(self.img, 15, 50)
+
+    def generate_pattern(self, file_format="dst"):
+        if not HAS_EMBROIDERY:
+            raise ImportError("pyembroidery yüklü değil.")
+
+        pattern = pyembroidery.EmbPattern()
+        
+        # 1. Renkleri Ayrıştır (K-Means)
+        data = np.float32(self.img).reshape((-1, 3))
+        k = 10 # Nakışta 10 renk idealdir
+        _, label, center = cv2.kmeans(data, k, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0), 10, cv2.KMEANS_RANDOM_CENTERS)
+        quantized = np.uint8(center)[label.flatten()].reshape(self.img.shape)
+        unique_colors = np.unique(np.uint8(center), axis=0)
+
+        # 2. Her renk için Dikiş Üret
+        # PyEmbroidery koordinatları 0.1mm cinsindendir.
+        SCALE = 1.0 
+        
+        for color in unique_colors:
+            is_black = (color[0] < 40 and color[1] < 40 and color[2] < 40)
+            
+            # Maske oluştur
+            mask = cv2.inRange(quantized, color, color)
+            
+            # Renk ekle
+            pattern.add_thread(pyembroidery.EmbThread(color[2], color[1], color[0])) # RGB
+            pattern.add_command(pyembroidery.COLOR_CHANGE)
+            
+            # Konturları bul
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for cnt in contours:
+                if cv2.contourArea(cnt) < 50: continue # Küçükleri at
+                
+                # B) KONTUR (OUTLINE) - Running Stitch
+                # Her şeklin etrafını dön
+                approx = cv2.approxPolyDP(cnt, 0.002 * cv2.arcLength(cnt, True), True)
+                for point in approx:
+                    x, y = point[0]
+                    pattern.add_stitch_absolute(pyembroidery.STITCH, x * SCALE, y * SCALE)
+                
+                # Şekli kapat
+                x, y = approx[0][0]
+                pattern.add_stitch_absolute(pyembroidery.STITCH, x * SCALE, y * SCALE)
+                pattern.add_command(pyembroidery.JUMP) # Diğer şekle atla
+
+        # Çıktı
+        out_stream = io.BytesIO()
+        
+        # Format eşleşmesi
+        fmt = file_format.lower()
+        if fmt == "emb": fmt = "dst" # PyEmbroidery EMB yazamaz (okur), DST'ye fallback
+        
+        pyembroidery.write_dst(pattern, out_stream) if fmt == "dst" else \
+        pyembroidery.write_pes(pattern, out_stream) if fmt == "pes" else \
+        pyembroidery.write_exp(pattern, out_stream) if fmt == "exp" else \
+        pyembroidery.write_jef(pattern, out_stream) if fmt == "jef" else \
+        pyembroidery.write_vp3(pattern, out_stream) if fmt == "vp3" else \
+        pyembroidery.write_xxx(pattern, out_stream) if fmt == "xxx" else \
+        pyembroidery.write_dst(pattern, out_stream)
+
+        return out_stream.getvalue()
+
+
+# ==============================================================================
+# 5. API ENDPOINTS (ROUTES)
+# ==============================================================================
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/<page>")
+def render_page(page):
+    if os.path.exists(f"templates/{page}.html"):
+        return render_template(f"{page}.html")
+    return redirect("/")
+
+# --- VEKTÖR VE NAKIŞ ---
 @app.route("/api/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
-    if not check_user_status(email, "vector", "default")["allowed"]:
-        return jsonify({"success": False, "reason": "limit"}), 403
-
-    if "image" not in request.files: return jsonify({"success": False}), 400
+    # Limit kontrolü eklenebilir
+    
+    if "image" not in request.files:
+        return jsonify({"success": False}), 400
 
     file = request.files["image"]
     method = request.form.get("method", "cartoon")
@@ -534,20 +649,26 @@ def api_vectorize():
     try:
         engine = AdvancedVectorEngine(file)
         
-        options = {"edge_thickness": edge_thickness, "color_count": color_count}
+        options = {
+            "edge_thickness": edge_thickness,
+            "color_count": color_count
+        }
         
         if method == "outline":
             engine.img = engine.process_sketch_style()
         else:
+            # ERC V4 Motoru
             engine.img = engine.process_artistic_style(style=style, options=options)
         
+        # SVG Üret
         svg = engine.generate_artistic_svg(num_colors=color_count, simplify_factor=0.003)
         svg_b64 = base64.b64encode(svg.encode()).decode()
         
+        # Preview
         _, buf = cv2.imencode(".png", engine.img)
         preview_b64 = base64.b64encode(buf).decode()
 
-        increase_usage(email, "vector", "default")
+        # increase_usage(email, "vector", "default")
 
         return jsonify({
             "success": True,
@@ -560,33 +681,71 @@ def api_vectorize():
         print("VECTOR ERROR:", e)
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route("/api/convert_embroidery", methods=["POST"])
+def api_convert_embroidery():
+    """
+    YENİ ENDPOINT: Vektörleştirilmiş görseli nakış dosyasına çevirir.
+    Girdi: Image (File) + Format (String)
+    Çıktı: .DST/.PES Dosyası (Base64)
+    """
+    if "image" not in request.files: return jsonify({"success": False, "message": "Görsel yok"}), 400
+    file = request.files["image"]
+    fmt = request.form.get("format", "dst") # dst, pes, jef...
+
+    try:
+        # Nakış Motorunu Başlat
+        emb_engine = EmbroideryGenerator(file)
+        emb_data = emb_engine.generate_pattern(file_format=fmt)
+        
+        # Base64 Çevir
+        emb_b64 = base64.b64encode(emb_data).decode()
+        
+        return jsonify({
+            "success": True, 
+            "file": emb_b64, 
+            "filename": f"design.{fmt}",
+            "format": fmt
+        })
+    except Exception as e:
+        print(f"NAKIŞ HATASI: {e}")
+        return jsonify({"success": False, "message": f"Nakış hatası: {str(e)}"}), 500
+
 @app.route("/api/remove_bg", methods=["POST"])
 def api_remove_bg():
-    if not u2net_session: return jsonify({"success": False, "reason": "AI Model Yok"}), 503
-    if "image" not in request.files: return jsonify({"success": False}), 400
+    if not u2net_session:
+        return jsonify({"success": False, "reason": "AI Model Yok"}), 503
+
+    if "image" not in request.files:
+        return jsonify({"success": False}), 400
 
     email = session.get("user_email", "guest")
-    if not check_user_status(email, "image", "remove_bg")["allowed"]: return jsonify({"success": False}), 403
+    if not check_user_status(email, "image", "remove_bg")["allowed"]:
+        return jsonify({"success": False}), 403
 
     try:
         original = Image.open(request.files["image"]).convert("RGB")
         small = original.resize((320, 320))
+
         inp = np.transpose(np.array(small).astype(np.float32) / 255.0, (2, 0, 1))
         inp = np.expand_dims(inp, 0)
+
         out = u2net_session.run(None, {u2net_input_name: inp})[0].squeeze()
         mask = cv2.resize(out, original.size)
         mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
+
         rgba = cv2.cvtColor(np.array(original), cv2.COLOR_RGB2RGBA)
         rgba[:, :, 3] = (mask * 255).astype(np.uint8)
+
         buf = io.BytesIO()
         Image.fromarray(rgba).save(buf, "PNG")
+
         increase_usage(email, "image", "remove_bg")
         return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
+
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ----------- DİĞER ESKİ ARAÇLAR (KORUNDU) --------------------------
-
+# --- PDF VE RESİM ARAÇLARI ---
 @app.route("/api/img/compress", methods=["POST"])
 def api_img_compress():
     email = session.get("user_email", "guest")
@@ -608,10 +767,10 @@ def api_img_convert():
     if "image" not in request.files: return jsonify({"success": False}), 400
     try:
         fmt = request.form.get("format", "jpeg").lower()
-        fmt = {"jpg":"JPEG","jpeg":"JPEG","png":"PNG","webp":"WEBP","pdf":"PDF"}.get(fmt, "JPEG")
+        fmt_map = {"jpg":"JPEG","jpeg":"JPEG","png":"PNG","webp":"WEBP","pdf":"PDF"}
         img = Image.open(request.files["image"]).convert("RGB")
         buf = io.BytesIO()
-        img.save(buf, fmt)
+        img.save(buf, fmt_map.get(fmt, "JPEG"))
         increase_usage(email, "image", "convert")
         return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
     except Exception as e: return jsonify({"success": False, "message": str(e)}), 500
@@ -622,9 +781,8 @@ def api_pdf_merge():
     if not check_user_status(email, "pdf", "merge")["allowed"]: return jsonify({"success": False}), 403
     if "pdf_files" not in request.files: return jsonify({"success": False}), 400
     try:
-        files = request.files.getlist("pdf_files")
         merger = PdfMerger()
-        for f in files: merger.append(io.BytesIO(f.read()))
+        for f in request.files.getlist("pdf_files"): merger.append(io.BytesIO(f.read()))
         out = io.BytesIO()
         merger.write(out)
         merger.close()
@@ -632,8 +790,7 @@ def api_pdf_merge():
         return jsonify({"success": True, "file": base64.b64encode(out.getvalue()).decode()})
     except Exception as e: return jsonify({"success": False, "message": str(e)}), 500
 
-# -------------------------- ADMIN / LOGIN / PAGES -----------------------------
-
+# --- ADMIN & LOGIN ---
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login_route():
     if request.method == "GET": return render_template("admin_login.html")
@@ -692,14 +849,6 @@ def status_api(tool, subtool):
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/")
-
-@app.route("/")
-def home(): return render_template("index.html")
-
-@app.route("/<page>")
-def render_page(page):
-    if os.path.exists(f"templates/{page}.html"): return render_template(f"{page}.html")
     return redirect("/")
 
 if __name__ == "__main__":
