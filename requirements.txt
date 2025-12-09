@@ -8,6 +8,7 @@ PyPDF2
 mediapipe
 gunicorn
 pyembroidery
+python-dotenv
 
 
 
