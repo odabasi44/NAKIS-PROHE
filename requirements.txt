@@ -9,6 +9,8 @@ mediapipe
 gunicorn
 pyembroidery
 python-dotenv
+Flask-SQLAlchemy
+
 
 
 
