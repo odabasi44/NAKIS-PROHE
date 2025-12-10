@@ -1,22 +1,24 @@
 import os
-from flask import Blueprint, render_template, redirect
+from flask import Blueprint, render_template, redirect, abort
+from jinja2 import TemplateNotFound
 
 bp = Blueprint('main', __name__)
 
 @bp.route("/")
 def home():
-    return render_template("index.html")
+    try:
+        return render_template("index.html")
     except TemplateNotFound:
-        return "Index.html bulunamadı! Lütfen 'templates' klasörünü 'app' içine taşıdığınızdan emin olun.", 404
+        return "HATA: Index.html bulunamadı! Lütfen 'templates' klasörünün 'app' klasörü içinde olduğundan emin olun.", 404
 
 @bp.route("/<page>")
 def render_page(page):
     try:
-        # Uzantı kontrolü yapalım ki statik dosyaları (css, js) şablon sanmasın
-        if page.endswith(('.css', '.js', '.png', '.jpg', '.ico')):
-            return abort(404)
+        # Statik dosya uzantılarını (resim, css vb.) engelle
+        if page.endswith(('.css', '.js', '.png', '.jpg', '.ico', '.map')):
+            abort(404)
             
         return render_template(f"{page}.html")
     except TemplateNotFound:
-        # Eğer sayfa yoksa ana sayfaya yönlendir
+        # Sayfa yoksa ana sayfaya yönlendir
         return redirect("/")
