@@ -1,4 +1,4 @@
-import os
+import cv2
 import numpy as np
 import base64
 
@@ -11,13 +11,14 @@ except ImportError:
     HAS_MEDIAPIPE = False
 
 class AdvancedVectorEngine:
-  """
+    """
     ERC V4 PRO MAX (OPTIMIZED)
     - XDoG & FDoG Hybrid
     - Smart Region Masking (Yüz, Saç, Vücut ayrımı)
     - Wilcom Ready Cleanup
     """
-  def __init__(self, image_stream):
+
+    def __init__(self, image_stream):
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
         
@@ -42,6 +43,7 @@ class AdvancedVectorEngine:
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
         self.h, self.w = self.img.shape[:2]
+
     # --- YARDIMCI: Yüz Maskesi ---
     def get_face_mask(self, img):
         if not HAS_MEDIAPIPE: return None
@@ -67,7 +69,8 @@ class AdvancedVectorEngine:
                     # Maskeyi yumuşat
                     mask = cv2.GaussianBlur(mask, (21, 21), 0)
         return mask
-      # --- 1. HAIR FLOW (Optimize) ---
+
+    # --- 1. HAIR FLOW (Optimize) ---
     def get_hair_flow(self, img, face_mask):
         """Saç yönünü bulur ama YÜZE BULAŞMASINI ENGELLER."""
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -310,4 +313,3 @@ class AdvancedVectorEngine:
     
     def get_dominant_color(self, img, k=1):
         return [0,0,0]
-    
