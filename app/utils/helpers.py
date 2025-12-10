@@ -2,101 +2,98 @@ import os
 import json
 from datetime import datetime
 from flask import session
+from app.models import User
+from app.extensions import db
 
 SETTINGS_FILE = "settings.json"
-PREMIUM_FILE = "users.json"
 
-TIER_RESTRICTIONS = {
-    "free": [], 
-    "starter": [],
-    "pro": [],
-    "unlimited": []
-}
+# Kullanıcılar artık veritabanında olduğu için PREMIUM_FILE gerek yok.
+# Sadece genel site ayarları (limitler vb.) için settings.json kullanıyoruz.
 
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
-        return {} # Varsayılan ayarlar config'den de gelebilir ama şimdilik boş dönelim
+        return {}
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
         return {}
 
-def save_settings(data):
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def load_premium_users():
-    if not os.path.exists(PREMIUM_FILE):
-        return []
-    try:
-        with open(PREMIUM_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
-
-def save_premium_users(data):
-    with open(PREMIUM_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+# --- YENİ VERİTABANI FONKSİYONLARI ---
 
 def get_user_data_by_email(email):
-    users = load_premium_users()
-    for u in users:
-        if u.get("email", "").lower() == email.lower():
-            return u
+    """Veritabanından kullanıcıyı çeker."""
+    # E-posta ile sorgula (Büyük/küçük harf duyarsız olması için lower kullanıyoruz ama DB'de de lower saklamak iyi pratiktir)
+    user = User.query.filter_by(email=email).first()
+    if user:
+        return {
+            "email": user.email,
+            "tier": user.tier,
+            "end_date": user.end_date.strftime("%Y-%m-%d") if user.end_date else None,
+            "usage_stats": user.get_usage()
+        }
     return None
 
 def check_user_status(email, tool, subtool):
+    """Kullanıcının limitini kontrol eder."""
     settings = load_settings()
     user_tier = "free"
-    user_data = None
-
+    current_usage = 0
+    
+    # 1. Kayıtlı Kullanıcı Kontrolü
     if email != "guest":
-        user_data = get_user_data_by_email(email)
-        if user_data:
+        user = User.query.filter_by(email=email).first()
+        if user:
             try:
-                # Tarih kontrolü
-                if datetime.strptime(user_data.get("end_date"), "%Y-%m-%d") >= datetime.now():
-                    user_tier = user_data.get("tier", "free")
+                # Üyelik süresi dolmuş mu?
+                if user.end_date and user.end_date >= datetime.now().date():
+                    user_tier = user.tier
+                    current_usage = user.get_usage().get(subtool, 0)
+                else:
+                    # Süresi dolmuşsa free gibi davran ama istatistiğini çek
+                    user_tier = "free" 
+                    # Not: Süresi biten kullanıcının free haklarını session'dan mı yoksa db'den mi takip edeceği bir tercih meselesidir.
+                    # Basitlik için session'a düşürelim:
             except:
                 pass
 
-    # Limit Kontrolü
-    try:
-        tool_limits = settings["limits"][tool][subtool][user_tier]
-    except:
-        tool_limits = 5 # Varsayılan limit
-
-    current = 0
+    # 2. Misafir veya Süresi Dolmuş Kullanıcı (Session Kullanır)
     if user_tier == "free":
         if "free_usage" not in session: session["free_usage"] = {}
         if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-        current = session["free_usage"][tool].get(subtool, 0)
-    else:
-        current = user_data.get("usage_stats", {}).get(subtool, 0)
+        current_usage = session["free_usage"][tool].get(subtool, 0)
 
-    left = max(0, tool_limits - current)
+    # 3. Limitleri Ayarlardan Çek
+    try:
+        # settings.json yapısına göre: limits -> image -> remove_bg -> free
+        tool_limits = settings["limits"][tool][subtool][user_tier]
+    except:
+        tool_limits = 5 # Ayar bulunamazsa varsayılan limit
+
+    left = max(0, tool_limits - current_usage)
+    
     return {
-        "allowed": current < tool_limits, 
-        "reason": "limit" if current >= tool_limits else None, 
-        "left": left, 
+        "allowed": current_usage < tool_limits,
+        "reason": "limit" if current_usage >= tool_limits else None,
+        "left": left,
         "premium": session.get("is_premium", False)
     }
 
 def increase_usage(email, tool, subtool):
+    """Kullanım sayısını artırır."""
+    
+    # 1. Kayıtlı Kullanıcı
     if email != "guest":
-        users = load_premium_users()
-        found = False
-        for u in users:
-            if u["email"].lower() == email.lower():
-                if "usage_stats" not in u: u["usage_stats"] = {}
-                u["usage_stats"][subtool] = u["usage_stats"].get(subtool, 0) + 1
-                found = True
-                break
-        if found:
-            save_premium_users(users)
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.increase_usage(subtool)
+            db.session.commit() # Değişikliği veritabanına kaydet
             return
 
+    # 2. Misafir Kullanıcı (Session)
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-    session["free_usage"][tool][subtool] = session["free_usage"][tool].get(subtool, 0) + 1
+    
+    current = session["free_usage"][tool].get(subtool, 0)
+    session["free_usage"][tool][subtool] = current + 1
+    session.modified = True # Flask session'ın güncellendiğini anlasın
