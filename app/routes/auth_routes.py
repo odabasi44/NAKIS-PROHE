@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template, session, redirect
-from app.utils.helpers import load_settings, get_user_data_by_email, load_premium_users, save_premium_users
+from app.utils.helpers import load_settings, get_user_data_by_email
+from app.models import User
+from app.extensions import db
 from datetime import datetime
 
 bp = Blueprint('auth', __name__)
@@ -12,7 +14,7 @@ def admin_login():
     data = request.get_json()
     settings = load_settings()
     
-    # Güvenlik: Admin ayarları yoksa varsayılanı kullanma veya hata ver
+    # Admin ayarlarını güvenli çek
     admin_conf = settings.get("admin", {})
     
     if data.get("email") == admin_conf.get("email") and data.get("password") == admin_conf.get("password"):
@@ -30,22 +32,33 @@ def user_login():
     email = data.get("email")
     settings = load_settings()
     
+    # Admin girişi kontrolü
     if email == settings.get("admin", {}).get("email"): 
         return jsonify({"status":"admin"})
     
-    user = get_user_data_by_email(email)
-    if not user: 
+    # Veritabanından kullanıcı kontrolü
+    user_data = get_user_data_by_email(email)
+    
+    if not user_data: 
         return jsonify({"status":"not_found"})
     
     try:
-        if datetime.strptime(user.get("end_date"), "%Y-%m-%d") >= datetime.now():
+        # Tarih formatı veritabanından string veya date objesi gelebilir
+        end_date_str = user_data.get("end_date")
+        if isinstance(end_date_str, str):
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        else:
+            end_date = end_date_str
+
+        if end_date >= datetime.now().date():
             session["user_email"] = email
             session["is_premium"] = True
-            session["user_tier"] = user.get("tier", "starter")
+            session["user_tier"] = user_data.get("tier", "starter")
             return jsonify({"status":"premium","tier":session["user_tier"]})
         else: 
             return jsonify({"status":"expired"})
-    except: 
+    except Exception as e:
+        print(f"Login Hatası: {e}")
         return jsonify({"status":"error"})
 
 @bp.route("/logout")
@@ -53,24 +66,56 @@ def logout():
     session.clear()
     return redirect("/")
 
-# --- Admin API'leri ---
+# --- Admin API'leri (ARTIK VERİTABANI KULLANIYOR) ---
+
 @bp.route("/api/admin/users", methods=["GET"])
 def get_users_api():
     if not session.get("admin_logged"): return jsonify([]), 403
-    return jsonify(load_premium_users())
+    
+    # Tüm kullanıcıları veritabanından çek
+    users = User.query.all()
+    users_list = []
+    for u in users:
+        users_list.append({
+            "email": u.email,
+            "tier": u.tier,
+            "end_date": u.end_date.strftime("%Y-%m-%d") if u.end_date else None,
+            "usage_stats": u.get_usage()
+        })
+    return jsonify(users_list)
 
 @bp.route("/api/admin/add_user", methods=["POST"])
 def add_user_api():
     if not session.get("admin_logged"): return jsonify({}), 403
+    
     data = request.get_json()
-    users = load_premium_users()
-    users.append({"email": data["email"], "end_date": data["end_date"], "tier": data["tier"], "usage_stats": {}})
-    save_premium_users(users)
-    return jsonify({"status":"ok"})
+    email = data.get("email")
+    
+    # Mevcut kullanıcı mı?
+    existing = User.query.filter_by(email=email).first()
+    if existing:
+        return jsonify({"status": "exists", "message": "Kullanıcı zaten var"}), 400
+
+    try:
+        new_user = User(
+            email=email,
+            tier=data.get("tier", "free"),
+            end_date=datetime.strptime(data.get("end_date"), "%Y-%m-%d").date()
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({"status":"ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @bp.route("/api/admin/delete_user/<email>", methods=["DELETE"])
 def del_user_api(email):
     if not session.get("admin_logged"): return jsonify({}), 403
-    users = [u for u in load_premium_users() if u["email"] != email]
-    save_premium_users(users)
-    return jsonify({"status":"ok"})
+    
+    user = User.query.filter_by(email=email).first()
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"status":"ok"})
+    
+    return jsonify({"status":"error", "message": "Kullanıcı bulunamadı"}), 404
