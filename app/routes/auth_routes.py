@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, render_template, session, redirec
 from app.utils.helpers import load_settings, get_user_data_by_email
 from app.models import User
 from app.extensions import db
-from datetime import datetime,
+from datetime import datetime
 
 bp = Blueprint('auth', __name__)
 
