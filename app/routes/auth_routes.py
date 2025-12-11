@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, session, redirec
 from app.utils.helpers import load_settings, get_user_data_by_email
 from app.models import User
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, json
 
 bp = Blueprint('auth', __name__)
 
@@ -119,3 +119,20 @@ def del_user_api(email):
         return jsonify({"status":"ok"})
     
     return jsonify({"status":"error", "message": "Kullanıcı bulunamadı"}), 404
+
+@bp.route("/api/admin/save_general", methods=["POST"])
+def save_general_api():
+    if not session.get("admin_logged"): return jsonify({}), 403
+    
+    data = request.get_json()
+    new_general = data.get("general", {})
+    
+    settings = load_settings()
+    settings["general"] = new_general
+    
+    try:
+        with open("settings.json", "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
