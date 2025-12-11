@@ -159,8 +159,48 @@
     <p class="text-gray-400">Detaylı analizler yakında eklenecek.</p>
 </div>
 <div id="tab-settings" class="hidden space-y-6">
-    <h2 class="text-xl font-bold text-white">Site Ayarları</h2>
-    <p class="text-gray-400">Genel site yapılandırması.</p>
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white">Genel Site Ayarları</h2>
+        <button onclick="saveGeneralSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-blue-900/20">
+            Ayarları Kaydet
+        </button>
+    </div>
+
+    <div class="card p-6 border-t-4 border-blue-500">
+        <h3 class="font-bold text-white mb-4">Site Kimliği ve SEO</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Site Başlığı (Title)</label>
+                <input type="text" id="set-site-title" placeholder="Örn: Nakış Prohe - AI Vektör" class="input-dark w-full mb-4">
+                
+                <label class="block text-xs text-gray-400 mb-1">Site Açıklaması (Description)</label>
+                <textarea id="set-site-desc" placeholder="Google aramalarında görünecek açıklama..." class="input-dark w-full h-24 mb-4 text-xs"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">SEO Anahtar Kelimeler (Virgülle ayırın)</label>
+                <textarea id="set-site-keywords" placeholder="vektör, nakış, ai çizim, arka plan silme..." class="input-dark w-full h-24 mb-4 text-xs"></textarea>
+                
+                <label class="block text-xs text-gray-400 mb-1">İletişim E-posta</label>
+                <input type="email" id="set-contact-email" class="input-dark w-full">
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6 border-t-4 border-red-500 flex items-center justify-between">
+        <div>
+            <h3 class="font-bold text-white">Bakım Modu</h3>
+            <p class="text-xs text-gray-400 mt-1">Aktif edilirse, admin hariç kimse siteye erişemez. "Bakımdayız" sayfası görünür.</p>
+        </div>
+        <div class="flex items-center">
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="set-maintenance-mode" class="sr-only peer">
+                <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                <span class="ml-3 text-sm font-medium text-gray-300" id="maintenance-text">Pasif</span>
+            </label>
+        </div>
+    </div>
 </div>
 
 <div id="addUserModal" class="modal-overlay hidden items-center justify-center fixed inset-0 bg-black/80 z-50">
@@ -445,22 +485,61 @@
         } catch(e){}
     }
     
-    async function savePackages() {
-        // ... (Paket kaydetme kodu - Önceki ile aynı)
-        const tiers = ['starter', 'pro', 'unlimited'];
-        let packagesData = {};
-        tiers.forEach(tier => {
-            const featStr = document.getElementById(`pkg-${tier}-features`).value;
-            const featuresList = featStr.split(',').map(s => s.trim()).filter(s => s);
-            packagesData[tier] = {
-                name: document.getElementById(`pkg-${tier}-name`).value,
-                price: document.getElementById(`pkg-${tier}-price`).value,
-                description: document.getElementById(`pkg-${tier}-desc`).value,
-                features: featuresList
-            };
-        });
-        await fetch("/api/admin/save_packages", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({packages: packagesData}) });
-        alert("Paketler kaydedildi.");
+    // --- 5. GENEL AYARLAR FONKSİYONLARI ---
+    
+    async function fetchGeneralSettings() {
+        try {
+            const res = await fetch("/get_settings");
+            const data = await res.json();
+            const gen = data.general || {};
+
+            document.getElementById('set-site-title').value = gen.title || '';
+            document.getElementById('set-site-desc').value = gen.description || '';
+            document.getElementById('set-site-keywords').value = gen.keywords || '';
+            document.getElementById('set-contact-email').value = gen.contact_email || '';
+            
+            const isMaint = gen.maintenance_mode === true;
+            document.getElementById('set-maintenance-mode').checked = isMaint;
+            updateMaintenanceText(isMaint);
+
+        } catch(e) { console.error("Genel ayarlar çekilemedi", e); }
+    }
+
+    function updateMaintenanceText(isChecked) {
+        const textSpan = document.getElementById('maintenance-text');
+        if(isChecked) {
+            textSpan.textContent = "AKTİF (Site Kapalı)";
+            textSpan.classList.add('text-red-500');
+        } else {
+            textSpan.textContent = "Pasif (Site Açık)";
+            textSpan.classList.remove('text-red-500');
+        }
+    }
+
+    // Checkbox değişince yazıyı güncelle
+    document.getElementById('set-maintenance-mode').addEventListener('change', (e) => {
+        updateMaintenanceText(e.target.checked);
+    });
+
+    async function saveGeneralSettings() {
+        const general = {
+            title: document.getElementById('set-site-title').value,
+            description: document.getElementById('set-site-desc').value,
+            keywords: document.getElementById('set-site-keywords').value,
+            contact_email: document.getElementById('set-contact-email').value,
+            maintenance_mode: document.getElementById('set-maintenance-mode').checked
+        };
+
+        try {
+            const res = await fetch("/api/admin/save_general", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ general })
+            });
+            
+            if(res.ok) alert("Genel ayarlar başarıyla kaydedildi!");
+            else alert("Hata oluştu.");
+        } catch(e) { console.error(e); alert("Bağlantı hatası."); }
     }
 
     // TAB YÖNETİMİ
@@ -474,6 +553,7 @@
         if(navEl) navEl.classList.add('active');
 
         if (tabName === 'dashboard') fetchDashboardData();
+        if (tabName === 'settings') fetchGeneralSettings();
         if (tabName === 'users') fetchUsers();
         if (tabName === 'tools') fetchSettingsAndFillInputs();
         if (tabName === 'packages') fetchPackagesAndFill();
