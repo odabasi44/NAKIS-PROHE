@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}QR Kod Oluşturucu{% endblock title %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-10">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-white mb-4">QR Kod Oluşturucu</h1>
+        <p class="text-gray-400">Bağlantılarınız veya metinleriniz için özel QR kodlar oluşturun.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120]">
+            <label class="block text-sm text-gray-400 mb-2">URL veya Metin</label>
+            <input type="text" placeholder="https://ornek.com" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:border-amber-500 outline-none transition">
+            
+            <label class="block text-sm text-gray-400 mb-2">Renk Seçimi</label>
+            <div class="flex gap-4 mb-6">
+                <div class="w-8 h-8 rounded-full bg-black border-2 border-amber-500 cursor-pointer"></div>
+                <div class="w-8 h-8 rounded-full bg-blue-600 cursor-pointer opacity-50"></div>
+                <div class="w-8 h-8 rounded-full bg-red-600 cursor-pointer opacity-50"></div>
+            </div>
+
+            <button class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition shadow-lg shadow-amber-500/20">Oluştur</button>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120] flex items-center justify-center relative">
+            <div class="w-64 h-64 bg-white rounded-xl flex items-center justify-center">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BotlabTools" alt="QR Önizleme" class="opacity-80">
+            </div>
+            <div class="absolute bottom-4 text-xs text-gray-500">Önizleme Modu</div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
