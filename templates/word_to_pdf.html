@@ -10,7 +10,7 @@
     </div>
 
     <div class="glass-panel rounded-2xl p-8 border border-white/5 bg-[#0c1120]">
-        <div class="border-2 border-dashed border-white/10 rounded-xl p-12 text-center hover:border-blue-500/50 transition cursor-pointer">
+        <div class="border-2 border-dashed border-white/10 rounded-xl p-12 text-center hover:border-blue-500/50 transition cursor-pointer" onclick="tryConvert()">
             <div class="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mb-4 mx-auto text-blue-500">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             </div>
@@ -20,4 +20,10 @@
         <p class="text-center text-xs text-gray-500 mt-4">Desteklenen formatlar: .docx, .doc</p>
     </div>
 </div>
+
+<script>
+    function tryConvert() {
+        alert("⚠️ Sunucu Yapılandırması Gerekli:\nBu özellik için sunucuda LibreOffice kurulu olmalıdır. Şu an demo modundadır.");
+    }
+</script>
 {% endblock content %}
