@@ -49,7 +49,6 @@ def user_login():
         else: 
             return jsonify({"status":"expired"})
     except Exception as e:
-        print(f"Login Hatası: {e}")
         return jsonify({"status":"error"})
 
 @bp.route("/logout")
@@ -111,7 +110,6 @@ def save_site_settings_api():
     if not session.get("admin_logged"): return jsonify({}), 403
     
     data = request.get_json()
-    # 'general' yerine 'site' verisini alıyoruz veya direkt gelen veriyi site'ye yazıyoruz
     title = data.get("title")
     whatsapp = data.get("whatsapp")
     
@@ -152,7 +150,12 @@ def save_limits_api():
     data = request.get_json()
     new_limits = data.get("limits", {})
     settings = load_settings()
-    settings["limits"] = new_limits
+    # Mevcut limitleri alıp üzerine yazalım ki diğer ayarlar kaybolmasın (örn: file_size)
+    if "limits" not in settings: settings["limits"] = {}
+    
+    # Gelen limitleri güncelle (Recursive update daha güvenli olurdu ama şimdilik bu yeterli)
+    settings["limits"].update(new_limits) 
+    
     if save_settings_to_file(settings):
         return jsonify({"status": "ok"})
     return jsonify({"status": "error"}), 500
