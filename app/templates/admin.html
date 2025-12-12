@@ -537,8 +537,10 @@
                 body: JSON.stringify({ general })
             });
             
-            if(res.ok) alert("Genel ayarlar başarıyla kaydedildi!");
-            else alert("Hata oluştu.");
+            if (res.ok) {alert("Genel ayarlar başarıyla kaydedildi!");
+            } else {const errData = await res.json();
+                alert("Hata Detayı: " + (errData.message || "Bilinmeyen bir hata oluştu."));
+            }
         } catch(e) { console.error(e); alert("Bağlantı hatası."); }
     }
 
