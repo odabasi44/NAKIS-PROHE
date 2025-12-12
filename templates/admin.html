@@ -60,9 +60,28 @@
 
 <div id="tab-tools" class="hidden space-y-8">
     <div class="flex justify-between items-center">
-        <h2 class="text-xl font-bold text-white">Paket ve Limit Ayarları</h2>
+        <h2 class="text-xl font-bold text-white">Araç & Limit Yönetimi</h2>
+    </div>
+
+    <div class="card p-6 border-t-4 border-indigo-500">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-white">Araç Durumları</h3>
+                <p class="text-xs text-gray-400">Pasif yapılan araçlar ana sayfada "Çok Yakında" moduna geçer.</p>
+            </div>
+            <button onclick="saveToolStatus()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">
+                Durumları Kaydet
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="tool-toggles-container">
+            </div>
+    </div>
+    
+    <div class="flex justify-between items-center mt-8">
+        <h3 class="text-lg font-bold text-white">Limit Ayarları</h3>
         <button onclick="saveLimits()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-green-900/20">
-            Ayarları Kaydet
+            Limitleri Kaydet
         </button>
     </div>
     
@@ -219,6 +238,20 @@
     // Global Settings Değişkeni (Modal açıldığında dolacak)
     let globalSettings = null;
 
+    // Tool Listesi (Settings key'leri ile aynı olmalı)
+    const toolKeys = [
+        {key: 'remove_bg', name: 'Arka Plan Silici'},
+        {key: 'vektor', name: 'Vektörleştirici'},
+        {key: 'image_compress', name: 'Görsel Sıkıştır'},
+        {key: 'image_convert', name: 'Format Çevirici'},
+        {key: 'pdf_merge', name: 'PDF Birleştir'},
+        {key: 'pdf_split', name: 'PDF Böl'},
+        {key: 'pdf_compress', name: 'PDF Sıkıştır'},
+        {key: 'word_to_pdf', name: 'Word to PDF'},
+        {key: 'qr_generator', name: 'QR Kod'},
+        {key: 'logo_generator', name: 'Logo Oluşturucu'}
+    ];
+
     // 1. DASHBOARD VERİLERİ
     async function fetchDashboardData() {
         try {
@@ -260,34 +293,71 @@
         } catch(e) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-400">Hata.</td></tr>'; }
     }
 
-    // 3. YENİ ÜYE MODALI & LOGİĞİ
+    // 3. ARAÇ DURUM YÖNETİMİ (YENİ)
+    async function fetchToolStatus() {
+        try {
+            const res = await fetch("/get_settings");
+            const data = await res.json();
+            const statuses = data.tool_status || {};
+            
+            const container = document.getElementById('tool-toggles-container');
+            container.innerHTML = '';
+
+            toolKeys.forEach(tool => {
+                const isActive = statuses[tool.key]?.active !== false; // Varsayılan true
+                
+                container.innerHTML += `
+                <div class="flex items-center justify-between bg-[#02040a] p-3 rounded-lg border border-white/10">
+                    <span class="text-sm text-gray-300 font-medium">${tool.name}</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-${tool.key}" class="sr-only peer" ${isActive ? 'checked' : ''}>
+                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    </label>
+                </div>`;
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    async function saveToolStatus() {
+        let newStatuses = {};
+        toolKeys.forEach(tool => {
+            const isChecked = document.getElementById(`toggle-${tool.key}`).checked;
+            newStatuses[tool.key] = { active: isChecked, maintenance: false };
+        });
+
+        try {
+            const res = await fetch("/api/admin/save_tool_status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tool_status: newStatuses })
+            });
+            const data = await res.json();
+            if(data.status === 'ok') alert("Durumlar güncellendi!");
+            else alert("Hata oluştu.");
+        } catch(e) { alert("Sunucu hatası."); }
+    }
+
+    // 4. YENİ ÜYE MODALI & LOGİĞİ
     async function openAddUserModalWithSettings() {
         openModal('addUserModal');
-        // Ayarları çekip önbelleğe alalım ki her tıklamada sunucuya gitmeyelim
         try {
             const res = await fetch("/get_settings");
             globalSettings = await res.json();
-            // Varsayılan olarak starter seçili gelsin
             selectPkgUI('starter'); 
         } catch(e) { console.error("Ayarlar çekilemedi"); }
     }
 
     function selectPkgUI(tier) {
-        // 1. Inputu güncelle
         document.getElementById('selected-tier-input').value = tier;
-
-        // 2. Buton stillerini güncelle
         ['starter', 'pro', 'unlimited'].forEach(t => {
             const btn = document.getElementById('btn-pkg-' + t);
-            btn.className = 'pkg-btn py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5 text-gray-400'; // Reset
+            btn.className = 'pkg-btn py-3 rounded-lg text-sm font-bold flex flex-col items-center gap-1 border border-white/10 bg-white/5 text-gray-400'; 
             if (t === tier) {
                 if(tier === 'starter') btn.classList.add('active-starter', 'text-yellow-500');
                 if(tier === 'pro') btn.classList.add('active-pro', 'text-cyan-400');
                 if(tier === 'unlimited') btn.classList.add('active-unlimited', 'text-purple-400');
             }
         });
-
-        // 3. Özet Kutusunu Güncelle (Settings'den oku)
         updateSummaryBox(tier);
     }
 
@@ -299,7 +369,6 @@
         const packages = globalSettings.packages || {};
         const pkgInfo = packages[tier] || { name: tier, price: '?' };
 
-        // Renkler
         let colorClass = "text-gray-400";
         let borderColor = "border-gray-500/30";
         if(tier === 'starter') { colorClass = "text-yellow-500"; borderColor = "border-yellow-500/30"; }
@@ -308,12 +377,10 @@
 
         box.className = `bg-[#02040a] border ${borderColor} rounded-lg p-4 mb-6 transition-all`;
 
-        // Limit Verilerini Hazırla
         const bgLimit = limits.image?.remove_bg?.[tier] || 0;
         const pdfLimit = limits.pdf?.merge?.[tier] || 0;
         const vecLimit = limits.vector?.default?.[tier] || 0;
         const sizeLimit = limits.file_size?.[tier] || 0;
-
         const vecStatus = vecLimit > 0 ? `<span class="text-green-400 font-bold">Açık (${vecLimit}/Gün)</span>` : `<span class="text-red-400 font-bold">Kapalı ❌</span>`;
         const unlimitedText = (val) => val > 9000 ? "Sınırsız" : val + " Adet/Gün";
 
@@ -333,8 +400,7 @@
     async function handleAddUser() {
         const email = document.getElementById('new-user-email').value;
         const endDate = document.getElementById('new-user-end-date').value;
-        const tier = document.getElementById('selected-tier-input').value; // Hidden inputtan al
-        
+        const tier = document.getElementById('selected-tier-input').value;
         const msgEl = document.getElementById('addUserMessage');
         msgEl.classList.add('hidden');
 
@@ -359,7 +425,7 @@
         } catch (e) { console.error(e); }
     }
 
-    // 4. DİĞER FONKSİYONLAR (Silme, Kaydetme vs.)
+    // 5. DİĞER FONKSİYONLAR
     async function handleDeleteUser(email) {
         if(!confirm(email + " silinecek?")) return;
         await fetch(`/api/admin/delete_user/${email}`, { method: "DELETE" });
@@ -370,34 +436,25 @@
         try {
             const res = await fetch("/get_settings");
             const data = await res.json();
-            // Mevcut input doldurma mantığı aynen kalacak...
-            // (Kod kalabalığı olmasın diye burayı kısa geçiyorum, önceki kodunuz çalışır)
-            // Ancak settings sayfasına geçtiğinizde de verilerin dolması için
-            // Buradaki getElementById çağrılarını korumalısınız.
             const l = data.limits;
             const getVal = (obj, path, def) => path.split('.').reduce((o, p) => (o ? o[p] : def), obj) || def;
             
-            // Boyutlar
             document.getElementById('limit-size-free').value = getVal(l, 'file_size.free', 5);
             document.getElementById('limit-size-starter').value = getVal(l, 'file_size.starter', 10);
             document.getElementById('limit-size-pro').value = getVal(l, 'file_size.pro', 50);
             document.getElementById('limit-size-unlimited').value = getVal(l, 'file_size.unlimited', 100);
-            // BG
             document.getElementById('limit-bg-free').value = getVal(l, 'image.remove_bg.free', 2);
             document.getElementById('limit-bg-starter').value = getVal(l, 'image.remove_bg.starter', 20);
             document.getElementById('limit-bg-pro').value = getVal(l, 'image.remove_bg.pro', 200);
             document.getElementById('limit-bg-unlimited').value = getVal(l, 'image.remove_bg.unlimited', 9999);
-            // PDF
             document.getElementById('limit-pdf-free').value = getVal(l, 'pdf.merge.free', 2);
             document.getElementById('limit-pdf-starter').value = getVal(l, 'pdf.merge.starter', 10);
             document.getElementById('limit-pdf-pro').value = getVal(l, 'pdf.merge.pro', 50);
             document.getElementById('limit-pdf-unlimited').value = getVal(l, 'pdf.merge.unlimited', 9999);
-
         } catch(e) { console.error(e); }
     }
     
     async function saveLimits() {
-        // ... (Mevcut kaydetme kodu aynen kalabilir)
         const limits = {
             file_size: {
                 free: parseInt(document.getElementById('limit-size-free').value),
@@ -428,7 +485,6 @@
     }
 
     async function fetchPackagesAndFill() {
-        // ... (Paketleri inputlara doldurma kodu - Önceki ile aynı)
         try {
             const res = await fetch("/get_settings");
             const data = await res.json();
@@ -446,7 +502,6 @@
     }
     
     async function savePackages() {
-        // ... (Paket kaydetme kodu - Önceki ile aynı)
         const tiers = ['starter', 'pro', 'unlimited'];
         let packagesData = {};
         tiers.forEach(tier => {
@@ -475,11 +530,16 @@
 
         if (tabName === 'dashboard') fetchDashboardData();
         if (tabName === 'users') fetchUsers();
-        if (tabName === 'tools') fetchSettingsAndFillInputs();
+        if (tabName === 'tools') { fetchSettingsAndFillInputs(); fetchToolStatus(); } // GÜNCELLEME BURADA YAPILDI
         if (tabName === 'packages') fetchPackagesAndFill();
         
         if(navEl) updateAdminHeader(navEl.dataset.title, navEl.dataset.subtitle);
     }
+    
+    // Varsayılan Tab
+    document.addEventListener('DOMContentLoaded', () => {
+        showTab('dashboard');
+    });
 </script>
 
 {% endblock admin_content %}
