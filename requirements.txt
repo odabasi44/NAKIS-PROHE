@@ -10,6 +10,10 @@ gunicorn
 pyembroidery
 python-dotenv
 Flask-SQLAlchemy
+qrcode[pil]
+reportlab
+python-docx
+
 
 
 
