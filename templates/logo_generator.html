@@ -11,11 +11,18 @@
         <p class="text-gray-400">Marka isminizi ve sektörünüzü girin, yapay zeka size logo tasarlasın.</p>
     </div>
 
+    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+        <div class="flex items-center gap-3">
+            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
+            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+        </div>
+    </div>
+
     <div class="glass-panel rounded-2xl p-8 border border-pink-500/20 bg-gradient-to-b from-pink-500/5 to-[#0c1120]">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="col-span-2">
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Marka İsmi</label>
-                <input type="text" placeholder="Örn: Botlab Cafe" class="w-full bg-[#02040a] border border-white/10 rounded-lg p-3 text-white">
+                <input type="text" id="brandName" placeholder="Örn: Botlab Cafe" class="w-full bg-[#02040a] border border-white/10 rounded-lg p-3 text-white">
             </div>
             <div>
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Sektör</label>
@@ -28,17 +35,69 @@
             </div>
         </div>
         
-        <button class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl transition shadow-lg shadow-pink-900/20 flex items-center justify-center gap-2">
+        <button onclick="generateLogo()" class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl transition shadow-lg shadow-pink-900/20 flex items-center justify-center gap-2">
             <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             Logo Üret (AI)
         </button>
     </div>
 
-    <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-        <div class="aspect-square bg-white/5 rounded-xl border border-white/5"></div>
-        <div class="aspect-square bg-white/5 rounded-xl border border-white/5"></div>
-        <div class="aspect-square bg-white/5 rounded-xl border border-white/5"></div>
-        <div class="aspect-square bg-white/5 rounded-xl border border-white/5"></div>
+    <div id="resultArea" class="hidden mt-12 text-center animate-fade-in">
+        <h3 class="text-white font-bold mb-4">Sonuç</h3>
+        <div class="inline-block p-4 bg-white/5 rounded-2xl border border-white/10">
+            <img id="logoResult" class="max-w-[300px] rounded-lg">
+        </div>
+        <br>
+        <a id="downloadLogo" href="#" download="logo.png" class="inline-block mt-4 text-pink-400 hover:text-white transition">Logoyu İndir</a>
     </div>
 </div>
+
+<script>
+    let userAllowed = false;
+
+    async function checkLimit() {
+        try {
+            const res = await fetch('/api/check_tool_status/generator/logo');
+            const data = await res.json();
+            userAllowed = data.allowed;
+            const limitInfo = document.getElementById('limit-info');
+            const statusIcon = document.getElementById('status-icon');
+
+            if(data.allowed) {
+                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
+                limitInfo.innerHTML = `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.premium ? 'Sınırsız' : data.left}</span>`;
+            } else {
+                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
+                limitInfo.innerHTML = "Limit Doldu.";
+            }
+        } catch(e) {}
+    }
+
+    async function generateLogo() {
+        const text = document.getElementById('brandName').value;
+        if(!text) return alert("Marka ismi girin.");
+        if(!userAllowed) return openModal('premiumModal');
+
+        try {
+            const res = await fetch('/api/logo_generator', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                const src = "data:image/png;base64," + data.file;
+                document.getElementById('logoResult').src = src;
+                document.getElementById('downloadLogo').href = src;
+                document.getElementById('resultArea').classList.remove('hidden');
+                checkLimit();
+            } else {
+                alert("Hata: " + data.reason);
+                if(data.reason === 'limit') openModal('premiumModal');
+            }
+        } catch(e) { alert("Hata oluştu."); }
+    }
+
+    document.addEventListener('DOMContentLoaded', checkLimit);
+</script>
 {% endblock content %}
