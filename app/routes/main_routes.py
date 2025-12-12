@@ -1,6 +1,7 @@
 import os
 from flask import Blueprint, render_template, redirect, abort
 from jinja2 import TemplateNotFound
+from app.utils.helpers import load_settings
 
 bp = Blueprint('main', __name__)
 
