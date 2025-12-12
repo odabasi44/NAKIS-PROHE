@@ -9,27 +9,86 @@
         <p class="text-gray-400">Bağlantılarınız veya metinleriniz için özel QR kodlar oluşturun.</p>
     </div>
 
+    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+        <div class="flex items-center gap-3">
+            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
+            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120]">
             <label class="block text-sm text-gray-400 mb-2">URL veya Metin</label>
-            <input type="text" placeholder="https://ornek.com" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:border-amber-500 outline-none transition">
+            <input type="text" id="qrText" placeholder="https://ornek.com" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:border-amber-500 outline-none transition">
             
             <label class="block text-sm text-gray-400 mb-2">Renk Seçimi</label>
             <div class="flex gap-4 mb-6">
-                <div class="w-8 h-8 rounded-full bg-black border-2 border-amber-500 cursor-pointer"></div>
-                <div class="w-8 h-8 rounded-full bg-blue-600 cursor-pointer opacity-50"></div>
-                <div class="w-8 h-8 rounded-full bg-red-600 cursor-pointer opacity-50"></div>
+                <div onclick="selectedColor='black'" class="w-8 h-8 rounded-full bg-black border-2 border-amber-500 cursor-pointer hover:scale-110 transition"></div>
+                <div onclick="selectedColor='blue'" class="w-8 h-8 rounded-full bg-blue-600 cursor-pointer hover:scale-110 transition"></div>
+                <div onclick="selectedColor='red'" class="w-8 h-8 rounded-full bg-red-600 cursor-pointer hover:scale-110 transition"></div>
             </div>
 
-            <button class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition shadow-lg shadow-amber-500/20">Oluştur</button>
+            <button onclick="generateQR()" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition shadow-lg shadow-amber-500/20">Oluştur</button>
         </div>
 
-        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120] flex items-center justify-center relative">
-            <div class="w-64 h-64 bg-white rounded-xl flex items-center justify-center">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BotlabTools" alt="QR Önizleme" class="opacity-80">
+        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120] flex flex-col items-center justify-center relative">
+            <div class="w-64 h-64 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BotlabTools" alt="QR Önizleme" class="max-w-full">
             </div>
-            <div class="absolute bottom-4 text-xs text-gray-500">Önizleme Modu</div>
+            <a id="downloadBtn" href="#" download="qrcode.png" class="mt-4 text-xs text-amber-400 hover:underline hidden">İndir (PNG)</a>
         </div>
     </div>
 </div>
+
+<script>
+    let selectedColor = 'black';
+    let userAllowed = false;
+
+    async function checkLimit() {
+        try {
+            const res = await fetch('/api/check_tool_status/generator/qr');
+            const data = await res.json();
+            userAllowed = data.allowed;
+            const limitInfo = document.getElementById('limit-info');
+            const statusIcon = document.getElementById('status-icon');
+
+            if(data.allowed) {
+                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
+                limitInfo.innerHTML = `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.premium ? 'Sınırsız' : data.left}</span>`;
+            } else {
+                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
+                limitInfo.innerHTML = "Limit Doldu.";
+            }
+        } catch(e) {}
+    }
+
+    async function generateQR() {
+        const text = document.getElementById('qrText').value;
+        if(!text) return alert("Lütfen metin girin.");
+        if(!userAllowed) return openModal('premiumModal');
+
+        try {
+            const res = await fetch('/api/qr_generator', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text, color: selectedColor })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                const src = "data:image/png;base64," + data.file;
+                document.getElementById('qrImage').src = src;
+                const dl = document.getElementById('downloadBtn');
+                dl.href = src;
+                dl.classList.remove('hidden');
+                checkLimit();
+            } else {
+                alert("Hata: " + data.reason);
+                if(data.reason === 'limit') openModal('premiumModal');
+            }
+        } catch(e) { alert("Hata oluştu."); }
+    }
+
+    document.addEventListener('DOMContentLoaded', checkLimit);
+</script>
 {% endblock content %}
