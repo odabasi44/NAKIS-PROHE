@@ -257,32 +257,76 @@ def api_qr_generator():
 
 @bp.route("/logo_generator", methods=["POST"])
 def api_logo_generator():
-    email = session.get("user_email", "guest")
-    # LİMİT KONTROLÜ EKLENDİ
-    if not check_user_status(email, "generator", "logo")["allowed"]: 
-        return jsonify({"success": False, "reason": "limit"}), 403
-
-    data = request.json or request.form
-    text = data.get("text", "Marka")
+    import random
     
-    img = Image.new('RGB', (500, 500), color=(20, 20, 30))
+    data = request.json or request.form
+    text = data.get("text", "Marka").strip()
+    # Markanın baş harfini al (ikon için)
+    initial = text[0].upper() if text else "B"
+    
+    # Modern Renk Paletleri (Arka Plan, Şekil, Metin)
+    palettes = [
+        ((23, 23, 23), (59, 130, 246), (255, 255, 255)),   # Koyu Mod / Mavi
+        ((255, 255, 255), (236, 72, 153), (30, 30, 30)),   # Beyaz / Pembe
+        ((15, 23, 42), (16, 185, 129), (241, 245, 249)),   # Lacivert / Yeşil
+        ((255, 251, 235), (245, 158, 11), (120, 53, 15)),  # Krem / Turuncu
+        ((0, 0, 0), (255, 255, 255), (255, 255, 255))      # Siyah / Beyaz (Minimal)
+    ]
+    
+    # Rastgele bir palet seç
+    bg_color, shape_color, text_color = random.choice(palettes)
+    
+    # 512x512 Tuval Oluştur
+    img = Image.new('RGB', (512, 512), color=bg_color)
     d = ImageDraw.Draw(img)
     
-    # Basit geometrik şekil ve metin
-    d.ellipse([100, 50, 400, 350], outline="cyan", width=10)
-    d.rectangle([200, 200, 300, 300], fill="magenta")
+    # --- Modern Arka Plan Şekilleri (Rastgele) ---
+    shape_type = random.choice(['circle', 'square', 'rounded', 'outline'])
     
+    # Merkez koordinatları
+    cx, cy = 256, 220 
+    size = 140 
+    
+    if shape_type == 'circle':
+        d.ellipse([cx-size, cy-size, cx+size, cy+size], fill=shape_color)
+    elif shape_type == 'square':
+        d.rectangle([cx-size, cy-size, cx+size, cy+size], fill=shape_color)
+    elif shape_type == 'rounded':
+        # Köşeli yuvarlak (Basit simülasyon)
+        d.ellipse([cx-size, cy-size, cx+size, cy+size], fill=shape_color)
+        d.rectangle([cx-size+20, cy-size+20, cx+size-20, cy+size-20], fill=bg_color)
+        d.text((cx-40, cy-60), initial, fill=shape_color, font=ImageFont.load_default()) # İç harf
+    elif shape_type == 'outline':
+        d.ellipse([cx-size, cy-size, cx+size, cy+size], outline=shape_color, width=15)
+
+    # --- Baş Harf İkonu (Merkeze) ---
+    if shape_type != 'rounded':
+        # Harfi büyük çizmek için font yüklemeye çalış, yoksa default kullan
+        try:
+            # Linux sunucularda genellikle bulunan bir font
+            font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 150)
+        except:
+            # Windows veya font yoksa, varsayılanı kullan (küçük kalır ama çalışır)
+            font_large = ImageFont.load_default()
+            
+        # Harfi şeklin ortasına yerleştirme hesabı (Basit ortalama)
+        # Pillow default font ile boyut hesabı zordur, tahmini ortalıyoruz
+        d.text((cx-50, cy-80), initial, fill=bg_color if shape_type != 'outline' else shape_color, font=font_large)
+
+    # --- Marka İsmi (Alta) ---
     try:
-        font = ImageFont.load_default()
+        font_text = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 40)
     except:
-        font = ImageFont.load_default()
-        
-    d.text((150, 400), text, fill="white", font=font)
+        font_text = ImageFont.load_default()
+
+    # Metni alta ortalayarak yaz
+    text_width = len(text) * 20 # Tahmini genişlik
+    d.text((256 - (text_width/2), 400), text, fill=text_color, font=font_text)
     
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     
-    increase_usage(email, "generator", "logo")
+    increase_usage(session.get("user_email", "guest"), "generator", "logo")
     return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
 
 # --- LİMİT KONTROL ---
