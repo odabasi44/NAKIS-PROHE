@@ -41,109 +41,78 @@
         Görsel Araçlar & AI
     </div>
     
-    {% set status = tools.get('remove_bg', {'active': True}) %}
-<div {% if status.active %} onclick="window.location.href='/remove-bg'" {% endif %} 
-     class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-     {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
-    
-    {% if not status.active %}
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-        <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
-            🚀 Çok Yakında
-        </span>
-    </div>
-    {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {% set status = tools.get('remove_bg', {'active': True}) %}
+        <div {% if status.active %} onclick="window.location.href='/remove-bg'" {% endif %} 
+             class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
+             {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+            
+            {% if not status.active %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% endif %}
 
-    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-    </div>
-    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Arka Plan Silici</h3>
-    <p class="text-xs text-gray-400 leading-relaxed">AI ile arka planı saniyeler içinde şeffaf yapın.</p>
-</div>
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Arka Plan Silici</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">AI ile arka planı saniyeler içinde şeffaf yapın.</p>
+        </div>
 
+        {% set status = tools.get('vektor', {'active': True}) %}
+        <div {% if status.active %} onclick="window.location.href='/vektor'" {% endif %} 
+             class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
+             {% if status.active %} hover:border-purple-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+            
+            {% if not status.active %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% endif %}
 
-{% set status = tools.get('vektor', {'active': True}) %}
-<div {% if status.active %} onclick="window.location.href='/vektor'" {% endif %} 
-     class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-     {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
-    
-    {% if not status.active %}
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-        <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
-            🚀 Çok Yakında
-        </span>
-    </div>
-    {% endif %}
+            <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1 group-hover:text-violet-400 transition-colors">AI Vektörleştirici</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Görselinizi gelişmiş AI motorumuzla vektörleştirin.</p>
+        </div>
 
-    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-    </div>
-    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Yapay Zeka (AI) Vektörleştirici</h3>
-    <p class="text-xs text-gray-400 leading-relaxed">Görselinizi Gelişmiş AI Motorumuzla Vektörleştirin.</p>
-</div>
+        {% set status = tools.get('image_compress', {'active': True}) %}
+        <div {% if status.active %} onclick="window.location.href='/image-compress'" {% endif %} 
+             class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
+             {% if status.active %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+            
+            {% if not status.active %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% endif %}
 
+            <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Görsel Sıkıştır</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Kaliteden ödün vermeden dosya boyutunu küçültün.</p>
+        </div>
 
-{% set status = tools.get('image_compress', {'active': True}) %}
-<div {% if status.active %} onclick="window.location.href='/image-compress'" {% endif %} 
-     class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-     {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
-    
-    {% if not status.active %}
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-        <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
-            🚀 Çok Yakında
-        </span>
-    </div>
-    {% endif %}
+        {% set status = tools.get('image_convert', {'active': True}) %}
+        <div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
+             class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
+             {% if status.active %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+            
+            {% if not status.active %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% endif %}
 
-    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-    </div>
-    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Yapay Zeka Görsel Sıkıştır</h3>
-    <p class="text-xs text-gray-400 leading-relaxed">Kaliteden Ödün Vermeden Dosya Boyutunuzu Küçültün.</p>
-</div>
-
-
-{% set status = tools.get('image_convert', {'active': True}) %}
-<div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
-     class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-     {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
-    
-    {% if not status.active %}
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-        <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
-            🚀 Çok Yakında
-        </span>
-    </div>
-    {% endif %}
-
-    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-    </div>
-    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Format Çevirici</h3>
-    <p class="text-xs text-gray-400 leading-relaxed">WebP, HEIC dosyalarını JPG/PNG formatına dönüştürün.</p>
-</div>
-
-
-{% set status = tools.get('image_convert', {'active': True}) %}
-<div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
-     class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-     {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
-    
-    {% if not status.active %}
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-        <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
-            🚀 Çok Yakında
-        </span>
-    </div>
-    {% endif %}
-
-    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-    </div>
-    <h3 class="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Yapay Zeka Görsel Sıkıştır</h3>
-    <p class="text-xs text-gray-400 leading-relaxed">Kaliteden Ödün Vermeden Dosya Boyutunuzu Küçültün.</p>
-</div>
+            <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Format Çevirici</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">WebP, HEIC dosyalarını JPG/PNG formatına dönüştürün.</p>
+        </div>
     </div>
 </section>
 
