@@ -13,16 +13,19 @@ def create_app(config_class=Config):
     db.init_app(app)
     config_class.init_app(app)
 
-    # --- Blueprint'leri Kaydetme (BURASI ÇOK ÖNEMLİ) ---
+    # MAIN ROUTES (KAYIT EKSİKTİ — EKLENDİ)
     from app.routes.main_routes import bp as main_bp
     app.register_blueprint(main_bp)
-    
+
+    # API ROUTES
     from app.routes.api_routes import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
+    # AUTH ROUTES
     from app.routes.auth_routes import bp as auth_bp
     app.register_blueprint(auth_bp)
 
+    # MODELLER
     with app.app_context():
         from app.models import User
         db.create_all()
