@@ -31,12 +31,11 @@ def admin_login():
 def user_login():
     data = request.get_json()
     email = data.get("email")
-    settings = load_settings()
     
-    # Admin girişi kontrolü
-    if email == settings.get("admin", {}).get("email"): 
-        return jsonify({"status":"admin"})
-    
+    # NOT: Buradaki admin kontrolünü sildik. 
+    # Artık admin e-postası yazılsa bile veritabanında "normal üye" olarak yoksa giriş yapamaz.
+    # Adminler sadece /admin_login sayfasından girebilir.
+
     # Veritabanından kullanıcı kontrolü
     user_data = get_user_data_by_email(email)
     
@@ -44,7 +43,7 @@ def user_login():
         return jsonify({"status":"not_found"})
     
     try:
-        # Tarih formatı veritabanından string veya date objesi gelebilir
+        # Tarih verisi string veya date objesi olabilir, kontrol et
         end_date_str = user_data.get("end_date")
         if isinstance(end_date_str, str):
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
