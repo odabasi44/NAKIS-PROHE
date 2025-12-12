@@ -136,3 +136,31 @@ def save_general_api():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@bp.route("/api/admin/save_tool_status", methods=["POST"])
+def save_tool_status_api():
+    if not session.get("admin_logged"): return jsonify({}), 403
+    
+    data = request.get_json()
+    new_statuses = data.get("tool_status", {})
+    
+    settings = load_settings()
+    
+    # Mevcut ayarları koruyarak güncelle
+    if "tool_status" not in settings: settings["tool_status"] = {}
+    
+    # Gelen veriyi settings'e işle
+    for key, val in new_statuses.items():
+        # Eski maintenance ayarı varsa koru, yoksa false yap
+        old_maint = settings["tool_status"].get(key, {}).get("maintenance", False)
+        settings["tool_status"][key] = {
+            "active": val.get("active", True),
+            "maintenance": old_maint # Bakım modu ayarı ayrı, onu bozmuyoruz
+        }
+    
+    try:
+        with open("settings.json", "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
