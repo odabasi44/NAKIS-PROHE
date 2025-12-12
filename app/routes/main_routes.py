@@ -12,25 +12,37 @@ def home():
         return "HATA: index.html bulunamadı. Lütfen templates klasörünü kontrol edin.", 404
 
 
+# app/routes/main_routes.py
+
 @bp.route("/<page>")
 def render_page(page):
-
-    # URL → HTML eşleştirmeleri (SENİN DOSYA ADLARINA GÖRE AYARLANDI)
+    # URL -> HTML Eşleştirmeleri
+    # BURAYI DÜZELTTİK: index.html'deki linklerle uyumlu hale getirdik.
     page_map = {
-        "pdf-merge": "pdf_merge.html",
+        # Çalışanlar
         "remove-bg": "background_remove.html",
-        "vectorizer": "vektor.html",
+        
+        # Vektör (Düzeltildi: "vectorizer" -> "vektor")
+        "vektor": "vektor.html", 
+        
+        # PDF Araçları (Düzeltildi: Tek kelimeye indirgendi)
+        "pdf-merge": "pdf_merge.html",
+        "pdf-split": "pdf_split.html",     # Dosyası oluşturulmalı
+        "pdf-compress": "pdf_compress.html", # Dosyası oluşturulmalı
+        "word-to-pdf": "word_to_pdf.html", # Dosyası oluşturulmalı
+        
+        # Görsel Araçlar
         "image-compress": "image_compress.html",
         "image-convert": "image_convert.html",
+        
+        # Diğer
+        "qr-generator": "qr_generator.html", # Dosyası oluşturulmalı
+        "logo-generator": "logo_generator.html", # Dosyası oluşturulmalı
         "dashboard": "dashboard.html",
         "admin": "admin.html",
-
-        # Henüz olmayan sayfalar (oluşturunca çalışacak)
-        "embroidery": "embroidery.html",
-        "pdf-split": "pdf_split.html",
-        "word-to-pdf": "word_to_pdf.html",
-        "image-to-pdf": "image_to_pdf.html",
     }
+    
+    # ... kodun geri kalanı aynı ...
 
     # Statik dosyaları iptal et
     if page.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg")):
