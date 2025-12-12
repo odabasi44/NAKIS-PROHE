@@ -1,27 +1,28 @@
 import os
-from flask import Blueprint, render_template, redirect, abort
+from flask import Blueprint, render_template, redirect, abort, jsonify # jsonify EKLENDİ
 from jinja2 import TemplateNotFound
-from app.utils.helpers import load_settings  # BU SATIR EKLENDİ
+from app.utils.helpers import load_settings
 
 bp = Blueprint('main', __name__)
 
+# --- YENİ EKLENEN ROTA ---
+@bp.route("/get_settings")
+def get_settings_route():
+    # Admin paneli bu adresten ayarları okur
+    return jsonify(load_settings())
+# -------------------------
+
 @bp.route("/")
 def home():
-    # Ayarları yükle
     settings = load_settings()
-    # tool_status verisini al (yoksa boş sözlük ver)
     tool_status = settings.get("tool_status", {})
-    
     try:
-        # tools değişkenini şablona gönder
         return render_template("index.html", tools=tool_status)
     except TemplateNotFound:
-        return "HATA: index.html bulunamadı. Lütfen templates klasörünü kontrol edin.", 404
-
+        return "HATA: index.html bulunamadı.", 404
 
 @bp.route("/<page>")
 def render_page(page):
-    # URL -> HTML Eşleştirmeleri
     page_map = {
         "remove-bg": "background_remove.html",
         "vektor": "vektor.html", 
@@ -37,18 +38,15 @@ def render_page(page):
         "admin": "admin.html",
     }
 
-    # Statik dosyaları iptal et
     if page.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg")):
         abort(404)
 
-    # Haritada olmayan sayfalar ana sayfaya dönsün
     if page not in page_map:
         return redirect("/")
 
     template_to_render = page_map[page]
 
     try:
-        # Alt sayfalara da tools verisini gönderelim ki navbar vb. yerlerde lazım olursa hata vermesin
         settings = load_settings()
         tool_status = settings.get("tool_status", {})
         return render_template(template_to_render, tools=tool_status)
