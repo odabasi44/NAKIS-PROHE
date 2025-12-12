@@ -33,7 +33,15 @@
         "whatsapp_number": "905335620807"
     },
     "tool_status": {
-        "remove_bg": {"maintenance": false, "premium_only": false},
-        "vector": {"maintenance": false, "premium_only": false}
+        "remove_bg": {"active": true, "maintenance": false},
+        "vektor": {"active": true, "maintenance": false},
+        "image_compress": {"active": true, "maintenance": false},
+        "image_convert": {"active": true, "maintenance": false},
+        "pdf_merge": {"active": true, "maintenance": false},
+        "pdf_split": {"active": true, "maintenance": false},
+        "pdf_compress": {"active": true, "maintenance": false},
+        "word_to_pdf": {"active": false, "maintenance": false},
+        "qr_generator": {"active": true, "maintenance": false},
+        "logo_generator": {"active": true, "maintenance": false}
     }
 }
