@@ -11,10 +11,15 @@
         },
         "image": {
             "remove_bg": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999},
-            "compress": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999}
+            "compress": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999},
+            "convert": {"free": 5, "starter": 10, "pro": 20, "unlimited": 99999}
         },
         "vector": {
             "default": {"free": 3, "starter": 5, "pro": 10, "unlimited": 99999}
+        },
+        "generator": {
+             "qr": {"free": 5, "starter": 20, "pro": 100, "unlimited": 99999},
+             "logo": {"free": 2, "starter": 5, "pro": 20, "unlimited": 99999}
         }
     },
     "packages": {
