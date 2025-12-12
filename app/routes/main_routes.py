@@ -2,7 +2,7 @@ import os
 from flask import Blueprint, render_template, redirect, abort
 from jinja2 import TemplateNotFound
 
-bp = Blueprint("main", __name__)
+bp = Blueprint('main', __name__)
 
 @bp.route("/")
 def home():
@@ -15,35 +15,35 @@ def home():
 @bp.route("/<page>")
 def render_page(page):
 
-    # İzin verilen sayfalar (gerektikçe buraya ekleriz Reis)
-    allowed_pages = [
-        "index",
-        "pdf-merge",
-        "pdf-split",
-        "pdf-compress",
-        "word-to-pdf",
-        "image-to-pdf",
-        "pdf-to-image",
-        "vectorizer",
-        "embroidery",
-        "remove-bg",
-        "contact",
-        "pricing",
-        "login",
-        "register",
-        "dashboard",
-    ]
+    # URL → HTML eşleştirmeleri (SENİN DOSYA ADLARINA GÖRE AYARLANDI)
+    page_map = {
+        "pdf-merge": "pdf_merge.html",
+        "remove-bg": "background_remove.html",
+        "vectorizer": "vektor.html",
+        "image-compress": "image_compress.html",
+        "image-convert": "image_convert.html",
+        "dashboard": "dashboard.html",
+        "admin": "admin.html",
 
-    # Zararlı veya statik dosya denemelerini engelle
-    if page.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".map", ".svg")):
+        # Henüz olmayan sayfalar (oluşturunca çalışacak)
+        "embroidery": "embroidery.html",
+        "pdf-split": "pdf_split.html",
+        "word-to-pdf": "word_to_pdf.html",
+        "image-to-pdf": "image_to_pdf.html",
+    }
+
+    # Statik dosyaları iptal et
+    if page.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg")):
         abort(404)
 
-    # İzin verilmeyen bir sayfaysa ana sayfaya dön
-    if page not in allowed_pages:
+    # Haritada olmayan sayfalar ana sayfaya dönsün
+    if page not in page_map:
         return redirect("/")
 
+    template_to_render = page_map[page]
+
     try:
-        return render_template(f"{page}.html")
+        return render_template(template_to_render)
     except TemplateNotFound:
-        # Dosya yoksa yine ana sayfaya yönlendir
+        # Dosya yoksa ana sayfaya dön
         return redirect("/")
