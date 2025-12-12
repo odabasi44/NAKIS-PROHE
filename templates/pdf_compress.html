@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Sıkıştırıcı{% endblock title %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-10">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-white mb-4">PDF Sıkıştırıcı</h1>
+        <p class="text-gray-400">Belgelerinizin boyutunu kaliteden ödün vermeden küçültün.</p>
+    </div>
+
+    <div class="glass-panel rounded-2xl p-8 border border-white/5 bg-[#0c1120]">
+        <div class="border-2 border-dashed border-white/10 rounded-xl p-12 text-center hover:border-red-500/50 transition cursor-pointer flex flex-col items-center justify-center">
+            <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-1">Dosya Yükle</h3>
+            <p class="text-gray-500 text-sm">Max 50MB</p>
+        </div>
+        
+        <div class="mt-6 flex justify-between items-center bg-white/5 p-4 rounded-lg">
+             <span class="text-sm text-gray-400">Sıkıştırma Seviyesi:</span>
+             <select class="bg-black border border-white/10 rounded px-2 py-1 text-sm text-white outline-none">
+                 <option>Önerilen Sıkıştırma</option>
+                 <option>Yüksek Sıkıştırma (Düşük Kalite)</option>
+             </select>
+        </div>
+
+        <button class="w-full mt-6 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition">Sıkıştırmayı Başlat</button>
+    </div>
+</div>
+{% endblock content %}
