@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY . .
 
 # Flask / gunicorn’un dinleyeceği port
-EXPOSE 5000
+EXPOSE 5001
 
 # Uygulamayı başlat
 CMD ["gunicorn", "-b", "0.0.0.0:5001", "run:app"]
