@@ -83,7 +83,7 @@
 </div>
 
 
-{% set status = tools.get('image-compress', {'active': True}) %}
+{% set status = tools.get('image_compress', {'active': True}) %}
 <div {% if status.active %} onclick="window.location.href='/image-compress'" {% endif %} 
      class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
      {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
@@ -104,7 +104,7 @@
 </div>
 
 
-{% set status = tools.get('image-convert', {'active': True}) %}
+{% set status = tools.get('image_convert', {'active': True}) %}
 <div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
      class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
      {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
@@ -125,7 +125,7 @@
 </div>
 
 
-{% set status = tools.get('image-convert', {'active': True}) %}
+{% set status = tools.get('image_convert', {'active': True}) %}
 <div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
      class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
      {% if status.active %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
@@ -274,5 +274,20 @@
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
-                <span class="bg-gray-800 text-white text-xs font-bold
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
+                    🚀 Çok Yakında
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.357a4 4 0 016.632 2.214l1.115 3.864a4 4 0 01-3.797 5.176h-2.16"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1 group-hover:text-pink-400 transition-colors">AI Logo Oluşturucu</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Markanız için saniyeler içinde benzersiz logolar tasarlayın.</p>
+            <span class="bg-pink-500/20 text-pink-400 text-[9px] font-bold px-2 py-0.5 rounded border border-pink-500/20 absolute top-4 right-4">PREMIUM</span>
+        </div>
+
+    </div>
+</section>
 {% endblock content %}
