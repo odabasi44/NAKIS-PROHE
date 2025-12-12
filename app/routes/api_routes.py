@@ -17,6 +17,10 @@ bp = Blueprint('api', __name__)
 @bp.route("/vectorize", methods=["POST"])
 def api_vectorize():
     email = session.get("user_email", "guest")
+    # Limit kontrolü
+    if not check_user_status(email, "vector", "default")["allowed"]: 
+        return jsonify({"success": False, "reason": "limit"}), 403
+        
     if "image" not in request.files:
         return jsonify({"success": False, "message": "Görsel yüklenmedi"}), 400
 
@@ -40,6 +44,8 @@ def api_vectorize():
         
         _, buf = cv2.imencode(".png", engine.img)
         preview_b64 = base64.b64encode(buf).decode()
+        
+        increase_usage(email, "vector", "default")
 
         return jsonify({
             "success": True,
@@ -52,6 +58,7 @@ def api_vectorize():
 
 @bp.route("/convert_embroidery", methods=["POST"])
 def api_convert_embroidery():
+    # Bu işlem genellikle vektör ile birlikte yapılır, ayrı limit koymuyoruz ama istenirse eklenebilir.
     if "image" not in request.files: 
         return jsonify({"success": False, "message": "Görsel yok"}), 400
     
@@ -120,7 +127,7 @@ def api_img_compress():
         img.save(buf, "JPEG", quality=quality, optimize=True)
         
         new_size = buf.getbuffer().nbytes
-        orig_size = request.content_length or new_size * 2 # Tahmini
+        orig_size = request.content_length or new_size * 2 
         saving = int(100 - (new_size / orig_size * 100)) if orig_size > 0 else 0
 
         increase_usage(email, "image", "compress")
@@ -176,49 +183,63 @@ def api_pdf_merge():
 
 @bp.route("/pdf/split", methods=["POST"])
 def api_pdf_split():
-    # PDF Bölme Mantığı (Basitleştirilmiş: Her sayfayı ayırır veya aralık alır)
     email = session.get("user_email", "guest")
-    # Limit kontrolü eklenebilir
-    
+    # LİMİT KONTROLÜ EKLENDİ
+    if not check_user_status(email, "pdf", "split")["allowed"]: 
+        return jsonify({"success": False, "reason": "limit"}), 403
+
     if "pdf_file" not in request.files: return jsonify({"success": False}), 400
     try:
         reader = PdfReader(request.files["pdf_file"])
-        # Örnek: İlk sayfayı döndür (Geliştirilebilir: ZIP olarak tüm sayfalar)
+        # Şimdilik sadece ilk sayfayı ayırır (Demo)
         writer = PdfWriter()
-        writer.add_page(reader.pages[0])
+        if len(reader.pages) > 0:
+            writer.add_page(reader.pages[0])
         
         out = io.BytesIO()
         writer.write(out)
+        
+        increase_usage(email, "pdf", "split")
         return jsonify({"success": True, "file": base64.b64encode(out.getvalue()).decode()})
     except Exception as e: return jsonify({"success": False, "message": str(e)}), 500
 
 @bp.route("/pdf/compress", methods=["POST"])
 def api_pdf_compress():
-    # PDF Sıkıştırma (PyPDF2 ile Metadata silerek basit sıkıştırma)
+    email = session.get("user_email", "guest")
+    # LİMİT KONTROLÜ EKLENDİ
+    if not check_user_status(email, "pdf", "compress")["allowed"]: 
+        return jsonify({"success": False, "reason": "limit"}), 403
+
     if "pdf_file" not in request.files: return jsonify({"success": False}), 400
     try:
         reader = PdfReader(request.files["pdf_file"])
         writer = PdfWriter()
         for page in reader.pages:
-            page.compress_content_streams() # İçeriği sıkıştır
+            page.compress_content_streams() 
             writer.add_page(page)
         
-        writer.add_metadata({}) # Metadatayı silerek yer kazan
+        writer.add_metadata({}) 
         out = io.BytesIO()
         writer.write(out)
+        
+        increase_usage(email, "pdf", "compress")
         return jsonify({"success": True, "file": base64.b64encode(out.getvalue()).decode()})
     except Exception as e: return jsonify({"success": False, "message": str(e)}), 500
 
 @bp.route("/word_to_pdf", methods=["POST"])
 def api_word_to_pdf():
-    # Word to PDF (Python'da programsız zordur, bu bir simülasyondur)
-    # Gerçek dönüşüm için LibreOffice kurulu olmalı.
-    return jsonify({"success": False, "message": "Sunucuda LibreOffice kurulu değil. Bu özellik şu an demo modundadır."}), 501
+    # Bu özellik sunucu tarafında LibreOffice gerektirir. Şimdilik pasif.
+    return jsonify({"success": False, "message": "Bu özellik için sunucu yapılandırması gerekiyor (LibreOffice)."}), 501
 
 # --- QR & LOGO ---
 
 @bp.route("/qr_generator", methods=["POST"])
 def api_qr_generator():
+    email = session.get("user_email", "guest")
+    # LİMİT KONTROLÜ EKLENDİ
+    if not check_user_status(email, "generator", "qr")["allowed"]: 
+        return jsonify({"success": False, "reason": "limit"}), 403
+
     data = request.json or request.form
     text = data.get("text", "https://botlab.tools")
     color = data.get("color", "black")
@@ -230,25 +251,28 @@ def api_qr_generator():
     
     buf = io.BytesIO()
     img.save(buf, format="PNG")
+    
+    increase_usage(email, "generator", "qr")
     return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
 
 @bp.route("/logo_generator", methods=["POST"])
 def api_logo_generator():
-    # Basit "AI" Logo Simülasyonu (Metin + Şekil Çizimi)
+    email = session.get("user_email", "guest")
+    # LİMİT KONTROLÜ EKLENDİ
+    if not check_user_status(email, "generator", "logo")["allowed"]: 
+        return jsonify({"success": False, "reason": "limit"}), 403
+
     data = request.json or request.form
     text = data.get("text", "Marka")
     
-    # 500x500 Boş Resim
     img = Image.new('RGB', (500, 500), color=(20, 20, 30))
     d = ImageDraw.Draw(img)
     
-    # Basit bir geometrik şekil (AI Logosu gibi dursun)
+    # Basit geometrik şekil ve metin
     d.ellipse([100, 50, 400, 350], outline="cyan", width=10)
     d.rectangle([200, 200, 300, 300], fill="magenta")
     
-    # Metin (Font dosyasını bulamazsa default kullanır)
     try:
-        # Sunucuda font varsa: font = ImageFont.truetype("arial.ttf", 40)
         font = ImageFont.load_default()
     except:
         font = ImageFont.load_default()
@@ -257,6 +281,8 @@ def api_logo_generator():
     
     buf = io.BytesIO()
     img.save(buf, format="PNG")
+    
+    increase_usage(email, "generator", "logo")
     return jsonify({"success": True, "file": base64.b64encode(buf.getvalue()).decode()})
 
 # --- LİMİT KONTROL ---
