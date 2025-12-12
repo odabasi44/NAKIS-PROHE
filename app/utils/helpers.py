@@ -7,9 +7,6 @@ from app.extensions import db
 
 SETTINGS_FILE = "settings.json"
 
-# Kullanıcılar artık veritabanında olduğu için PREMIUM_FILE gerek yok.
-# Sadece genel site ayarları (limitler vb.) için settings.json kullanıyoruz.
-
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
         return {}
@@ -19,11 +16,20 @@ def load_settings():
     except:
         return {}
 
+def save_settings_to_file(data):
+    """Ayarları settings.json dosyasına kaydeder."""
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Ayarlar kaydedilemedi: {e}")
+        return False
+
 # --- YENİ VERİTABANI FONKSİYONLARI ---
 
 def get_user_data_by_email(email):
     """Veritabanından kullanıcıyı çeker."""
-    # E-posta ile sorgula (Büyük/küçük harf duyarsız olması için lower kullanıyoruz ama DB'de de lower saklamak iyi pratiktir)
     user = User.query.filter_by(email=email).first()
     if user:
         return {
@@ -50,14 +56,11 @@ def check_user_status(email, tool, subtool):
                     user_tier = user.tier
                     current_usage = user.get_usage().get(subtool, 0)
                 else:
-                    # Süresi dolmuşsa free gibi davran ama istatistiğini çek
-                    user_tier = "free" 
-                    # Not: Süresi biten kullanıcının free haklarını session'dan mı yoksa db'den mi takip edeceği bir tercih meselesidir.
-                    # Basitlik için session'a düşürelim:
+                    user_tier = "free"
             except:
                 pass
 
-    # 2. Misafir veya Süresi Dolmuş Kullanıcı (Session Kullanır)
+    # 2. Misafir veya Süresi Dolmuş Kullanıcı
     if user_tier == "free":
         if "free_usage" not in session: session["free_usage"] = {}
         if tool not in session["free_usage"]: session["free_usage"][tool] = {}
@@ -65,10 +68,14 @@ def check_user_status(email, tool, subtool):
 
     # 3. Limitleri Ayarlardan Çek
     try:
-        # settings.json yapısına göre: limits -> image -> remove_bg -> free
+        # settings.json: limits -> vector -> default -> free
         tool_limits = settings["limits"][tool][subtool][user_tier]
     except:
-        tool_limits = 5 # Ayar bulunamazsa varsayılan limit
+        tool_limits = 5 # Varsayılan limit
+
+    # Admin ise limit yok
+    if session.get("user_tier") == "unlimited" or user_tier == "unlimited":
+        tool_limits = 999999
 
     left = max(0, tool_limits - current_usage)
     
@@ -87,13 +94,13 @@ def increase_usage(email, tool, subtool):
         user = User.query.filter_by(email=email).first()
         if user:
             user.increase_usage(subtool)
-            db.session.commit() # Değişikliği veritabanına kaydet
+            db.session.commit()
             return
 
-    # 2. Misafir Kullanıcı (Session)
+    # 2. Misafir Kullanıcı
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     
     current = session["free_usage"][tool].get(subtool, 0)
     session["free_usage"][tool][subtool] = current + 1
-    session.modified = True # Flask session'ın güncellendiğini anlasın
+    session.modified = True
