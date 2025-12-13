@@ -90,14 +90,20 @@
             <p class="text-xs text-gray-400 leading-relaxed">Görselinizi gelişmiş AI motorumuzla vektörleştirin.</p>
         </div>
 
-        {% set status = tools.get('image_compress', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/image-compress'" {% endif %} 
+        {% set status = tools.get('image_compress', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/image-compress'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -108,14 +114,20 @@
             <p class="text-xs text-gray-400 leading-relaxed">Kaliteden ödün vermeden dosya boyutunu küçültün.</p>
         </div>
 
-        {% set status = tools.get('image_convert', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/image-convert'" {% endif %} 
+        {% set status = tools.get('image_convert', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/image-convert'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-blue-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -136,16 +148,22 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {% set status = tools.get('pdf_merge', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/pdf-merge'" {% endif %} 
+        {% set status = tools.get('pdf_merge', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/pdf-merge'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -156,16 +174,22 @@
             <p class="text-xs text-gray-400 leading-relaxed">Birden fazla dosyayı tek PDF yapın.</p>
         </div>
 
-        {% set status = tools.get('pdf_split', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/pdf-split'" {% endif %} 
+        {% set status = tools.get('pdf_split', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/pdf-split'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -176,16 +200,22 @@
             <p class="text-xs text-gray-400 leading-relaxed">Sayfaları ayıklayın veya PDF'i parçalara bölün.</p>
         </div>
 
-        {% set status = tools.get('pdf_compress', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/pdf-compress'" {% endif %} 
+        {% set status = tools.get('pdf_compress', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/pdf-compress'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -196,16 +226,22 @@
             <p class="text-xs text-gray-400 leading-relaxed">PDF dosya boyutunu %80'e kadar düşürün.</p>
         </div>
 
-        {% set status = tools.get('word_to_pdf', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/word-to-pdf'" {% endif %} 
+        {% set status = tools.get('word_to_pdf', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/word-to-pdf'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-red-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -226,16 +262,22 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {% set status = tools.get('qr_generator', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/qr-generator'" {% endif %} 
+        {% set status = tools.get('qr_generator', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/qr-generator'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-amber-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-amber-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
@@ -248,16 +290,22 @@
             <span class="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded border border-amber-500/20 absolute top-4 right-4">POPÜLER</span>
         </div>
 
-        {% set status = tools.get('logo_generator', {'active': True}) %}
-        <div {% if status.active %} onclick="window.location.href='/logo-generator'" {% endif %} 
+        {% set status = tools.get('logo_generator', {'active': True, 'allowed': True, 'min_tier': 'free'}) %}
+        <div {% if status.active and status.allowed %} onclick="window.location.href='/logo-generator'" {% endif %} 
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
-             {% if status.active %} hover:border-pink-500/40 hover:-translate-y-1 {% else %} opacity-50 grayscale cursor-not-allowed {% endif %}">
+             {% if status.active and status.allowed %} hover:border-pink-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
             {% if not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">
                     🚀 Çok Yakında
                 </span>
+            </div>
+            {% elif not status.allowed %}
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl px-4 text-center">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl mb-2">🔒 Paket Kısıtlaması</span>
+                <p class="text-xs text-gray-200">Bu araç <span class="font-bold">{{ status.min_tier|upper }}</span> ve üzeri paketlerde aktif.</p>
+                <button onclick="event.stopPropagation(); openModal('premiumModal')" class="mt-2 text-xs font-bold text-blue-300 hover:text-blue-200 underline">Pakete Geç</button>
             </div>
             {% endif %}
 
