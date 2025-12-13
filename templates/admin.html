@@ -284,6 +284,12 @@
         const tbody = document.getElementById('user-table-body');
         try {
             const res = await fetch("/api/admin/users");
+            if (!res.ok) {
+                const txt = await res.text();
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-400">Yetki yok / API hata (${res.status}).</td></tr>`;
+                console.error("fetchUsers failed", res.status, txt);
+                return;
+            }
             const users = await res.json();
             
             if (!users.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Kayıt yok.</td></tr>'; return; }
@@ -304,7 +310,10 @@
                         <td class="px-6 py-4 text-right"><button onclick="handleDeleteUser('${user.email}')" class="text-red-500 border border-red-500/30 px-2 py-1 rounded text-xs hover:bg-red-500/10">Sil</button></td>
                     </tr>`;
             }).join('');
-        } catch(e) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-400">Hata.</td></tr>'; }
+        } catch(e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-400">Hata.</td></tr>';
+        }
     }
 
     // 3. ARAÇ DURUM YÖNETİMİ (YENİ)
