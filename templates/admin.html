@@ -338,6 +338,7 @@
 
             toolKeys.forEach(tool => {
                 const isActive = statuses[tool.key]?.active !== false; // Varsayılan true
+                const isMaint = statuses[tool.key]?.maintenance === true;
                 const minTier = access[tool.key]?.min_tier || 'free';
                 
                 container.innerHTML += `
@@ -352,6 +353,11 @@
                                 <option value="pro" ${minTier==='pro'?'selected':''}>pro</option>
                                 <option value="unlimited" ${minTier==='unlimited'?'selected':''}>unlimited</option>
                             </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-gray-500">Bakım:</span>
+                            <input type="checkbox" id="maint-${tool.key}" ${isMaint ? 'checked' : ''}>
+                            <span class="text-[10px] text-gray-500">Bakım modunda kart “Bakımda” olur.</span>
                         </div>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -372,7 +378,8 @@
         let newAccess = {};
         toolKeys.forEach(tool => {
             const isChecked = document.getElementById(`toggle-${tool.key}`).checked;
-            newStatuses[tool.key] = { active: isChecked, maintenance: false };
+            const isMaint = document.getElementById(`maint-${tool.key}`)?.checked === true;
+            newStatuses[tool.key] = { active: isChecked, maintenance: isMaint };
             const minTierSel = document.getElementById(`mintier-${tool.key}`);
             newAccess[tool.key] = { min_tier: minTierSel ? minTierSel.value : 'free' };
         });
