@@ -1,10 +1,11 @@
 import json
 from flask import Blueprint, request, jsonify, render_template, session, redirect
-from app.utils.helpers import load_settings, get_user_data_by_email
+from app.utils.helpers import load_settings, save_settings, get_user_data_by_email
 from app.models import User
 from app.extensions import db
 from datetime import datetime
 from sqlalchemy import func
+from app.models import Ticket, TicketMessage, UsageEvent
 
 bp = Blueprint('auth', __name__)
 
@@ -84,11 +85,18 @@ def get_users_api():
     users = User.query.all()
     users_list = []
     for u in users:
+        usage = u.get_usage()
+        usage_total = 0
+        try:
+            usage_total = sum(int(v) for v in usage.values() if isinstance(v, (int, float, str)) and str(v).isdigit())
+        except Exception:
+            usage_total = 0
         users_list.append({
             "email": u.email,
             "tier": u.tier,
             "end_date": u.end_date.strftime("%Y-%m-%d") if u.end_date else None,
-            "usage_stats": u.get_usage()
+            "usage_stats": usage,
+            "usage_total": usage_total
         })
     return jsonify(users_list)
 
@@ -146,8 +154,7 @@ def save_general_api():
     settings["general"] = new_general
     
     try:
-        with open("settings.json", "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=4, ensure_ascii=False)
+        save_settings(settings)
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -158,11 +165,13 @@ def save_tool_status_api():
     
     data = request.get_json(silent=True) or {}
     new_statuses = data.get("tool_status", {})
+    new_access = data.get("tool_access", None)
     
     settings = load_settings()
     
     # Mevcut ayarları koruyarak güncelle
     if "tool_status" not in settings: settings["tool_status"] = {}
+    if "tool_access" not in settings: settings["tool_access"] = {}
     
     # Gelen veriyi settings'e işle
     for key, val in new_statuses.items():
@@ -172,10 +181,137 @@ def save_tool_status_api():
             "active": val.get("active", True),
             "maintenance": old_maint # Bakım modu ayarı ayrı, onu bozmuyoruz
         }
+
+    # Tool tier erişimleri (opsiyonel)
+    if isinstance(new_access, dict):
+        for key, val in new_access.items():
+            if not isinstance(val, dict):
+                continue
+            min_tier = val.get("min_tier", "free")
+            settings["tool_access"][key] = {"min_tier": min_tier}
     
     try:
-        with open("settings.json", "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=4, ensure_ascii=False)
+        save_settings(settings)
         return jsonify({"status": "ok"})
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/admin/save_limits", methods=["POST"])
+def save_limits_api():
+    if not session.get("admin_logged"):
+        return jsonify({}), 403
+    data = request.get_json(silent=True) or {}
+    new_limits = data.get("limits", {})
+    settings = load_settings()
+    settings["limits"] = new_limits
+    try:
+        save_settings(settings)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/admin/save_packages", methods=["POST"])
+def save_packages_api():
+    if not session.get("admin_logged"):
+        return jsonify({}), 403
+    data = request.get_json(silent=True) or {}
+    new_packages = data.get("packages", {})
+    settings = load_settings()
+    settings["packages"] = new_packages
+    try:
+        save_settings(settings)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/admin/stats", methods=["GET"])
+def admin_stats_api():
+    if not session.get("admin_logged"):
+        return jsonify({}), 403
+
+    today = datetime.now().date()
+    total_users = User.query.count()
+    active_premium = User.query.filter(User.end_date != None).filter(User.end_date >= today).count()  # noqa: E711
+    total_ops = UsageEvent.query.count()
+    open_tickets = Ticket.query.filter_by(status="open").count()
+
+    return jsonify({
+        "total_users": total_users,
+        "active_premium": active_premium,
+        "total_ops": total_ops,
+        "open_tickets": open_tickets
+    })
+
+
+@bp.route("/api/admin/tickets", methods=["GET"])
+def admin_tickets_list_api():
+    if not session.get("admin_logged"):
+        return jsonify([]), 403
+
+    tickets = Ticket.query.order_by(Ticket.updated_at.desc()).limit(200).all()
+    out = []
+    for t in tickets:
+        last_msg = TicketMessage.query.filter_by(ticket_id=t.id).order_by(TicketMessage.created_at.desc()).first()
+        out.append({
+            "id": t.id,
+            "user_email": t.user_email,
+            "subject": t.subject,
+            "status": t.status,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            "last_message": last_msg.message[:200] if last_msg else ""
+        })
+    return jsonify(out)
+
+
+@bp.route("/api/admin/tickets/<int:ticket_id>/messages", methods=["GET"])
+def admin_ticket_messages_api(ticket_id):
+    if not session.get("admin_logged"):
+        return jsonify([]), 403
+    msgs = TicketMessage.query.filter_by(ticket_id=ticket_id).order_by(TicketMessage.created_at.asc()).all()
+    # admin okuduğu için işaretle
+    try:
+        for m in msgs:
+            if m.sender == "user":
+                m.is_read_by_admin = True
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return jsonify([{
+        "id": m.id,
+        "sender": m.sender,
+        "message": m.message,
+        "created_at": m.created_at.isoformat() if m.created_at else None
+    } for m in msgs])
+
+
+@bp.route("/api/admin/tickets/<int:ticket_id>/reply", methods=["POST"])
+def admin_ticket_reply_api(ticket_id):
+    if not session.get("admin_logged"):
+        return jsonify({}), 403
+    data = request.get_json(silent=True) or {}
+    msg = (data.get("message") or "").strip()
+    if not msg:
+        return jsonify({"status": "error", "message": "message gerekli"}), 400
+
+    t = Ticket.query.get(ticket_id)
+    if not t:
+        return jsonify({"status": "error", "message": "ticket yok"}), 404
+
+    try:
+        db.session.add(TicketMessage(
+            ticket_id=ticket_id,
+            sender="admin",
+            message=msg,
+            is_read_by_user=False,
+            is_read_by_admin=True
+        ))
+        t.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
