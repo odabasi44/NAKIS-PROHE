@@ -54,6 +54,20 @@ class UsageEvent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
+class GuestUsage(db.Model):
+    """Login olmayan (guest/free) kullanıcılar için IP bazlı günlük kullanım sayacı."""
+    id = db.Column(db.Integer, primary_key=True)
+    ip = db.Column(db.String(64), nullable=False, index=True)
+    tool = db.Column(db.String(64), nullable=False, index=True)
+    subtool = db.Column(db.String(64), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    count = db.Column(db.Integer, default=0)
+
+    __table_args__ = (
+        db.UniqueConstraint("ip", "tool", "subtool", "day", name="uq_guest_usage_ip_tool_subtool_day"),
+    )
+
+
 class Ticket(db.Model):
     """Destek talebi."""
     id = db.Column(db.Integer, primary_key=True)
