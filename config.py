@@ -23,9 +23,15 @@ class Config:
     # Model Yolları
     MODEL_DIR = os.path.join(BASE_DIR, 'models')
 
-    # YENİ: Veritabanı Ayarı
-    # app.db adında bir dosya oluşacak
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(os.getcwd(), 'app.db')
+    # Veritabanı Ayarı
+    # Coolify/Heroku tarzı ortamlarda DATABASE_URL genelde "postgres://" gelir.
+    # SQLAlchemy bunun dialect'ini "postgres" sanıp yükleyemez; "postgresql://" olmalı.
+    _db_url = os.environ.get("DATABASE_URL")
+    if _db_url and _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
+    # Fallback: local sqlite
+    SQLALCHEMY_DATABASE_URI = _db_url or ("sqlite:///" + os.path.join(BASE_DIR, "app.db"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     @staticmethod
