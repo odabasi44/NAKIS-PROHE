@@ -201,8 +201,13 @@ def save_tool_status_api():
         for key, val in new_access.items():
             if not isinstance(val, dict):
                 continue
-            min_tier = val.get("min_tier", "free")
-            settings["tool_access"][key] = {"min_tier": min_tier}
+            tiers = val.get("tiers")
+            if isinstance(tiers, dict):
+                # free/starter/pro/unlimited: true/false
+                settings["tool_access"][key] = {"tiers": tiers}
+            else:
+                min_tier = val.get("min_tier", "free")
+                settings["tool_access"][key] = {"min_tier": min_tier}
     
     try:
         save_settings(settings)
