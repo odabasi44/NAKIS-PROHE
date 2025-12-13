@@ -68,6 +68,15 @@ def dashboard():
     tool_status = settings.get("tool_status", {})
     return render_template("dashboard.html", user=user_data, tools=tool_status)
 
+@bp.route("/admin")
+def admin():
+    """Admin paneli: admin login zorunlu."""
+    if not session.get("admin_logged"):
+        return redirect("/admin_login")
+    settings = load_settings()
+    tool_status = settings.get("tool_status", {})
+    return render_template("admin.html", tools=tool_status)
+
 @bp.route("/<page>")
 def render_page(page):
     page_map = {
@@ -81,8 +90,7 @@ def render_page(page):
         "image-convert": "image_convert.html",
         "qr-generator": "qr_generator.html",
         "logo-generator": "logo_generator.html",
-        # dashboard artık ayrı route ile render ediliyor (user context gerekli)
-        "admin": "admin.html",
+        # dashboard/admin ayrı route ile render ediliyor
     }
 
     if page.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg")):
