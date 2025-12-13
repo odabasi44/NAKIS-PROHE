@@ -37,8 +37,8 @@
         <!-- Toplam Kullanım (BG Remove) -->
         <div class="p-4 rounded-xl bg-gray-900/50 border border-white/10">
             <p class="text-xs font-semibold text-cyan-400 mb-1">TOPLAM GÖRSEL İŞLEM</p>
-            <p class="text-2xl font-bold text-white">{{ user.usage_stats.remove_bg | default(0) }}</p>
-            <p class="text-xs text-gray-400">Arka Plan Kaldırma</p>
+            <p class="text-2xl font-bold text-white">{{ user.image_total | default(0) }}</p>
+            <p class="text-xs text-gray-400">BG Silme + Sıkıştır + Çevir</p>
         </div>
 
         <!-- Hesap Durumu -->
@@ -80,7 +80,65 @@
 
 </div>
 
+<!-- Ticket Modal (Profesyonel Görünüm) -->
+<div id="ticketModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[120] p-4">
+    <div class="w-full max-w-2xl bg-[#0c1120] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-white/10">
+            <div>
+                <div class="text-xs text-gray-400">Destek Talebi</div>
+                <div id="ticketModalTitle" class="text-white font-bold">-</div>
+            </div>
+            <button onclick="closeTicketModal()" class="text-gray-400 hover:text-white">✕</button>
+        </div>
+        <div id="ticketModalBody" class="p-4 max-h-[420px] overflow-auto space-y-2 bg-black/20"></div>
+        <div class="p-4 border-t border-white/10">
+            <textarea id="ticketReplyMsg" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white text-sm h-24" placeholder="Mesaj yaz..."></textarea>
+            <div class="flex justify-end mt-2 gap-2">
+                <button onclick="sendTicketReply()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs">Gönder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let selectedTicketId = null;
+    let selectedTicketSubject = '';
+
+    function openTicketModal() {
+        const modal = document.getElementById('ticketModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    function closeTicketModal() {
+        const modal = document.getElementById('ticketModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        selectedTicketId = null;
+        selectedTicketSubject = '';
+        document.getElementById('ticketModalBody').innerHTML = '';
+        document.getElementById('ticketReplyMsg').value = '';
+    }
+
+    function renderTicketMessages(msgs) {
+        const body = document.getElementById('ticketModalBody');
+        if (!msgs || !msgs.length) {
+            body.innerHTML = '<div class="text-gray-500">Mesaj yok.</div>';
+            return;
+        }
+        body.innerHTML = msgs.map(m => {
+            const isAdmin = m.sender === 'admin';
+            return `
+                <div class="flex ${isAdmin ? 'justify-start' : 'justify-end'}">
+                    <div class="max-w-[85%] p-3 rounded-xl ${isAdmin ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-white/5 border border-white/10'}">
+                        <div class="text-[10px] text-gray-500 mb-1">${isAdmin ? 'Destek Ekibi' : 'Siz'}</div>
+                        <div class="text-sm text-gray-200 whitespace-pre-wrap">${m.message}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        body.scrollTop = body.scrollHeight;
+    }
+
     async function loadDashboardData() {
         try {
             const res = await fetch('/api/user/dashboard');
@@ -137,19 +195,52 @@
             document.getElementById('ticketSubject').value = '';
             document.getElementById('ticketMessage').value = '';
             await loadTickets();
-            alert('Talep oluşturuldu.');
+            await loadDashboardData();
         } else {
             alert(data.message || 'Hata');
         }
     }
 
     async function openTicket(id) {
-        const res = await fetch(`/api/user/tickets/${id}/messages`);
+        selectedTicketId = id;
+        // subject'i listeden bulalım
+        try {
+            const resList = await fetch('/api/user/tickets');
+            const items = await resList.json();
+            const item = (items || []).find(x => x.id === id);
+            selectedTicketSubject = item ? item.subject : '';
+        } catch (e) {}
+
+        document.getElementById('ticketModalTitle').textContent = selectedTicketSubject || `#${id}`;
+        openTicketModal();
+        await refreshTicketModal();
+    }
+
+    async function refreshTicketModal() {
+        if (!selectedTicketId) return;
+        const res = await fetch(`/api/user/tickets/${selectedTicketId}/messages`);
         const msgs = await res.json();
-        const text = msgs.map(m => `[${m.sender}] ${m.message}`).join('\n\n');
-        alert(text || 'Mesaj yok');
+        renderTicketMessages(msgs);
         await loadDashboardData();
         await loadTickets();
+    }
+
+    async function sendTicketReply() {
+        if (!selectedTicketId) return;
+        const msg = document.getElementById('ticketReplyMsg').value;
+        if (!msg) return;
+        const res = await fetch(`/api/user/tickets/${selectedTicketId}/reply`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({message: msg})
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+            document.getElementById('ticketReplyMsg').value = '';
+            await refreshTicketModal();
+        } else {
+            alert(data.message || 'Hata');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
