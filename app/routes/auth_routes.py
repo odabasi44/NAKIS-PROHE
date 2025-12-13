@@ -75,6 +75,11 @@ def logout():
     session.clear()
     return redirect("/")
 
+@bp.route("/admin_logout")
+def admin_logout():
+    session.clear()
+    return redirect("/admin_login")
+
 # --- Admin API'leri (ARTIK VERİTABANI KULLANIYOR) ---
 
 @bp.route("/api/admin/users", methods=["GET"])
