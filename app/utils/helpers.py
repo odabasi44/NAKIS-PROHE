@@ -5,6 +5,7 @@ from flask import session
 from app.models import User
 from app.extensions import db
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 SETTINGS_FILE = "settings.json"
 
@@ -12,13 +13,50 @@ SETTINGS_FILE = "settings.json"
 # Sadece genel site ayarları (limitler vb.) için settings.json kullanıyoruz.
 
 def load_settings():
-    if not os.path.exists(SETTINGS_FILE):
-        return {}
+    """
+    Öncelik: DB (AppSetting key='settings') -> settings.json -> {}.
+    Not: Coolify gibi ortamlarda container filesystem ephemeral olabildiği için DB tercih edilir.
+    """
     try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
+        from app.models import AppSetting
+        row = AppSetting.query.filter_by(key="settings").first()
+        if row:
+            return row.get_value()
+    except OperationalError:
+        # DB henüz hazır değilse
+        pass
+    except Exception:
+        pass
+
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_settings(settings_dict):
+    """Ayarları DB’ye kaydeder; ayrıca local geliştirme için settings.json da güncellenir."""
+    settings_dict = settings_dict or {}
+    try:
+        from app.models import AppSetting
+        row = AppSetting.query.filter_by(key="settings").first()
+        if not row:
+            row = AppSetting(key="settings")
+            db.session.add(row)
+        row.set_value(settings_dict)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    # Local fallback file (deploy'da persist etmeyebilir ama zararı yok)
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings_dict, f, indent=4, ensure_ascii=False)
+    except Exception:
+        pass
 
 # --- YENİ VERİTABANI FONKSİYONLARI ---
 
@@ -104,6 +142,13 @@ def increase_usage(email, tool, subtool):
                 db.session.commit() # Değişikliği veritabanına kaydet
             except Exception:
                 db.session.rollback()
+            # Usage event log (admin raporu / son işlemler)
+            try:
+                from app.models import UsageEvent
+                db.session.add(UsageEvent(user_email=email_norm, tool=tool, subtool=subtool))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             return
 
     # 2. Misafir Kullanıcı (Session)
@@ -113,3 +158,5 @@ def increase_usage(email, tool, subtool):
     current = session["free_usage"][tool].get(subtool, 0)
     session["free_usage"][tool][subtool] = current + 1
     session.modified = True # Flask session'ın güncellendiğini anlasın
+
+    # Guest event (ops sayısı için opsiyonel; burada kaydetmiyoruz)
