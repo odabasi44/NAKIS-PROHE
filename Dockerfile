@@ -23,5 +23,5 @@ COPY . .
 # Flask / gunicorn’un dinleyeceği port
 EXPOSE 5001
 
-# Uygulamayı başlat
-CMD ["gunicorn", "-b", "0.0.0.0:5001", "run:app"]
+# Uygulamayı başlat (Coolify/Platform PORT env veriyorsa onu kullan)
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT:-5001} run:app"]
