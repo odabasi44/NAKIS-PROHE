@@ -3,53 +3,51 @@
 {% block title %}AI Logo Oluşturucu{% endblock title %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto py-10">
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-bold text-white mb-4">
-            AI <span class="text-pink-500">Logo Tasarımcısı</span>
-        </h1>
-        <p class="text-gray-400">Marka isminizi ve sektörünüzü girin, yapay zeka size logo tasarlasın.</p>
+<main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-white">AI Logo Oluşturucu</h1>
+        <p class="mt-2 text-gray-400">Marka adı → stil → üret → indir (PNG).</p>
     </div>
 
-    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+    <div id="status-bar" class="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-white/5">
         <div class="flex items-center gap-3">
-            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
-            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+            <span id="status-icon" class="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
+            <div id="limit-info" class="text-sm text-gray-300">Limitler kontrol ediliyor...</div>
         </div>
+        <div class="text-xs text-gray-500">Logo</div>
     </div>
 
-    <div class="glass-panel rounded-2xl p-8 border border-pink-500/20 bg-gradient-to-b from-pink-500/5 to-[#0c1120]">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="col-span-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Marka İsmi</label>
-                <input type="text" id="brandName" placeholder="Örn: Botlab Cafe" class="w-full bg-[#02040a] border border-white/10 rounded-lg p-3 text-white">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="glass rounded-2xl p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="md:col-span-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Marka İsmi</label>
+                    <input id="brandName" class="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-pink-500/60 transition" placeholder="Örn: Botlab Cafe" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Stil</label>
+                    <select id="style" class="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-gray-200 focus:outline-none focus:border-pink-500/60 transition">
+                        <option value="minimal">Minimal</option>
+                        <option value="badge">Badge</option>
+                        <option value="mono">Mono</option>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 block">Sektör</label>
-                <select class="w-full bg-[#02040a] border border-white/10 rounded-lg p-3 text-gray-300">
-                    <option>Teknoloji</option>
-                    <option>Yiyecek & İçecek</option>
-                    <option>Moda</option>
-                    <option>Eğitim</option>
-                </select>
-            </div>
-        </div>
-        
-        <button onclick="generateLogo()" class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl transition shadow-lg shadow-pink-900/20 flex items-center justify-center gap-2">
-            <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Logo Üret (AI)
-        </button>
-    </div>
 
-    <div id="resultArea" class="hidden mt-12 text-center animate-fade-in">
-        <h3 class="text-white font-bold mb-4">Sonuç</h3>
-        <div class="inline-block p-4 bg-white/5 rounded-2xl border border-white/10">
-            <img id="logoResult" class="max-w-[300px] rounded-lg">
-        </div>
-        <br>
-        <a id="downloadLogo" href="#" download="logo.png" class="inline-block mt-4 text-pink-400 hover:text-white transition">Logoyu İndir</a>
+            <button id="genBtn" type="button" class="mt-5 w-full py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 text-white font-bold transition">
+                Logo Üret
+            </button>
+            <div class="mt-3 text-[10px] text-gray-500">Not: Stil seçimi şimdilik sadece UI (backend tek tip üretim yapar).</div>
+        </section>
+
+        <section class="glass rounded-2xl p-6 flex flex-col items-center justify-center">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <img id="logoResult" class="max-w-[360px] rounded-xl bg-black/30" alt="Logo Önizleme" />
+            </div>
+            <a id="downloadLogo" href="#" download="logo.png" class="mt-4 text-xs font-bold text-pink-300 hover:text-pink-200 underline hidden">Logoyu İndir (PNG)</a>
+        </section>
     </div>
-</div>
+</main>
 
 <script>
     let userAllowed = false;
@@ -63,11 +61,11 @@
             const statusIcon = document.getElementById('status-icon');
 
             if(data.allowed) {
-                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
+                statusIcon.className = "h-2 w-2 rounded-full bg-green-500";
                 limitInfo.innerHTML = `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.premium ? 'Sınırsız' : data.left}</span>`;
             } else {
-                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
-                limitInfo.innerHTML = "Limit Doldu.";
+                statusIcon.className = "h-2 w-2 rounded-full bg-red-500";
+                limitInfo.innerHTML = `⛔ Limit Doldu. <a onclick="openModal('premiumModal')" class="text-blue-400 cursor-pointer">Premium Al</a>`;
             }
         } catch(e) {}
     }
@@ -89,7 +87,7 @@
                 const src = "data:image/png;base64," + data.file;
                 document.getElementById('logoResult').src = src;
                 document.getElementById('downloadLogo').href = src;
-                document.getElementById('resultArea').classList.remove('hidden');
+                document.getElementById('downloadLogo').classList.remove('hidden');
                 checkLimit();
             } else {
                 alert("Hata: " + data.reason);
@@ -98,6 +96,7 @@
         } catch(e) { alert("Hata oluştu."); }
     }
 
+    document.getElementById('genBtn').addEventListener('click', generateLogo);
     document.addEventListener('DOMContentLoaded', checkLimit);
 </script>
 {% endblock content %}
