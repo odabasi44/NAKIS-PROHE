@@ -4,4 +4,6 @@ app = create_app()
 
 if __name__ == "__main__":
     # Debug modu .env dosyasından kontrol edilir
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    port = int(app.config.get("PORT", 5001))
+    debug = bool(app.config.get("DEBUG", False))
+    app.run(host="0.0.0.0", port=port, debug=debug)
