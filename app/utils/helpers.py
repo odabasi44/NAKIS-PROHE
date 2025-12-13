@@ -4,8 +4,12 @@ from datetime import datetime
 from flask import session
 from app.models import User
 from app.extensions import db
+from sqlalchemy import func
 
 SETTINGS_FILE = "settings.json"
+
+# Kullanıcılar artık veritabanında olduğu için PREMIUM_FILE gerek yok.
+# Sadece genel site ayarları (limitler vb.) için settings.json kullanıyoruz.
 
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
@@ -16,21 +20,17 @@ def load_settings():
     except:
         return {}
 
-def save_settings_to_file(data):
-    """Ayarları settings.json dosyasına kaydeder."""
-    try:
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Ayarlar kaydedilemedi: {e}")
-        return False
-
 # --- YENİ VERİTABANI FONKSİYONLARI ---
 
 def get_user_data_by_email(email):
     """Veritabanından kullanıcıyı çeker."""
-    user = User.query.filter_by(email=email).first()
+    if not email:
+        return None
+
+    email_norm = str(email).strip().lower()
+
+    # Büyük/küçük harf duyarsız arama
+    user = User.query.filter(func.lower(User.email) == email_norm).first()
     if user:
         return {
             "email": user.email,
@@ -45,10 +45,13 @@ def check_user_status(email, tool, subtool):
     settings = load_settings()
     user_tier = "free"
     current_usage = 0
+    email_norm = "guest"
+    if email and email != "guest":
+        email_norm = str(email).strip().lower()
     
     # 1. Kayıtlı Kullanıcı Kontrolü
-    if email != "guest":
-        user = User.query.filter_by(email=email).first()
+    if email_norm != "guest":
+        user = User.query.filter(func.lower(User.email) == email_norm).first()
         if user:
             try:
                 # Üyelik süresi dolmuş mu?
@@ -56,11 +59,15 @@ def check_user_status(email, tool, subtool):
                     user_tier = user.tier
                     current_usage = user.get_usage().get(subtool, 0)
                 else:
-                    user_tier = "free"
+                    # Süresi dolmuşsa free gibi davran ama istatistiğini çek
+                    user_tier = "free" 
+                    # Süresi dolan kullanıcıyı session tarafında "free" olarak değerlendir.
+                    session["is_premium"] = False
+                    session["user_tier"] = "free"
             except:
                 pass
 
-    # 2. Misafir veya Süresi Dolmuş Kullanıcı
+    # 2. Misafir veya Süresi Dolmuş Kullanıcı (Session Kullanır)
     if user_tier == "free":
         if "free_usage" not in session: session["free_usage"] = {}
         if tool not in session["free_usage"]: session["free_usage"][tool] = {}
@@ -68,14 +75,10 @@ def check_user_status(email, tool, subtool):
 
     # 3. Limitleri Ayarlardan Çek
     try:
-        # settings.json: limits -> vector -> default -> free
+        # settings.json yapısına göre: limits -> image -> remove_bg -> free
         tool_limits = settings["limits"][tool][subtool][user_tier]
     except:
-        tool_limits = 5 # Varsayılan limit
-
-    # Admin ise limit yok
-    if session.get("user_tier") == "unlimited" or user_tier == "unlimited":
-        tool_limits = 999999
+        tool_limits = 5 # Ayar bulunamazsa varsayılan limit
 
     left = max(0, tool_limits - current_usage)
     
@@ -88,19 +91,25 @@ def check_user_status(email, tool, subtool):
 
 def increase_usage(email, tool, subtool):
     """Kullanım sayısını artırır."""
+    email_norm = "guest"
+    if email and email != "guest":
+        email_norm = str(email).strip().lower()
     
     # 1. Kayıtlı Kullanıcı
-    if email != "guest":
-        user = User.query.filter_by(email=email).first()
+    if email_norm != "guest":
+        user = User.query.filter(func.lower(User.email) == email_norm).first()
         if user:
             user.increase_usage(subtool)
-            db.session.commit()
+            try:
+                db.session.commit() # Değişikliği veritabanına kaydet
+            except Exception:
+                db.session.rollback()
             return
 
-    # 2. Misafir Kullanıcı
+    # 2. Misafir Kullanıcı (Session)
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
     
     current = session["free_usage"][tool].get(subtool, 0)
     session["free_usage"][tool][subtool] = current + 1
-    session.modified = True
+    session.modified = True # Flask session'ın güncellendiğini anlasın
