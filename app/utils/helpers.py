@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from flask import session
+from flask import session, request
 from app.models import User
 from app.extensions import db
 from sqlalchemy import func
@@ -78,6 +78,21 @@ def get_user_data_by_email(email):
         }
     return None
 
+
+def _get_client_ip():
+    """Reverse proxy arkasında doğru IP yakalamaya çalışır."""
+    try:
+        xff = request.headers.get("X-Forwarded-For", "")
+        if xff:
+            # "client, proxy1, proxy2"
+            return xff.split(",")[0].strip()
+        xri = request.headers.get("X-Real-IP")
+        if xri:
+            return xri.strip()
+        return (request.remote_addr or "").strip() or "unknown"
+    except Exception:
+        return "unknown"
+
 def check_user_status(email, tool, subtool):
     """Kullanıcının limitini kontrol eder."""
     settings = load_settings()
@@ -122,9 +137,23 @@ def check_user_status(email, tool, subtool):
 
     # 2. Misafir veya Süresi Dolmuş Kullanıcı (Session Kullanır)
     if user_tier == "free":
-        if "free_usage" not in session: session["free_usage"] = {}
-        if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-        current_usage = session["free_usage"][tool].get(subtool, 0)
+        if email_norm == "guest":
+            # IP bazlı günlük limit (incognito sıfırlamasını engeller)
+            try:
+                from app.models import GuestUsage
+                today = datetime.utcnow().date()
+                ip = _get_client_ip()
+                row = GuestUsage.query.filter_by(ip=ip, tool=tool, subtool=subtool, day=today).first()
+                current_usage = int(row.count) if row else 0
+            except Exception:
+                # DB erişilemezse session fallback
+                if "free_usage" not in session: session["free_usage"] = {}
+                if tool not in session["free_usage"]: session["free_usage"][tool] = {}
+                current_usage = session["free_usage"][tool].get(subtool, 0)
+        else:
+            if "free_usage" not in session: session["free_usage"] = {}
+            if tool not in session["free_usage"]: session["free_usage"][tool] = {}
+            current_usage = session["free_usage"][tool].get(subtool, 0)
 
     # 3. Limitleri Ayarlardan Çek
     try:
@@ -156,11 +185,6 @@ def increase_usage(email, tool, subtool):
         if user:
             user.increase_usage(subtool)
             try:
-                db.session.commit() # Değişikliği veritabanına kaydet
-            except Exception:
-                db.session.rollback()
-            # Usage event log (admin raporu / son işlemler)
-            try:
                 from app.models import UsageEvent
                 db.session.add(UsageEvent(user_email=email_norm, tool=tool, subtool=subtool))
                 db.session.commit()
@@ -168,12 +192,26 @@ def increase_usage(email, tool, subtool):
                 db.session.rollback()
             return
 
-    # 2. Misafir Kullanıcı (Session)
+    # 2. Misafir Kullanıcı (IP bazlı günlük sayaç)
+    try:
+        from app.models import GuestUsage
+        today = datetime.utcnow().date()
+        ip = _get_client_ip()
+        row = GuestUsage.query.filter_by(ip=ip, tool=tool, subtool=subtool, day=today).first()
+        if not row:
+            row = GuestUsage(ip=ip, tool=tool, subtool=subtool, day=today, count=0)
+            db.session.add(row)
+        row.count = int(row.count or 0) + 1
+        db.session.commit()
+        return
+    except Exception:
+        db.session.rollback()
+
+    # DB yoksa session fallback
     if "free_usage" not in session: session["free_usage"] = {}
     if tool not in session["free_usage"]: session["free_usage"][tool] = {}
-    
     current = session["free_usage"][tool].get(subtool, 0)
     session["free_usage"][tool][subtool] = current + 1
-    session.modified = True # Flask session'ın güncellendiğini anlasın
+    session.modified = True
 
     # Guest event (ops sayısı için opsiyonel; burada kaydetmiyoruz)
