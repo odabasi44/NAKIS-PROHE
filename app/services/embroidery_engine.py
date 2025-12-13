@@ -41,13 +41,19 @@ class EmbroideryGenerator:
 
         SCALE = 1.0 
         
+        color_change_cmd = getattr(pyembroidery, "COLOR_CHANGE", None)
+        first_color = True
+
         for color in unique_colors:
             # Siyah renkleri (arkaplan olabilir) atla veya işle
             # is_black = (color[0] < 40 and color[1] < 40 and color[2] < 40)
             
             mask = cv2.inRange(quantized, color, color)
+            # Renk değişimi: ilk thread'de COLOR_CHANGE eklemeyelim
+            if (not first_color) and (color_change_cmd is not None):
+                pattern.add_command(color_change_cmd)
             pattern.add_thread(pyembroidery.EmbThread(color[2], color[1], color[0])) # RGB
-            pattern.add_command(pyembroidery.COLOR_CHANGE)
+            first_color = False
             
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
