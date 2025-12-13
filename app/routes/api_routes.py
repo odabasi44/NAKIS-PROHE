@@ -21,8 +21,9 @@ bp = Blueprint('api', __name__)
 def api_vectorize():
     email = session.get("user_email", "guest")
     # Limit kontrolü
-    if not check_user_status(email, "vector", "default")["allowed"]: 
-        return jsonify({"success": False, "reason": "limit"}), 403
+    st_before = check_user_status(email, "vector", "default")
+    if not st_before["allowed"]:
+        return jsonify({"success": False, "reason": "limit", "status": st_before}), 403
         
     if "image" not in request.files:
         return jsonify({"success": False, "message": "Görsel yüklenmedi"}), 400
@@ -49,12 +50,14 @@ def api_vectorize():
         preview_b64 = base64.b64encode(buf).decode()
         
         increase_usage(email, "vector", "default")
+        st_after = check_user_status(email, "vector", "default")
 
         return jsonify({
             "success": True,
             "file": svg_b64,
             "preview_img": preview_b64,
-            "info": {"style": style}
+            "info": {"style": style},
+            "status": st_after
         })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -410,6 +413,37 @@ def user_ticket_messages(ticket_id):
         "message": m.message,
         "created_at": m.created_at.isoformat() if m.created_at else None
     } for m in msgs])
+
+
+@bp.route("/user/tickets/<int:ticket_id>/reply", methods=["POST"])
+def user_ticket_reply(ticket_id):
+    email = session.get("user_email")
+    if not email:
+        return jsonify({"status": "error", "message": "login gerekli"}), 401
+
+    t = Ticket.query.get(ticket_id)
+    if not t or t.user_email != email:
+        return jsonify({"status": "error", "message": "ticket bulunamadı"}), 404
+
+    data = request.get_json(silent=True) or {}
+    msg = (data.get("message") or "").strip()
+    if not msg:
+        return jsonify({"status": "error", "message": "message gerekli"}), 400
+
+    try:
+        db.session.add(TicketMessage(
+            ticket_id=ticket_id,
+            sender="user",
+            message=msg,
+            is_read_by_admin=False,
+            is_read_by_user=True
+        ))
+        t.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @bp.route("/user/dashboard", methods=["GET"])
