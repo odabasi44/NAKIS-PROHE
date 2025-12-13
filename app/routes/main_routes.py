@@ -2,6 +2,7 @@ import os
 from flask import Blueprint, render_template, redirect, abort, jsonify, session
 from jinja2 import TemplateNotFound
 from app.utils.helpers import load_settings, get_user_data_by_email
+from app.models import UsageEvent
 from datetime import datetime
 
 bp = Blueprint('main', __name__)
@@ -29,6 +30,20 @@ def home():
                 return t
         return "unlimited"
 
+    def _suggest_upgrade_tier(access_conf, current_tier):
+        """Tool erişimi yoksa, checkbox'lara göre en düşük uygun yükseltmeyi öner."""
+        ranks = ("free", "starter", "pro", "unlimited")
+        cur_i = ranks.index(current_tier) if current_tier in ranks else 0
+        if isinstance(access_conf, dict) and isinstance(access_conf.get("tiers"), dict):
+            tiers_dict = access_conf["tiers"]
+            for t in ranks[cur_i + 1:]:
+                if tiers_dict.get(t) is True:
+                    return t
+            # hiçbiri uygun değilse, en düşük açık tier
+            return _compute_min_tier_from_tiers(tiers_dict)
+        # min_tier modelinde min_tier zaten hedef
+        return (access_conf or {}).get("min_tier", "starter") if isinstance(access_conf, dict) else "starter"
+
     def _allowed_for_tier(access_conf, current_tier):
         if not isinstance(access_conf, dict):
             return True, "free"
@@ -43,12 +58,15 @@ def home():
     for key, st in tool_status.items():
         active = bool(st.get("active", True)) if isinstance(st, dict) else bool(st)
         maintenance = bool(st.get("maintenance", False)) if isinstance(st, dict) else False
-        allowed, min_tier = _allowed_for_tier(tool_access.get(key, {}), user_tier)
+        access_conf = tool_access.get(key, {})
+        allowed, min_tier = _allowed_for_tier(access_conf, user_tier)
+        suggest_tier = _suggest_upgrade_tier(access_conf, user_tier) if not allowed else None
         tools_view[key] = {
             "active": active and (not maintenance),
             "maintenance": maintenance,
             "min_tier": min_tier,
-            "allowed": allowed
+            "allowed": allowed,
+            "suggest_tier": suggest_tier
         }
     try:
         return render_template("index.html", tools=tools_view)
@@ -80,14 +98,14 @@ def dashboard():
         pass
 
     # Kullanım toplamları (dashboard kartları için)
-    usage = user_data.get("usage_stats") or {}
-    def _to_int(v):
-        try:
-            return int(v)
-        except Exception:
-            return 0
-    usage_total = sum(_to_int(v) for v in usage.values())
-    image_total = _to_int(usage.get("remove_bg")) + _to_int(usage.get("compress")) + _to_int(usage.get("convert"))
+    # Not: user.usage_stats_json subtool bazlı tutulduğu için "compress" gibi anahtarlar PDF/IMAGE çakışabiliyor.
+    # Bu yüzden doğru sayım için UsageEvent tablosunu baz alıyoruz.
+    try:
+        usage_total = UsageEvent.query.filter_by(user_email=email).count()
+        image_total = UsageEvent.query.filter_by(user_email=email, tool="image").count()
+    except Exception:
+        usage_total = 0
+        image_total = 0
     user_data["usage_total"] = usage_total
     user_data["image_total"] = image_total
 
