@@ -3,6 +3,7 @@ Flask-Cors
 Flask-SQLAlchemy
 python-dotenv
 gunicorn
+psycopg2-binary
 numpy
 Pillow
 opencv-contrib-python-headless
