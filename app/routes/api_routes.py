@@ -1,5 +1,6 @@
 import io
 import base64
+import zipfile
 import cv2
 import numpy as np
 import qrcode
@@ -196,17 +197,93 @@ def api_pdf_split():
 
     if "pdf_file" not in request.files: return jsonify({"success": False}), 400
     try:
-        reader = PdfReader(request.files["pdf_file"])
-        # Şimdilik sadece ilk sayfayı ayırır (Demo)
+        pdf_file = request.files["pdf_file"]
+        reader = PdfReader(pdf_file)
+        total_pages = len(reader.pages)
+
+        mode = (request.form.get("mode") or "extract").strip().lower()  # extract | split
+        range_str = (request.form.get("range") or "").strip()
+
+        def parse_page_range(s: str, total: int):
+            """
+            Accepts: "1-3", "5", "1,3,5-7" (1-based). Returns sorted unique 0-based indices.
+            Empty => first page.
+            """
+            if not s:
+                return [0] if total > 0 else []
+            pages = set()
+            for token in s.replace(" ", "").split(","):
+                if not token:
+                    continue
+                if "-" in token:
+                    a, b = token.split("-", 1)
+                    if not a.isdigit() or not b.isdigit():
+                        continue
+                    start = int(a)
+                    end = int(b)
+                    if start <= 0 or end <= 0:
+                        continue
+                    if start > end:
+                        start, end = end, start
+                    for p in range(start, end + 1):
+                        idx = p - 1
+                        if 0 <= idx < total:
+                            pages.add(idx)
+                else:
+                    if not token.isdigit():
+                        continue
+                    p = int(token)
+                    idx = p - 1
+                    if 0 <= idx < total:
+                        pages.add(idx)
+            if not pages and total > 0:
+                pages.add(0)
+            return sorted(pages)
+
+        page_indices = parse_page_range(range_str, total_pages)
+        if total_pages == 0:
+            return jsonify({"success": False, "message": "PDF boş"}), 400
+        if not page_indices:
+            return jsonify({"success": False, "message": "Geçerli sayfa aralığı bulunamadı"}), 400
+
+        if mode == "split":
+            # Seçilen sayfaları ayrı PDF'ler olarak ZIP içinde döndür
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for idx in page_indices:
+                    w = PdfWriter()
+                    w.add_page(reader.pages[idx])
+                    part = io.BytesIO()
+                    w.write(part)
+                    part_name = f"page_{idx+1}.pdf"
+                    zf.writestr(part_name, part.getvalue())
+
+            increase_usage(email, "pdf", "split")
+            return jsonify({
+                "success": True,
+                "file": base64.b64encode(zip_buf.getvalue()).decode(),
+                "mime": "application/zip",
+                "filename": "pdf_parcalar.zip",
+                "pages": [i + 1 for i in page_indices]
+            })
+
+        # default: extract -> tek PDF içinde seçilen sayfaları sırayla birleştir
         writer = PdfWriter()
-        if len(reader.pages) > 0:
-            writer.add_page(reader.pages[0])
-        
+        for idx in page_indices:
+            writer.add_page(reader.pages[idx])
+
         out = io.BytesIO()
         writer.write(out)
-        
+
         increase_usage(email, "pdf", "split")
-        return jsonify({"success": True, "file": base64.b64encode(out.getvalue()).decode()})
+        filename = "pdf_ayiklanan.pdf" if len(page_indices) > 1 else f"page_{page_indices[0]+1}.pdf"
+        return jsonify({
+            "success": True,
+            "file": base64.b64encode(out.getvalue()).decode(),
+            "mime": "application/pdf",
+            "filename": filename,
+            "pages": [i + 1 for i in page_indices]
+        })
     except Exception as e: return jsonify({"success": False, "message": str(e)}), 500
 
 @bp.route("/pdf/compress", methods=["POST"])
@@ -234,8 +311,19 @@ def api_pdf_compress():
 
 @bp.route("/word_to_pdf", methods=["POST"])
 def api_word_to_pdf():
-    # Bu özellik sunucu tarafında LibreOffice gerektirir. Şimdilik pasif.
-    return jsonify({"success": False, "message": "Bu özellik için sunucu yapılandırması gerekiyor (LibreOffice)."}), 501
+    email = session.get("user_email", "guest")
+    if not check_user_status(email, "pdf", "word_to_pdf")["allowed"]:
+        return jsonify({"success": False, "reason": "limit"}), 403
+
+    if "word_file" not in request.files:
+        return jsonify({"success": False, "message": "Word dosyası yüklenmedi"}), 400
+
+    # Bu özellik sunucu tarafında LibreOffice/unoserver gerektirir. Şimdilik pasif.
+    return jsonify({
+        "success": False,
+        "reason": "not_configured",
+        "message": "Bu özellik için sunucu yapılandırması gerekiyor (LibreOffice)."
+    }), 501
 
 # --- QR & LOGO ---
 
