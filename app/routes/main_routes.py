@@ -23,13 +23,27 @@ def home():
     user_tier = session.get("user_tier", "free" if session.get("user_email") else "free")
     tier_rank = {"free": 0, "starter": 1, "pro": 2, "unlimited": 3}
 
+    def _compute_min_tier_from_tiers(tiers_dict):
+        for t in ("free", "starter", "pro", "unlimited"):
+            if tiers_dict.get(t) is True:
+                return t
+        return "unlimited"
+
+    def _allowed_for_tier(access_conf, current_tier):
+        if not isinstance(access_conf, dict):
+            return True, "free"
+        if isinstance(access_conf.get("tiers"), dict):
+            tiers_dict = access_conf["tiers"]
+            return bool(tiers_dict.get(current_tier, False)), _compute_min_tier_from_tiers(tiers_dict)
+        min_tier = access_conf.get("min_tier", "free")
+        return tier_rank.get(current_tier, 0) >= tier_rank.get(min_tier, 0), min_tier
+
     # Template'te tek yerden yönetmek için tool objelerini normalize et
     tools_view = {}
     for key, st in tool_status.items():
         active = bool(st.get("active", True)) if isinstance(st, dict) else bool(st)
         maintenance = bool(st.get("maintenance", False)) if isinstance(st, dict) else False
-        min_tier = (tool_access.get(key, {}) or {}).get("min_tier", "free")
-        allowed = tier_rank.get(user_tier, 0) >= tier_rank.get(min_tier, 0)
+        allowed, min_tier = _allowed_for_tier(tool_access.get(key, {}), user_tier)
         tools_view[key] = {
             "active": active and (not maintenance),
             "maintenance": maintenance,
