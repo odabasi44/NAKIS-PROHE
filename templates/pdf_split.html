@@ -4,49 +4,69 @@
 
 {% block head_extra %}
 <style>
-    .upload-area {
-        background: rgba(17, 24, 39, 0.6);
-        border: 2px dashed rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
-    }
-    .upload-area:hover { border-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+    .upload-area:hover, .upload-area.dragover { border-color:#ef4444; background: rgba(239,68,68,.06); }
 </style>
 {% endblock head_extra %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto py-10">
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-bold text-white mb-4">PDF Bölücü</h1>
-        <p class="text-gray-400">PDF dosyanızdaki ilk sayfayı ayıklayın (Demo).</p>
+<main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-white">PDF Böl</h1>
+        <p class="mt-2 text-gray-400">PDF seç → aralık gir → ayıkla/parçala → indir.</p>
     </div>
 
-    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+    <div id="status-bar" class="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-white/5">
         <div class="flex items-center gap-3">
-            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
-            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+            <span id="status-icon" class="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
+            <div id="limit-info" class="text-sm text-gray-300">Limitler kontrol ediliyor...</div>
         </div>
+        <div class="text-xs text-gray-500">Split / Extract</div>
     </div>
 
-    <div class="glass-panel rounded-2xl p-8 border border-white/5 bg-[#0c1120]">
-        
-        <div id="dropZone" class="upload-area rounded-xl p-12 text-center cursor-pointer relative" onclick="document.getElementById('fileInput').click()">
-            <input type="file" id="fileInput" accept=".pdf" class="hidden">
-            <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
+    <div class="glass rounded-2xl p-6 relative overflow-hidden">
+        <div id="dropZone" class="upload-area rounded-xl p-10 text-center cursor-pointer">
+            <input type="file" id="fileInput" accept=".pdf" class="hidden" />
+            <div class="mx-auto mb-3 h-14 w-14 rounded-2xl bg-red-500/10 text-red-300 flex items-center justify-center">
+                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879"/></svg>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2">PDF Dosyasını Seçin</h3>
-            <p id="fileName" class="text-gray-500 text-sm">veya buraya sürükleyin</p>
+            <div class="text-white font-bold text-lg">PDF seç / sürükle</div>
+            <div id="fileName" class="mt-2 text-xs text-gray-500">Henüz dosya yok</div>
+            <button type="button" class="mt-5 inline-flex items-center justify-center rounded-xl bg-red-600 hover:bg-red-700 transition px-6 py-2.5 font-bold text-white">
+                PDF Seç
+            </button>
         </div>
 
-        <button id="processBtn" onclick="splitPDF()" class="w-full mt-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-            PDF'i Böl
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="text-sm font-bold text-white">Sayfa Aralığı</div>
+                <div class="mt-2 text-xs text-gray-500">Örn: <span class="text-gray-300">1-3</span> veya <span class="text-gray-300">5</span></div>
+                <input id="rangeInput" class="mt-4 w-full rounded-xl bg-[#02040a] border border-white/10 px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-red-500/60 transition" placeholder="1-3" />
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="text-sm font-bold text-white">Mod</div>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" class="mode active rounded-xl py-3 text-xs font-bold bg-white text-black" data-mode="extract">Ayıkla</button>
+                    <button type="button" class="mode rounded-xl py-3 text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10 transition" data-mode="split">Parçala</button>
+                </div>
+                <div class="mt-2 text-[10px] text-gray-500">“Parçala” çıktısı ZIP olur.</div>
+            </div>
+        </div>
+
+        <button id="processBtn" type="button" class="mt-6 w-full rounded-xl bg-white text-black font-bold py-3 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            Böl
         </button>
+
+        <div id="loading" class="hidden absolute inset-0 bg-[#0c1120]/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div class="w-14 h-14 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mb-3"></div>
+            <div class="text-white font-semibold">İşleniyor...</div>
+        </div>
     </div>
-</div>
+</main>
 
 <script>
     let selectedFile = null;
     let userAllowed = false;
+    let mode = 'extract';
 
     async function checkLimit() {
         try {
@@ -58,55 +78,95 @@
             const limitInfo = document.getElementById('limit-info');
 
             if(data.allowed) {
-                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
+                statusIcon.className = "h-2 w-2 rounded-full bg-green-500";
                 limitInfo.innerHTML = `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.premium ? 'Sınırsız' : data.left}</span>`;
             } else {
-                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
-                limitInfo.innerHTML = "Limit Doldu.";
+                statusIcon.className = "h-2 w-2 rounded-full bg-red-500";
+                limitInfo.innerHTML = `⛔ Limit Doldu. <a onclick="openModal('premiumModal')" class="text-blue-400 cursor-pointer">Premium Al</a>`;
             }
         } catch(e) { console.error(e); }
     }
 
-    document.getElementById('fileInput').addEventListener('change', e => {
-        selectedFile = e.target.files[0];
-        if(selectedFile) document.getElementById('fileName').innerText = selectedFile.name;
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const processBtn = document.getElementById('processBtn');
+    const loadingEl = document.getElementById('loading');
+
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.mode').forEach(b => {
+            const active = b.dataset.mode === m;
+            b.className = active
+                ? 'mode active rounded-xl py-3 text-xs font-bold bg-white text-black'
+                : 'mode rounded-xl py-3 text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10 transition';
+        });
+    }
+    document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    function handleFile(f) {
+        if (!f) return;
+        if (!String(f.name || '').toLowerCase().endsWith('.pdf')) return;
+        selectedFile = f;
+        document.getElementById('fileName').innerText = f.name;
+        processBtn.disabled = !userAllowed;
+    }
+
+    dropZone.addEventListener('click', () => userAllowed ? fileInput.click() : openModal('premiumModal'));
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if(!userAllowed) return openModal('premiumModal');
+        handleFile(e.dataTransfer.files?.[0]);
     });
+    fileInput.addEventListener('change', e => handleFile(e.target.files?.[0]));
 
     async function splitPDF() {
-        if(!selectedFile) return alert("Lütfen dosya seçin.");
+        if(!selectedFile) return alert("Lütfen PDF seçin.");
         if(!userAllowed) return openModal('premiumModal');
 
-        const btn = document.getElementById('processBtn');
-        btn.innerText = "İşleniyor...";
-        btn.disabled = true;
+        const range = (document.getElementById('rangeInput').value || '').trim();
+        loadingEl.classList.remove('hidden');
+        processBtn.disabled = true;
+        processBtn.textContent = "İşleniyor...";
 
         const formData = new FormData();
         formData.append('pdf_file', selectedFile);
+        formData.append('range', range);
+        formData.append('mode', mode);
 
         try {
             const res = await fetch('/api/pdf/split', { method: 'POST', body: formData });
             const data = await res.json();
-            
-            btn.innerText = "PDF'i Böl";
-            btn.disabled = false;
+
+            loadingEl.classList.add('hidden');
+            processBtn.textContent = "Böl";
+            processBtn.disabled = false;
 
             if(data.success) {
-                const link = document.createElement('a');
-                link.href = "data:application/pdf;base64," + data.file;
-                link.download = "split_page_1.pdf";
-                link.click();
+                const a = document.createElement('a');
+                const mime = data.mime || (mode === 'split' ? 'application/zip' : 'application/pdf');
+                a.href = `data:${mime};base64,` + data.file;
+                a.download = data.filename || (mode === 'split' ? 'pdf_parcalar.zip' : 'pdf_ayiklanan.pdf');
+                a.click();
                 checkLimit();
             } else {
                 alert("Hata: " + (data.message || data.reason));
                 if(data.reason === 'limit') openModal('premiumModal');
             }
         } catch(e) {
-            btn.innerText = "Tekrar Dene";
-            btn.disabled = false;
+            loadingEl.classList.add('hidden');
+            processBtn.textContent = "Tekrar Dene";
+            processBtn.disabled = false;
             alert("Sunucu hatası.");
         }
     }
 
-    document.addEventListener('DOMContentLoaded', checkLimit);
+    document.addEventListener('DOMContentLoaded', () => {
+        checkLimit();
+        processBtn.addEventListener('click', splitPDF);
+        setMode('extract');
+    });
 </script>
 {% endblock content %}
