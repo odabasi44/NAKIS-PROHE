@@ -587,115 +587,147 @@
         try {
             const res = await fetch("/get_settings");
             const data = await res.json();
-            const l = data.limits;
+            const l = data.limits || {};
             const getVal = (obj, path, def) => path.split('.').reduce((o, p) => (o ? o[p] : def), obj) || def;
+            const setInput = (id, value) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.value = (value === null || value === undefined) ? '' : String(value);
+            };
             
-            document.getElementById('limit-size-free').value = getVal(l, 'file_size.free', 5);
-            document.getElementById('limit-size-starter').value = getVal(l, 'file_size.starter', 10);
-            document.getElementById('limit-size-pro').value = getVal(l, 'file_size.pro', 50);
-            document.getElementById('limit-size-unlimited').value = getVal(l, 'file_size.unlimited', 100);
-            document.getElementById('limit-bg-free').value = getVal(l, 'image.remove_bg.free', 2);
-            document.getElementById('limit-bg-starter').value = getVal(l, 'image.remove_bg.starter', 20);
-            document.getElementById('limit-bg-pro').value = getVal(l, 'image.remove_bg.pro', 200);
-            document.getElementById('limit-bg-unlimited').value = getVal(l, 'image.remove_bg.unlimited', 9999);
-            document.getElementById('limit-pdf-free').value = getVal(l, 'pdf.merge.free', 2);
-            document.getElementById('limit-pdf-starter').value = getVal(l, 'pdf.merge.starter', 10);
-            document.getElementById('limit-pdf-pro').value = getVal(l, 'pdf.merge.pro', 50);
-            document.getElementById('limit-pdf-unlimited').value = getVal(l, 'pdf.merge.unlimited', 9999);
+            setInput('limit-size-free', getVal(l, 'file_size.free', 5));
+            setInput('limit-size-starter', getVal(l, 'file_size.starter', 10));
+            setInput('limit-size-pro', getVal(l, 'file_size.pro', 50));
+            setInput('limit-size-unlimited', getVal(l, 'file_size.unlimited', 100));
+            setInput('limit-bg-free', getVal(l, 'image.remove_bg.free', 2));
+            setInput('limit-bg-starter', getVal(l, 'image.remove_bg.starter', 20));
+            setInput('limit-bg-pro', getVal(l, 'image.remove_bg.pro', 200));
+            setInput('limit-bg-unlimited', getVal(l, 'image.remove_bg.unlimited', 9999));
+            setInput('limit-pdf-free', getVal(l, 'pdf.merge.free', 2));
+            setInput('limit-pdf-starter', getVal(l, 'pdf.merge.starter', 10));
+            setInput('limit-pdf-pro', getVal(l, 'pdf.merge.pro', 50));
+            setInput('limit-pdf-unlimited', getVal(l, 'pdf.merge.unlimited', 9999));
 
-            document.getElementById('limit-pdf-split-free').value = getVal(l, 'pdf.split.free', 3);
-            document.getElementById('limit-pdf-split-starter').value = getVal(l, 'pdf.split.starter', 5);
-            document.getElementById('limit-pdf-split-pro').value = getVal(l, 'pdf.split.pro', 10);
-            document.getElementById('limit-pdf-split-unlimited').value = getVal(l, 'pdf.split.unlimited', 99999);
+            setInput('limit-pdf-split-free', getVal(l, 'pdf.split.free', 3));
+            setInput('limit-pdf-split-starter', getVal(l, 'pdf.split.starter', 5));
+            setInput('limit-pdf-split-pro', getVal(l, 'pdf.split.pro', 10));
+            setInput('limit-pdf-split-unlimited', getVal(l, 'pdf.split.unlimited', 99999));
 
-            document.getElementById('limit-pdf-compress-free').value = getVal(l, 'pdf.compress.free', 3);
-            document.getElementById('limit-pdf-compress-starter').value = getVal(l, 'pdf.compress.starter', 5);
-            document.getElementById('limit-pdf-compress-pro').value = getVal(l, 'pdf.compress.pro', 10);
-            document.getElementById('limit-pdf-compress-unlimited').value = getVal(l, 'pdf.compress.unlimited', 99999);
+            setInput('limit-pdf-compress-free', getVal(l, 'pdf.compress.free', 3));
+            setInput('limit-pdf-compress-starter', getVal(l, 'pdf.compress.starter', 5));
+            setInput('limit-pdf-compress-pro', getVal(l, 'pdf.compress.pro', 10));
+            setInput('limit-pdf-compress-unlimited', getVal(l, 'pdf.compress.unlimited', 99999));
 
-            document.getElementById('limit-img-compress-free').value = getVal(l, 'image.compress.free', 3);
-            document.getElementById('limit-img-compress-starter').value = getVal(l, 'image.compress.starter', 5);
-            document.getElementById('limit-img-compress-pro').value = getVal(l, 'image.compress.pro', 10);
-            document.getElementById('limit-img-compress-unlimited').value = getVal(l, 'image.compress.unlimited', 99999);
+            setInput('limit-img-compress-free', getVal(l, 'image.compress.free', 3));
+            setInput('limit-img-compress-starter', getVal(l, 'image.compress.starter', 5));
+            setInput('limit-img-compress-pro', getVal(l, 'image.compress.pro', 10));
+            setInput('limit-img-compress-unlimited', getVal(l, 'image.compress.unlimited', 99999));
 
-            document.getElementById('limit-img-convert-free').value = getVal(l, 'image.convert.free', 5);
-            document.getElementById('limit-img-convert-starter').value = getVal(l, 'image.convert.starter', 10);
-            document.getElementById('limit-img-convert-pro').value = getVal(l, 'image.convert.pro', 20);
-            document.getElementById('limit-img-convert-unlimited').value = getVal(l, 'image.convert.unlimited', 99999);
+            setInput('limit-img-convert-free', getVal(l, 'image.convert.free', 5));
+            setInput('limit-img-convert-starter', getVal(l, 'image.convert.starter', 10));
+            setInput('limit-img-convert-pro', getVal(l, 'image.convert.pro', 20));
+            setInput('limit-img-convert-unlimited', getVal(l, 'image.convert.unlimited', 99999));
 
-            document.getElementById('limit-vector-free').value = getVal(l, 'vector.default.free', 3);
-            document.getElementById('limit-vector-starter').value = getVal(l, 'vector.default.starter', 5);
-            document.getElementById('limit-vector-pro').value = getVal(l, 'vector.default.pro', 10);
-            document.getElementById('limit-vector-unlimited').value = getVal(l, 'vector.default.unlimited', 99999);
+            setInput('limit-vector-free', getVal(l, 'vector.default.free', 3));
+            setInput('limit-vector-starter', getVal(l, 'vector.default.starter', 5));
+            setInput('limit-vector-pro', getVal(l, 'vector.default.pro', 10));
+            setInput('limit-vector-unlimited', getVal(l, 'vector.default.unlimited', 99999));
 
-            document.getElementById('limit-qr-free').value = getVal(l, 'generator.qr.free', 5);
-            document.getElementById('limit-qr-starter').value = getVal(l, 'generator.qr.starter', 20);
-            document.getElementById('limit-qr-pro').value = getVal(l, 'generator.qr.pro', 100);
-            document.getElementById('limit-qr-unlimited').value = getVal(l, 'generator.qr.unlimited', 99999);
+            setInput('limit-qr-free', getVal(l, 'generator.qr.free', 5));
+            setInput('limit-qr-starter', getVal(l, 'generator.qr.starter', 20));
+            setInput('limit-qr-pro', getVal(l, 'generator.qr.pro', 100));
+            setInput('limit-qr-unlimited', getVal(l, 'generator.qr.unlimited', 99999));
 
-            document.getElementById('limit-logo-free').value = getVal(l, 'generator.logo.free', 2);
-            document.getElementById('limit-logo-starter').value = getVal(l, 'generator.logo.starter', 5);
-            document.getElementById('limit-logo-pro').value = getVal(l, 'generator.logo.pro', 20);
-            document.getElementById('limit-logo-unlimited').value = getVal(l, 'generator.logo.unlimited', 99999);
+            setInput('limit-logo-free', getVal(l, 'generator.logo.free', 2));
+            setInput('limit-logo-starter', getVal(l, 'generator.logo.starter', 5));
+            setInput('limit-logo-pro', getVal(l, 'generator.logo.pro', 20));
+            setInput('limit-logo-unlimited', getVal(l, 'generator.logo.unlimited', 99999));
         } catch(e) { console.error(e); }
     }
     
     async function saveLimits() {
+        // Boş input'ların DB'deki mevcut değerleri ezmesini engelle (merge)
+        const res = await fetch("/get_settings");
+        const data = await res.json();
+        const existing = (data && data.limits) ? data.limits : {};
+        const getVal = (obj, path, def) => path.split('.').reduce((o, p) => (o ? o[p] : def), obj) || def;
+        const readInt = (id, path, def) => {
+            const el = document.getElementById(id);
+            const fallback = getVal(existing, path, def);
+            if (!el) return fallback;
+            const raw = (el.value || "").trim();
+            if (!raw) return fallback;
+            const n = parseInt(raw, 10);
+            return Number.isFinite(n) ? n : fallback;
+        };
+
         const limits = {
             file_size: {
-                free: parseInt(document.getElementById('limit-size-free').value),
-                starter: parseInt(document.getElementById('limit-size-starter').value),
-                pro: parseInt(document.getElementById('limit-size-pro').value),
-                unlimited: parseInt(document.getElementById('limit-size-unlimited').value)
+                free: readInt('limit-size-free', 'file_size.free', 5),
+                starter: readInt('limit-size-starter', 'file_size.starter', 10),
+                pro: readInt('limit-size-pro', 'file_size.pro', 50),
+                unlimited: readInt('limit-size-unlimited', 'file_size.unlimited', 100)
             },
             image: {
                 remove_bg: {
-                    free: parseInt(document.getElementById('limit-bg-free').value),
-                    starter: parseInt(document.getElementById('limit-bg-starter').value),
-                    pro: parseInt(document.getElementById('limit-bg-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-bg-unlimited').value)
+                    free: readInt('limit-bg-free', 'image.remove_bg.free', 2),
+                    starter: readInt('limit-bg-starter', 'image.remove_bg.starter', 20),
+                    pro: readInt('limit-bg-pro', 'image.remove_bg.pro', 200),
+                    unlimited: readInt('limit-bg-unlimited', 'image.remove_bg.unlimited', 9999)
+                },
+                compress: {
+                    free: readInt('limit-img-compress-free', 'image.compress.free', 3),
+                    starter: readInt('limit-img-compress-starter', 'image.compress.starter', 5),
+                    pro: readInt('limit-img-compress-pro', 'image.compress.pro', 10),
+                    unlimited: readInt('limit-img-compress-unlimited', 'image.compress.unlimited', 99999)
+                },
+                convert: {
+                    free: readInt('limit-img-convert-free', 'image.convert.free', 5),
+                    starter: readInt('limit-img-convert-starter', 'image.convert.starter', 10),
+                    pro: readInt('limit-img-convert-pro', 'image.convert.pro', 20),
+                    unlimited: readInt('limit-img-convert-unlimited', 'image.convert.unlimited', 99999)
                 }
             },
             pdf: {
                 merge: {
-                    free: parseInt(document.getElementById('limit-pdf-free').value),
-                    starter: parseInt(document.getElementById('limit-pdf-starter').value),
-                    pro: parseInt(document.getElementById('limit-pdf-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-pdf-unlimited').value)
+                    free: readInt('limit-pdf-free', 'pdf.merge.free', 2),
+                    starter: readInt('limit-pdf-starter', 'pdf.merge.starter', 10),
+                    pro: readInt('limit-pdf-pro', 'pdf.merge.pro', 50),
+                    unlimited: readInt('limit-pdf-unlimited', 'pdf.merge.unlimited', 9999)
                 },
                 split: {
-                    free: parseInt(document.getElementById('limit-pdf-split-free').value),
-                    starter: parseInt(document.getElementById('limit-pdf-split-starter').value),
-                    pro: parseInt(document.getElementById('limit-pdf-split-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-pdf-split-unlimited').value)
+                    free: readInt('limit-pdf-split-free', 'pdf.split.free', 3),
+                    starter: readInt('limit-pdf-split-starter', 'pdf.split.starter', 5),
+                    pro: readInt('limit-pdf-split-pro', 'pdf.split.pro', 10),
+                    unlimited: readInt('limit-pdf-split-unlimited', 'pdf.split.unlimited', 99999)
                 },
                 compress: {
-                    free: parseInt(document.getElementById('limit-pdf-compress-free').value),
-                    starter: parseInt(document.getElementById('limit-pdf-compress-starter').value),
-                    pro: parseInt(document.getElementById('limit-pdf-compress-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-pdf-compress-unlimited').value)
+                    free: readInt('limit-pdf-compress-free', 'pdf.compress.free', 3),
+                    starter: readInt('limit-pdf-compress-starter', 'pdf.compress.starter', 5),
+                    pro: readInt('limit-pdf-compress-pro', 'pdf.compress.pro', 10),
+                    unlimited: readInt('limit-pdf-compress-unlimited', 'pdf.compress.unlimited', 99999)
                 }
             },
             vector: {
                 default: {
-                    free: parseInt(document.getElementById('limit-vector-free').value),
-                    starter: parseInt(document.getElementById('limit-vector-starter').value),
-                    pro: parseInt(document.getElementById('limit-vector-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-vector-unlimited').value)
+                    free: readInt('limit-vector-free', 'vector.default.free', 3),
+                    starter: readInt('limit-vector-starter', 'vector.default.starter', 5),
+                    pro: readInt('limit-vector-pro', 'vector.default.pro', 10),
+                    unlimited: readInt('limit-vector-unlimited', 'vector.default.unlimited', 99999)
                 }
             },
             generator: {
                 qr: {
-                    free: parseInt(document.getElementById('limit-qr-free').value),
-                    starter: parseInt(document.getElementById('limit-qr-starter').value),
-                    pro: parseInt(document.getElementById('limit-qr-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-qr-unlimited').value)
+                    free: readInt('limit-qr-free', 'generator.qr.free', 5),
+                    starter: readInt('limit-qr-starter', 'generator.qr.starter', 20),
+                    pro: readInt('limit-qr-pro', 'generator.qr.pro', 100),
+                    unlimited: readInt('limit-qr-unlimited', 'generator.qr.unlimited', 99999)
                 },
                 logo: {
-                    free: parseInt(document.getElementById('limit-logo-free').value),
-                    starter: parseInt(document.getElementById('limit-logo-starter').value),
-                    pro: parseInt(document.getElementById('limit-logo-pro').value),
-                    unlimited: parseInt(document.getElementById('limit-logo-unlimited').value)
+                    free: readInt('limit-logo-free', 'generator.logo.free', 2),
+                    starter: readInt('limit-logo-starter', 'generator.logo.starter', 5),
+                    pro: readInt('limit-logo-pro', 'generator.logo.pro', 20),
+                    unlimited: readInt('limit-logo-unlimited', 'generator.logo.unlimited', 99999)
                 }
             }
         };
