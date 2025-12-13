@@ -47,7 +47,11 @@
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
              {% if status.active and status.allowed %} hover:border-green-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
-            {% if not status.active %}
+            {% if status.maintenance %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/15 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🛠️ Bakımda</span>
+            </div>
+            {% elif not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
             </div>
@@ -71,7 +75,11 @@
              class="tool-card bg-gray-900/50 border border-white/5 rounded-2xl p-5 relative group cursor-pointer transition-all
              {% if status.active and status.allowed %} hover:border-purple-500/40 hover:-translate-y-1 {% else %} opacity-60 grayscale cursor-not-allowed {% endif %}">
             
-            {% if not status.active %}
+            {% if status.maintenance %}
+            <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/15 backdrop-blur-[1px] rounded-2xl">
+                <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🛠️ Bakımda</span>
+            </div>
+            {% elif not status.active %}
             <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
                 <span class="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 shadow-xl">🚀 Çok Yakında</span>
             </div>
