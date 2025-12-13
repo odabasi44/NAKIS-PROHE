@@ -3,42 +3,47 @@
 {% block title %}QR Kod Oluşturucu{% endblock title %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto py-10">
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-bold text-white mb-4">QR Kod Oluşturucu</h1>
-        <p class="text-gray-400">Bağlantılarınız veya metinleriniz için özel QR kodlar oluşturun.</p>
+<main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-white">QR Kod Oluşturucu</h1>
+        <p class="mt-2 text-gray-400">Metin gir → renk seç → oluştur → indir.</p>
     </div>
 
-    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+    <div id="status-bar" class="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-white/5">
         <div class="flex items-center gap-3">
-            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
-            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+            <span id="status-icon" class="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
+            <div id="limit-info" class="text-sm text-gray-300">Limitler kontrol ediliyor...</div>
         </div>
+        <div class="text-xs text-gray-500">QR</div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120]">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="glass rounded-2xl p-6">
             <label class="block text-sm text-gray-400 mb-2">URL veya Metin</label>
-            <input type="text" id="qrText" placeholder="https://ornek.com" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white mb-4 focus:border-amber-500 outline-none transition">
-            
-            <label class="block text-sm text-gray-400 mb-2">Renk Seçimi</label>
-            <div class="flex gap-4 mb-6">
-                <div onclick="selectedColor='black'" class="w-8 h-8 rounded-full bg-black border-2 border-amber-500 cursor-pointer hover:scale-110 transition"></div>
-                <div onclick="selectedColor='blue'" class="w-8 h-8 rounded-full bg-blue-600 cursor-pointer hover:scale-110 transition"></div>
-                <div onclick="selectedColor='red'" class="w-8 h-8 rounded-full bg-red-600 cursor-pointer hover:scale-110 transition"></div>
+            <input id="qrText" class="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500/60 transition" placeholder="https://ornek.com" />
+
+            <div class="mt-5">
+                <div class="text-sm font-bold text-white mb-3">Renk</div>
+                <div class="flex gap-3">
+                    <button class="clr h-10 w-10 rounded-full bg-black border-2 border-amber-500" data-color="black" aria-label="Siyah"></button>
+                    <button class="clr h-10 w-10 rounded-full bg-blue-600 border-2 border-white/10 hover:border-blue-400 transition" data-color="blue" aria-label="Mavi"></button>
+                    <button class="clr h-10 w-10 rounded-full bg-red-600 border-2 border-white/10 hover:border-red-400 transition" data-color="red" aria-label="Kırmızı"></button>
+                </div>
             </div>
 
-            <button onclick="generateQR()" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition shadow-lg shadow-amber-500/20">Oluştur</button>
-        </div>
+            <button id="genBtn" class="mt-6 w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold transition">
+                Oluştur
+            </button>
+        </section>
 
-        <div class="glass-panel rounded-2xl p-6 border border-white/5 bg-[#0c1120] flex flex-col items-center justify-center relative">
-            <div class="w-64 h-64 bg-white rounded-xl flex items-center justify-center overflow-hidden">
-                <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BotlabTools" alt="QR Önizleme" class="max-w-full">
+        <section class="glass rounded-2xl p-6 flex flex-col items-center justify-center">
+            <div class="w-64 h-64 bg-white rounded-2xl overflow-hidden flex items-center justify-center border border-white/10">
+                <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=BotlabTools" alt="QR Önizleme" class="max-w-full" />
             </div>
-            <a id="downloadBtn" href="#" download="qrcode.png" class="mt-4 text-xs text-amber-400 hover:underline hidden">İndir (PNG)</a>
-        </div>
+            <a id="downloadBtn" href="#" download="qrcode.png" class="mt-4 text-xs font-bold text-amber-300 hover:text-amber-200 underline hidden">İndir (PNG)</a>
+        </section>
     </div>
-</div>
+</main>
 
 <script>
     let selectedColor = 'black';
@@ -53,14 +58,21 @@
             const statusIcon = document.getElementById('status-icon');
 
             if(data.allowed) {
-                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
+                statusIcon.className = "h-2 w-2 rounded-full bg-green-500";
                 limitInfo.innerHTML = `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.premium ? 'Sınırsız' : data.left}</span>`;
             } else {
-                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
-                limitInfo.innerHTML = "Limit Doldu.";
+                statusIcon.className = "h-2 w-2 rounded-full bg-red-500";
+                limitInfo.innerHTML = `⛔ Limit Doldu. <a onclick="openModal('premiumModal')" class="text-blue-400 cursor-pointer">Premium Al</a>`;
             }
         } catch(e) {}
     }
+
+    // renk seçimi (prototip görünümü)
+    document.querySelectorAll('.clr').forEach(b => b.addEventListener('click', () => {
+        selectedColor = b.dataset.color;
+        document.querySelectorAll('.clr').forEach(x => x.classList.remove('border-amber-500'));
+        b.classList.add('border-amber-500');
+    }));
 
     async function generateQR() {
         const text = document.getElementById('qrText').value;
@@ -89,6 +101,7 @@
         } catch(e) { alert("Hata oluştu."); }
     }
 
+    document.getElementById('genBtn').addEventListener('click', generateQR);
     document.addEventListener('DOMContentLoaded', checkLimit);
 </script>
 {% endblock content %}
