@@ -6,6 +6,7 @@ from app.extensions import db
 from datetime import datetime
 from sqlalchemy import func
 from app.models import Ticket, TicketMessage, UsageEvent
+from sqlalchemy.exc import SQLAlchemyError
 
 bp = Blueprint('auth', __name__)
 
@@ -85,25 +86,28 @@ def admin_logout():
 @bp.route("/api/admin/users", methods=["GET"])
 def get_users_api():
     if not session.get("admin_logged"): return jsonify([]), 403
-    
-    # Tüm kullanıcıları veritabanından çek
-    users = User.query.all()
-    users_list = []
-    for u in users:
-        usage = u.get_usage()
-        usage_total = 0
-        try:
-            usage_total = sum(int(v) for v in usage.values() if isinstance(v, (int, float, str)) and str(v).isdigit())
-        except Exception:
+
+    try:
+        # Tüm kullanıcıları veritabanından çek
+        users = User.query.all()
+        users_list = []
+        for u in users:
+            usage = u.get_usage()
             usage_total = 0
-        users_list.append({
-            "email": u.email,
-            "tier": u.tier,
-            "end_date": u.end_date.strftime("%Y-%m-%d") if u.end_date else None,
-            "usage_stats": usage,
-            "usage_total": usage_total
-        })
-    return jsonify(users_list)
+            try:
+                usage_total = sum(int(v) for v in usage.values() if isinstance(v, (int, float, str)) and str(v).isdigit())
+            except Exception:
+                usage_total = 0
+            users_list.append({
+                "email": u.email,
+                "tier": u.tier,
+                "end_date": u.end_date.strftime("%Y-%m-%d") if u.end_date else None,
+                "usage_stats": usage,
+                "usage_total": usage_total
+            })
+        return jsonify(users_list)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @bp.route("/api/admin/add_user", methods=["POST"])
 def add_user_api():
@@ -133,6 +137,7 @@ def add_user_api():
         db.session.commit()
         return jsonify({"status":"ok"})
     except Exception as e:
+        db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @bp.route("/api/admin/delete_user/<email>", methods=["DELETE"])
@@ -142,9 +147,13 @@ def del_user_api(email):
     email_norm = (email or "").strip().lower()
     user = User.query.filter(func.lower(User.email) == email_norm).first()
     if user:
-        db.session.delete(user)
-        db.session.commit()
-        return jsonify({"status":"ok"})
+        try:
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({"status":"ok"})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"status": "error", "message": str(e)}), 500
     
     return jsonify({"status":"error", "message": "Kullanıcı bulunamadı"}), 404
 
@@ -237,18 +246,36 @@ def admin_stats_api():
     if not session.get("admin_logged"):
         return jsonify({}), 403
 
-    today = datetime.now().date()
-    total_users = User.query.count()
-    active_premium = User.query.filter(User.end_date != None).filter(User.end_date >= today).count()  # noqa: E711
-    total_ops = UsageEvent.query.count()
-    open_tickets = Ticket.query.filter_by(status="open").count()
+    try:
+        today = datetime.now().date()
+        total_users = User.query.count()
+        active_premium = User.query.filter(User.end_date != None).filter(User.end_date >= today).count()  # noqa: E711
+        total_ops = UsageEvent.query.count()
+        open_tickets = Ticket.query.filter_by(status="open").count()
 
-    return jsonify({
-        "total_users": total_users,
-        "active_premium": active_premium,
-        "total_ops": total_ops,
-        "open_tickets": open_tickets
-    })
+        return jsonify({
+            "total_users": total_users,
+            "active_premium": active_premium,
+            "total_ops": total_ops,
+            "open_tickets": open_tickets
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/admin/db_diag", methods=["GET"])
+def admin_db_diag():
+    """Hızlı teşhis: DB bağlantısı ve tablo listesi."""
+    if not session.get("admin_logged"):
+        return jsonify({}), 403
+    try:
+        from sqlalchemy import text, inspect
+        db.session.execute(text("SELECT 1"))
+        insp = inspect(db.engine)
+        tables = insp.get_table_names()
+        return jsonify({"status": "ok", "tables": tables})
+    except SQLAlchemyError as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @bp.route("/api/admin/tickets", methods=["GET"])
