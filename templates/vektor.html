@@ -232,9 +232,11 @@
         if (status.allowed) {
             const left = (typeof status.left === 'number') ? status.left : 0;
             const leftText = left > 9000 ? "Sınırsız" : `${left} işlem hakkı`;
-            box.innerHTML = `<span class="font-bold text-green-400">Aktif</span> • Kalan: <span class="font-bold">${leftText}</span>`;
+            const tier = (status.tier || '').toString().toUpperCase();
+            box.innerHTML = `<span class="font-bold text-green-400">Aktif</span> • Paket: <span class="font-bold">${tier || '-'}</span> • Kalan: <span class="font-bold">${leftText}</span>`;
         } else {
-            box.innerHTML = `<span class="font-bold text-red-400">Kısıtlı</span> • Bu araç için hakkınız yok veya limit bitti. <button onclick="openModal('premiumModal')" class="underline font-bold text-blue-300">Paketleri İncele</button>`;
+            const tier = (status.tier || '').toString().toUpperCase();
+            box.innerHTML = `<span class="font-bold text-red-400">Kısıtlı</span> • Paket: <span class="font-bold">${tier || '-'}</span> • Bu araç için hakkınız yok veya limit bitti. <button onclick="openModal('premiumModal')" class="underline font-bold text-blue-300">Paketleri İncele</button>`;
         }
     }
 
@@ -243,7 +245,7 @@
             const res = await fetch('/api/check_tool_status/vector/default');
             const st = await res.json();
             vectorAllowed = !!st.allowed;
-            renderLimitBox({ allowed: st.allowed, left: st.left });
+            renderLimitBox({ allowed: st.allowed, left: st.left, tier: st.tier, limit: st.limit });
         } catch (e) {
             console.error(e);
         }
