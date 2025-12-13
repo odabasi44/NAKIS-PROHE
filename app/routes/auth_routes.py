@@ -193,7 +193,7 @@ def save_tool_status_api():
         old_maint = settings["tool_status"].get(key, {}).get("maintenance", False)
         settings["tool_status"][key] = {
             "active": val.get("active", True),
-            "maintenance": old_maint # Bakım modu ayarı ayrı, onu bozmuyoruz
+            "maintenance": bool(val.get("maintenance", old_maint))
         }
 
     # Tool tier erişimleri (opsiyonel)
