@@ -81,6 +81,17 @@ def get_user_data_by_email(email):
 def check_user_status(email, tool, subtool):
     """Kullanıcının limitini kontrol eder."""
     settings = load_settings()
+    # Admin oturumu: sınırsız say
+    if session.get("admin_logged"):
+        return {
+            "allowed": True,
+            "reason": None,
+            "left": 99999,
+            "limit": 99999,
+            "tier": "unlimited",
+            "premium": True
+        }
+
     user_tier = "free"
     current_usage = 0
     email_norm = "guest"
@@ -104,6 +115,10 @@ def check_user_status(email, tool, subtool):
                     session["user_tier"] = "free"
             except:
                 pass
+        else:
+            # DB'de user yok ama session premium olabilir (ör: admin panel login ile)
+            if session.get("is_premium") and session.get("user_tier") in ("starter", "pro", "unlimited"):
+                user_tier = session.get("user_tier")
 
     # 2. Misafir veya Süresi Dolmuş Kullanıcı (Session Kullanır)
     if user_tier == "free":
@@ -124,6 +139,8 @@ def check_user_status(email, tool, subtool):
         "allowed": current_usage < tool_limits,
         "reason": "limit" if current_usage >= tool_limits else None,
         "left": left,
+        "limit": tool_limits,
+        "tier": user_tier,
         "premium": session.get("is_premium", False)
     }
 
