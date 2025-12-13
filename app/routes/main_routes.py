@@ -64,6 +64,18 @@ def dashboard():
     except Exception:
         pass
 
+    # Kullanım toplamları (dashboard kartları için)
+    usage = user_data.get("usage_stats") or {}
+    def _to_int(v):
+        try:
+            return int(v)
+        except Exception:
+            return 0
+    usage_total = sum(_to_int(v) for v in usage.values())
+    image_total = _to_int(usage.get("remove_bg")) + _to_int(usage.get("compress")) + _to_int(usage.get("convert"))
+    user_data["usage_total"] = usage_total
+    user_data["image_total"] = image_total
+
     settings = load_settings()
     tool_status = settings.get("tool_status", {})
     return render_template("dashboard.html", user=user_data, tools=tool_status)
