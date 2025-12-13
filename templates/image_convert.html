@@ -4,242 +4,221 @@
 
 {% block head_extra %}
 <style>
-    .glass-panel {
-        background: rgba(17, 24, 39, 0.7);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    /* Format Seçim Butonları */
-    .format-btn {
-        border: 1px solid rgba(255,255,255,0.1);
-        background: rgba(255,255,255,0.05);
-        color: #9ca3af;
-        transition: all 0.2s;
-    }
-    .format-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-    .format-btn.active {
-        background: #3b82f6; border-color: #3b82f6; color: white; font-weight: bold;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    .upload-area:hover, .upload-area.dragover { border-color:#22d3ee; background: rgba(34,211,238,.06); }
+    .fmt { border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.05); color: #9ca3af; }
+    .fmt:hover { background: rgba(255,255,255,.10); color: #fff; }
+    .fmt.active { background: #06b6d4; border-color:#06b6d4; color: #001018; font-weight: 800; }
+    .checkerboard {
+      background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%),
+                        linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #1f2937 75%),
+                        linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+      background-size: 20px 20px;
+      background-color: #111827;
     }
 </style>
 {% endblock head_extra %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto py-10 px-4">
-
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">
-            Görsel Format Çevirici
-        </h1>
-        <p class="text-gray-400 max-w-lg mx-auto">
-            WebP, HEIC veya diğer formatları saniyeler içinde JPG veya PNG'ye dönüştürün.
-        </p>
+<main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-white">Format Çevirici</h1>
+        <p class="mt-2 text-gray-400">Yükle → format seç → dönüştür → indir.</p>
     </div>
 
-    <div id="status-bar" class="glass-panel rounded-xl p-4 mb-8 flex justify-between items-center border border-white/5">
+    <div id="status-bar" class="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-white/5">
         <div class="flex items-center gap-3">
-            <div id="status-icon" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
-            <span id="limit-info" class="text-sm font-medium text-gray-300">Limitler kontrol ediliyor...</span>
+            <span id="status-icon" class="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
+            <div id="limit-info" class="text-sm text-gray-300">Limitler kontrol ediliyor...</div>
         </div>
+        <div class="text-xs text-gray-500">Max: 10MB</div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        <div class="space-y-6">
-            <div class="glass-panel rounded-2xl p-6">
-                <div id="dropZone" class="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-cyan-500/50 transition cursor-pointer flex flex-col items-center justify-center min-h-[200px]">
-                    <input type="file" id="fileInput" accept="image/*" class="hidden">
-                    <div class="w-12 h-12 bg-cyan-500/10 rounded-full flex items-center justify-center mb-3 text-cyan-400">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                    </div>
-                    <p id="fileName" class="text-sm text-gray-300 font-medium">Resim Yükle veya Sürükle</p>
-                    <p class="text-xs text-gray-500 mt-1">WebP, HEIC, JPG, PNG (Max 10MB)</p>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="glass rounded-2xl p-6">
+            <div id="dropZone" class="upload-area rounded-xl p-8 text-center cursor-pointer">
+                <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                <div class="mx-auto mb-3 h-14 w-14 rounded-2xl bg-cyan-500/10 text-cyan-300 flex items-center justify-center">
+                    <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                </div>
+                <div class="text-white font-bold">Resim seç / sürükle</div>
+                <div id="fileName" class="mt-2 text-xs text-gray-500">Henüz dosya yok</div>
+                <button type="button" class="mt-4 inline-flex items-center justify-center rounded-xl bg-cyan-600 hover:bg-cyan-700 transition px-6 py-2.5 font-bold text-white">Seç</button>
+            </div>
+
+            <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="text-sm font-bold text-white mb-3">Hedef Format</div>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" class="fmt active rounded-xl py-2 text-xs" data-fmt="jpeg">JPG</button>
+                    <button type="button" class="fmt rounded-xl py-2 text-xs" data-fmt="png">PNG</button>
+                    <button type="button" class="fmt rounded-xl py-2 text-xs" data-fmt="webp">WEBP</button>
+                    <button type="button" class="fmt rounded-xl py-2 text-xs" data-fmt="pdf">PDF</button>
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl p-6">
-                <label class="text-sm font-bold text-white mb-3 block">Hedef Formatı Seçin</label>
-                
-                <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
-                    <button onclick="setFormat('jpeg')" id="btn-jpeg" class="format-btn active py-2 rounded-lg text-xs font-bold">JPG</button>
-                    <button onclick="setFormat('png')" id="btn-png" class="format-btn py-2 rounded-lg text-xs font-bold">PNG</button>
-                    <button onclick="setFormat('webp')" id="btn-webp" class="format-btn py-2 rounded-lg text-xs font-bold">WEBP</button>
-                    <button onclick="setFormat('pdf')" id="btn-pdf" class="format-btn py-2 rounded-lg text-xs font-bold text-red-400 border-red-500/30">PDF</button>
-                    <button onclick="setFormat('ico')" id="btn-ico" class="format-btn py-2 rounded-lg text-xs font-bold">ICO</button>
-                    <button onclick="setFormat('bmp')" id="btn-bmp" class="format-btn py-2 rounded-lg text-xs font-bold">BMP</button>
-                    <button onclick="setFormat('tiff')" id="btn-tiff" class="format-btn py-2 rounded-lg text-xs font-bold">TIFF</button>
-                    <button onclick="setFormat('gif')" id="btn-gif" class="format-btn py-2 rounded-lg text-xs font-bold">GIF</button>
-                </div>
-                
-                <p class="text-[10px] text-gray-500 mt-3">
-                    *ICO formatı favicon yapımı için, PDF formatı belge arşivleme için idealdir.
-                </p>
-            </div>
-
-            <button id="processBtn" onclick="processConvert()" class="w-full py-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold shadow-lg shadow-cyan-900/30 transition disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="processBtn" type="button" class="mt-5 w-full rounded-xl bg-white text-black font-bold py-3 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                 Dönüştür
             </button>
-        </div>
+        </section>
 
-        <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center relative min-h-[400px]">
-            
-            <div id="result-placeholder" class="text-center text-gray-500">
-                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <p class="text-sm">Dönüştürülen resim burada görünecek</p>
+        <section class="glass rounded-2xl p-6 relative overflow-hidden min-h-[420px]">
+            <div id="placeholder" class="h-full flex flex-col items-center justify-center text-center text-gray-500">
+                <svg class="h-14 w-14 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="1.5" stroke-linecap="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/></svg>
+                <div class="mt-3 text-white font-bold">Sonuç</div>
+                <div class="mt-1 text-sm text-gray-400">Dönüştürülen çıktı burada görünür</div>
             </div>
 
-            <div id="loading" class="hidden absolute inset-0 bg-[#0c1120]/90 z-20 flex flex-col items-center justify-center rounded-2xl">
-                <div class="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                <p class="text-cyan-400 text-sm animate-pulse">Format Değiştiriliyor...</p>
+            <div id="loading" class="hidden absolute inset-0 bg-[#0c1120]/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+                <div class="w-14 h-14 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-3"></div>
+                <div class="text-white font-semibold">Dönüştürülüyor...</div>
             </div>
 
-            <div id="result-area" class="hidden w-full h-full flex flex-col">
-                <div class="flex-1 bg-black/20 rounded-xl overflow-hidden mb-4 relative flex items-center justify-center checkerboard-bg">
-                    <img id="resultImg" class="max-w-full max-h-[300px] object-contain shadow-lg">
+            <div id="result" class="hidden h-full flex flex-col">
+                <div id="previewBox" class="flex-1 rounded-xl bg-black/30 overflow-hidden flex items-center justify-center checkerboard">
+                    <img id="resultImg" class="max-h-[320px] object-contain" alt="Çıktı" />
                 </div>
-                
-                <div class="text-center mb-4">
-                    <span class="text-xs text-gray-400">Yeni Format: <span id="resFormat" class="text-white font-bold uppercase">JPG</span></span>
-                </div>
-
-                <a id="downloadBtn" href="#" download class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-center transition">
-                    Resmi İndir
+                <div class="mt-4 text-center text-xs text-gray-400">Yeni format: <span id="fmtText" class="text-white font-bold uppercase">JPG</span></div>
+                <a id="downloadBtn" class="mt-4 w-full rounded-xl bg-green-600 hover:bg-green-700 transition py-3 font-bold text-white text-center" href="#" download>
+                    İndir
                 </a>
             </div>
-
-        </div>
+        </section>
     </div>
-</div>
-
-<style>
-    .checkerboard-bg {
-        background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%);
-        background-size: 20px 20px;
-        background-color: #111827;
-    }
-</style>
+</main>
 
 <script>
-    let selectedFile = null;
-    let targetFormat = 'jpeg';
+    const els = {
+        drop: document.getElementById('dropZone'),
+        input: document.getElementById('fileInput'),
+        name: document.getElementById('fileName'),
+        btn: document.getElementById('processBtn'),
+        loading: document.getElementById('loading'),
+        placeholder: document.getElementById('placeholder'),
+        result: document.getElementById('result'),
+        img: document.getElementById('resultImg'),
+        dl: document.getElementById('downloadBtn'),
+        fmtText: document.getElementById('fmtText'),
+        previewBox: document.getElementById('previewBox'),
+        fmtButtons: Array.from(document.querySelectorAll('.fmt')),
+        statusIcon: document.getElementById('status-icon'),
+        limitInfo: document.getElementById('limit-info'),
+    };
+
+    let file = null;
+    let fmt = 'jpeg';
     let userAllowed = false;
 
-    // 1. Limit Kontrolü
+    function setBusy(b) {
+        els.loading.classList.toggle('hidden', !b);
+        els.btn.disabled = b || !file || !userAllowed;
+        els.btn.textContent = b ? 'Dönüştürülüyor...' : 'Dönüştür';
+    }
+
+    function setFmt(next) {
+        fmt = next;
+        els.fmtText.textContent = (next === 'jpeg' ? 'jpg' : next).toUpperCase();
+        els.fmtButtons.forEach(b => b.classList.toggle('active', b.dataset.fmt === next));
+    }
+
+    function handleFile(f) {
+        if (!f) return;
+        if (!f.type.startsWith('image/')) return;
+        file = f;
+        els.name.textContent = `${f.name} • ${(f.size / 1024 / 1024).toFixed(2)}MB`;
+        els.btn.disabled = !userAllowed;
+    }
+
     async function checkLimit() {
         try {
             const res = await fetch('/api/check_tool_status/image/convert');
             const data = await res.json();
-            userAllowed = data.allowed;
-            
-            const statusIcon = document.getElementById('status-icon');
-            const limitInfo = document.getElementById('limit-info');
-            const btn = document.getElementById('processBtn');
-
-            if(data.allowed) {
-                statusIcon.className = "w-2 h-2 rounded-full bg-green-500";
-                limitInfo.innerHTML = data.premium 
-                    ? `<span class="text-green-400">Premium Aktif</span>` 
+            userAllowed = !!data.allowed;
+            if (data.allowed) {
+                els.statusIcon.className = "h-2 w-2 rounded-full bg-green-500";
+                els.limitInfo.innerHTML = data.premium
+                    ? `<span class="text-green-400">Premium Aktif</span>`
                     : `Kalan Hakkınız: <span class="text-green-400 font-bold">${data.left}</span>`;
-                btn.disabled = false;
+                els.btn.disabled = !file;
             } else {
-                statusIcon.className = "w-2 h-2 rounded-full bg-red-500";
-                limitInfo.innerHTML = "Limit Doldu.";
-                btn.disabled = true;
-                btn.innerText = "Limit Doldu";
-                openModal('premiumModal');
+                els.statusIcon.className = "h-2 w-2 rounded-full bg-red-500";
+                els.limitInfo.innerHTML = `⛔ Limit Doldu. <a onclick="openModal('premiumModal')" class="text-blue-400 cursor-pointer">Premium Al</a>`;
+                els.btn.disabled = true;
             }
-        } catch(e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    // 2. Dosya Seçimi
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-
-    dropZone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', e => {
-        selectedFile = e.target.files[0];
-        if(selectedFile) document.getElementById('fileName').innerText = selectedFile.name;
-    });
-
-    // 3. Format Seçimi
-    // Format Seçimi (Genişletilmiş Liste)
-    function setFormat(fmt) {
-        targetFormat = fmt;
-        const formats = ['jpeg', 'png', 'webp', 'pdf', 'ico', 'bmp', 'tiff', 'gif'];
-        
-        formats.forEach(f => {
-            const btn = document.getElementById('btn-' + f);
-            if(f === fmt) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
-    }
-
-    // 4. İşlem
     async function processConvert() {
-        if(!selectedFile) return alert("Lütfen resim seçin.");
-        if(!userAllowed) return openModal('premiumModal');
+        if (!file) return alert('Lütfen resim seçin.');
+        if (!userAllowed) return openModal('premiumModal');
 
-        document.getElementById('loading').classList.remove('hidden');
-        
+        setBusy(true);
         const formData = new FormData();
-        formData.append('image', selectedFile);
-        formData.append('format', targetFormat);
+        formData.append('image', file);
+        formData.append('format', fmt);
 
         try {
             const res = await fetch('/api/img/convert', { method: 'POST', body: formData });
             const data = await res.json();
-            
-            document.getElementById('loading').classList.add('hidden');
+            setBusy(false);
 
-            if(data.success) {
-                document.getElementById('result-placeholder').classList.add('hidden');
-                document.getElementById('result-area').classList.remove('hidden');
-                
-                // Mime type belirle
-                let mime = "image/jpeg";
-                if(targetFormat === 'png') mime = "image/png";
-                if(targetFormat === 'webp') mime = "image/webp";
-                if(targetFormat === 'pdf') mime = "application/pdf";
-                if(targetFormat === 'ico') mime = "image/x-icon";
-                if(targetFormat === 'bmp') mime = "image/bmp";
-                if(targetFormat === 'tiff') mime = "image/tiff";
-                if(targetFormat === 'gif') mime = "image/gif";
-
-                const imgSrc = `data:${mime};base64,` + data.file;
-              // Eğer PDF ise resim olarak gösterilmez, iframe veya ikon koyabiliriz
-                if(targetFormat === 'pdf') {
-                    // PDF Önizlemesi yerine ikon koyalım
-                    document.getElementById('resultImg').src = ""; // Boşalt
-                    document.getElementById('resultImg').parentElement.innerHTML = `
-                        <div class="text-center p-10">
-                            <svg class="w-16 h-16 text-red-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                            <p class="text-white font-bold">PDF Hazır</p>
-                        </div>`;
-                } else {
-                    document.getElementById('resultImg').src = imgSrc;
-                }
-
-                document.getElementById('resFormat').innerText = targetFormat.toUpperCase();
-                
-                const downloadBtn = document.getElementById('downloadBtn');
-                downloadBtn.href = imgSrc;
-                
-                // İndirme ismi
-                const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
-                const newName = selectedFile.name.split('.')[0] + "_converted." + ext;
-                downloadBtn.download = newName;
-                
-                checkLimit();
-            } else {
+            if (!data.success) {
                 alert(data.message || "Hata oluştu.");
-                if(data.reason === 'limit') openModal('premiumModal');
+                if (data.reason === 'limit') openModal('premiumModal');
+                return;
             }
-        } catch(e) {
-            document.getElementById('loading').classList.add('hidden');
-            alert("Sunucu hatası.");
+
+            els.placeholder.classList.add('hidden');
+            els.result.classList.remove('hidden');
+
+            // mime
+            let mime = 'image/jpeg';
+            if (fmt === 'png') mime = 'image/png';
+            if (fmt === 'webp') mime = 'image/webp';
+            if (fmt === 'pdf') mime = 'application/pdf';
+
+            const src = `data:${mime};base64,` + data.file;
+
+            if (fmt === 'pdf') {
+                els.previewBox.innerHTML = `
+                    <div class="text-center p-10">
+                        <svg class="w-16 h-16 text-red-400 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        <div class="text-white font-bold">PDF Hazır</div>
+                        <div class="text-sm text-gray-400 mt-1">İndirmek için butona bas</div>
+                    </div>`;
+            } else {
+                if (!els.previewBox.querySelector('img')) {
+                    els.previewBox.innerHTML = '<img id="resultImg" class="max-h-[320px] object-contain" alt="Çıktı" />';
+                    els.img = document.getElementById('resultImg');
+                }
+                els.img.src = src;
+            }
+
+            const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+            els.dl.href = src;
+            els.dl.download = (file.name.split('.')[0] || 'converted') + '.' + ext;
+
+            await checkLimit();
+        } catch (e) {
+            console.error(e);
+            setBusy(false);
+            alert('Sunucu hatası.');
         }
     }
 
-    document.addEventListener('DOMContentLoaded', checkLimit);
+    // wiring
+    els.fmtButtons.forEach(b => b.addEventListener('click', () => setFmt(b.dataset.fmt)));
+    els.drop.addEventListener('click', () => userAllowed ? els.input.click() : openModal('premiumModal'));
+    els.input.addEventListener('change', (e) => handleFile(e.target.files?.[0]));
+    els.drop.addEventListener('dragover', (e) => { e.preventDefault(); els.drop.classList.add('dragover'); });
+    els.drop.addEventListener('dragleave', () => els.drop.classList.remove('dragover'));
+    els.drop.addEventListener('drop', (e) => { e.preventDefault(); els.drop.classList.remove('dragover'); if (userAllowed) handleFile(e.dataTransfer.files?.[0]); else openModal('premiumModal'); });
+    els.btn.addEventListener('click', processConvert);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setFmt('jpeg');
+        checkLimit();
+    });
 </script>
 {% endblock content %}
