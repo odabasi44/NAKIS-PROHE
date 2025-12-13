@@ -13,6 +13,8 @@ Flask-SQLAlchemy
 qrcode[pil]
 reportlab
 python-docx
+psycopg2-binary
+
 
 
 
