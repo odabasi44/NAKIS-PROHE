@@ -12,13 +12,15 @@ class Config:
     ENV = os.environ.get("FLASK_ENV", os.environ.get("ENV", "development"))
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 200 * 1024 * 1024))
     
+    # Proje kökü
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
     # Dosya Yükleme Ayarları (cwd yerine proje kökü baz alınır)
     PORT = int(os.environ.get("PORT", 5001))
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'pdf', 'docx'}
     
     # Model Yolları
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     MODEL_DIR = os.path.join(BASE_DIR, 'models')
 
     # YENİ: Veritabanı Ayarı
