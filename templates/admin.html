@@ -270,6 +270,11 @@
     async function fetchDashboardData() {
         try {
             const res = await fetch("/api/admin/stats");
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error("fetchDashboardData failed", res.status, txt);
+                return;
+            }
             const st = await res.json();
 
             document.getElementById('stat-total-users').textContent = st.total_users || 0;
@@ -449,7 +454,8 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, end_date: endDate, tier })
             });
-            const data = await res.json();
+            let data = {};
+            try { data = await res.json(); } catch(e) { data = { message: await res.text() }; }
 
             if (res.ok) {
                 msgEl.textContent = "Kullanıcı başarıyla eklendi!";
