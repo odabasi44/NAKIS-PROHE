@@ -30,6 +30,9 @@
         <p class="text-gray-400">Görselinizi yükleyin, ERC v4 motoru ile nakışa uygun vektör çizimini hazırlayın.</p>
     </div>
 
+    <!-- LİMİT / PAKET BİLGİSİ -->
+    <div id="limitBox" class="hidden max-w-3xl mx-auto p-4 rounded-xl border border-white/10 bg-gray-900/40 text-sm text-gray-200"></div>
+
     <div id="step-1" class="animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">1. Ne Dönüştüreceksiniz?</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -141,6 +144,7 @@
 
 <script>
     let currentMode = null, currentQuality = 'high', selectedFile = null, vectorData = null, pngData = null;
+    let vectorAllowed = true;
 
     function selectMode(mode) {
         currentMode = mode;
@@ -177,6 +181,10 @@
 
     async function startProcessing() {
         if (!selectedFile) return alert("Dosya seçin!");
+        if (!vectorAllowed) {
+            alert("Bu araç için limitiniz doldu veya paketiniz yeterli değil. Paket yükseltmeyi deneyin.");
+            return;
+        }
         document.getElementById('processing-overlay').classList.remove('hidden');
 
         const formData = new FormData();
@@ -201,7 +209,13 @@
                 document.getElementById('processing-overlay').classList.add('hidden');
                 document.getElementById('result-screen').classList.remove('hidden');
             } else {
-                alert("Hata: " + data.message);
+                if (data.reason === "limit") {
+                    vectorAllowed = false;
+                    renderLimitBox({ allowed: false, left: 0 });
+                    alert("Limitiniz doldu. Paket yükseltmeyi deneyin.");
+                } else {
+                    alert("Hata: " + (data.message || "İşlem başarısız"));
+                }
                 document.getElementById('processing-overlay').classList.add('hidden');
             }
         } catch (e) {
@@ -210,6 +224,34 @@
             document.getElementById('processing-overlay').classList.add('hidden');
         }
     }
+
+    function renderLimitBox(status) {
+        const box = document.getElementById('limitBox');
+        if (!box) return;
+        box.classList.remove('hidden');
+        if (status.allowed) {
+            const left = (typeof status.left === 'number') ? status.left : 0;
+            const leftText = left > 9000 ? "Sınırsız" : `${left} işlem hakkı`;
+            box.innerHTML = `<span class="font-bold text-green-400">Aktif</span> • Kalan: <span class="font-bold">${leftText}</span>`;
+        } else {
+            box.innerHTML = `<span class="font-bold text-red-400">Kısıtlı</span> • Bu araç için hakkınız yok veya limit bitti. <button onclick="openModal('premiumModal')" class="underline font-bold text-blue-300">Paketleri İncele</button>`;
+        }
+    }
+
+    async function fetchVectorStatus() {
+        try {
+            const res = await fetch('/api/check_tool_status/vector/default');
+            const st = await res.json();
+            vectorAllowed = !!st.allowed;
+            renderLimitBox({ allowed: st.allowed, left: st.left });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchVectorStatus();
+    });
 
     function switchTab(tab) {
         const draw = document.getElementById('content-drawing');
