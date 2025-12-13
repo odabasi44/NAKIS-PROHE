@@ -409,20 +409,31 @@
             toolKeys.forEach(tool => {
                 const isActive = statuses[tool.key]?.active !== false; // Varsayılan true
                 const isMaint = statuses[tool.key]?.maintenance === true;
+                const tiers = access[tool.key]?.tiers || null;
                 const minTier = access[tool.key]?.min_tier || 'free';
+                const tierDefaults = {
+                    free: (minTier === 'free'),
+                    starter: (minTier === 'starter' || minTier === 'free'),
+                    pro: (minTier === 'pro' || minTier === 'starter' || minTier === 'free'),
+                    unlimited: true
+                };
+                const tiersFinal = tiers ? {
+                    free: tiers.free === true,
+                    starter: tiers.starter === true,
+                    pro: tiers.pro === true,
+                    unlimited: tiers.unlimited === true
+                } : tierDefaults;
                 
                 container.innerHTML += `
                 <div class="flex items-center justify-between bg-[#02040a] p-3 rounded-lg border border-white/10">
                     <div class="flex flex-col gap-1">
                         <span class="text-sm text-gray-300 font-medium">${tool.name}</span>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-gray-500">Min Paket:</span>
-                            <select id="mintier-${tool.key}" class="bg-[#0c1120] border border-white/10 text-gray-300 text-xs rounded px-2 py-1">
-                                <option value="free" ${minTier==='free'?'selected':''}>free</option>
-                                <option value="starter" ${minTier==='starter'?'selected':''}>starter</option>
-                                <option value="pro" ${minTier==='pro'?'selected':''}>pro</option>
-                                <option value="unlimited" ${minTier==='unlimited'?'selected':''}>unlimited</option>
-                            </select>
+                            <span class="text-[10px] text-gray-500">Paket Erişimi:</span>
+                            <label class="text-[10px] text-gray-300"><input type="checkbox" id="tier-${tool.key}-free" ${tiersFinal.free ? 'checked' : ''}> free</label>
+                            <label class="text-[10px] text-gray-300"><input type="checkbox" id="tier-${tool.key}-starter" ${tiersFinal.starter ? 'checked' : ''}> starter</label>
+                            <label class="text-[10px] text-gray-300"><input type="checkbox" id="tier-${tool.key}-pro" ${tiersFinal.pro ? 'checked' : ''}> pro</label>
+                            <label class="text-[10px] text-gray-300"><input type="checkbox" id="tier-${tool.key}-unlimited" ${tiersFinal.unlimited ? 'checked' : ''}> unlimited</label>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] text-gray-500">Bakım:</span>
@@ -450,8 +461,14 @@
             const isChecked = document.getElementById(`toggle-${tool.key}`).checked;
             const isMaint = document.getElementById(`maint-${tool.key}`)?.checked === true;
             newStatuses[tool.key] = { active: isChecked, maintenance: isMaint };
-            const minTierSel = document.getElementById(`mintier-${tool.key}`);
-            newAccess[tool.key] = { min_tier: minTierSel ? minTierSel.value : 'free' };
+            newAccess[tool.key] = {
+                tiers: {
+                    free: document.getElementById(`tier-${tool.key}-free`)?.checked === true,
+                    starter: document.getElementById(`tier-${tool.key}-starter`)?.checked === true,
+                    pro: document.getElementById(`tier-${tool.key}-pro`)?.checked === true,
+                    unlimited: document.getElementById(`tier-${tool.key}-unlimited`)?.checked === true
+                }
+            };
         });
 
         try {
