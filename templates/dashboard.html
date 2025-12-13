@@ -8,7 +8,7 @@
     <!-- HOŞ GELDİN KARTI -->
     <div class="p-6 rounded-2xl bg-gradient-to-br from-blue-700/50 to-purple-700/50 border border-white/10 shadow-2xl mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">
-            Hoş geldin, [{{ user.email or "Kullanıcı" }}] 👋
+            Hoş geldin, {{ user.email or "Kullanıcı" }}
         </h1>
         <p class="text-gray-200">
             Sunucularımız emrinde. Limitsiz erişimin keyfini çıkar.
@@ -30,8 +30,8 @@
         <!-- Kalan Limit -->
         <div class="p-4 rounded-xl bg-gray-900/50 border border-white/10">
             <p class="text-xs font-semibold text-amber-400 mb-1">KALAN LİMİT</p>
-            <p class="text-2xl font-bold text-white">∞ Sınırsız</p>
-            <p class="text-xs text-gray-400">({{ user.end_date }} tarihine kadar)</p>
+            <p class="text-2xl font-bold text-white">{{ user.tier | upper }}</p>
+            <p class="text-xs text-gray-400">Bitiş: {{ user.end_date or '-' }}</p>
         </div>
         
         <!-- Toplam Kullanım (BG Remove) -->
@@ -51,22 +51,110 @@
     
     <!-- SON İŞLEMLER TABLOSU -->
     <div class="p-6 rounded-2xl bg-gray-900/50 border border-white/10">
-        <h2 class="text-xl font-bold text-white mb-4">Son İşlemlerin</h2>
-        
-        <p class="text-gray-500 text-sm">
-            Son 5 işleminiz burada listelenecektir. (Veri tabanı entegrasyonu bekleniyor)
-        </p>
-        <!-- Tablo simülasyonu -->
-        <ul class="mt-4 space-y-2">
-            <li class="p-2 bg-gray-800/50 rounded-lg text-sm text-gray-300">
-                - 2025-12-05 | Arka Plan Kaldır | İndir
-            </li>
-            <li class="p-2 bg-gray-800/50 rounded-lg text-sm text-gray-300">
-                - 2025-12-04 | PDF Birleştir | İndir
-            </li>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-white">Son İşlemlerin</h2>
+            <span id="unreadBadge" class="hidden text-[10px] font-bold px-2 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">Yeni destek yanıtı</span>
+        </div>
+        <ul id="recentOps" class="mt-2 space-y-2 text-sm text-gray-300">
+            <li class="text-gray-500">Yükleniyor...</li>
         </ul>
+    </div>
+
+    <!-- DESTEK TALEBİ -->
+    <div class="p-6 rounded-2xl bg-gray-900/50 border border-white/10 mt-8">
+        <h2 class="text-xl font-bold text-white mb-4">Destek Talebi (Ticket)</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input id="ticketSubject" class="bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white text-sm" placeholder="Konu (örn: Limit sorunu)">
+            <button onclick="createTicket()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-sm transition">Talep Oluştur</button>
+        </div>
+        <textarea id="ticketMessage" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white text-sm h-28" placeholder="Mesajınız..."></textarea>
+
+        <div class="mt-6">
+            <h3 class="text-sm font-bold text-white mb-2">Taleplerim</h3>
+            <div id="ticketsList" class="space-y-2 text-sm text-gray-300">
+                <div class="text-gray-500">Yükleniyor...</div>
+            </div>
+        </div>
     </div>
 
 </div>
 
+<script>
+    async function loadDashboardData() {
+        try {
+            const res = await fetch('/api/user/dashboard');
+            const data = await res.json();
+            const list = document.getElementById('recentOps');
+            if (!data.recent_ops || !data.recent_ops.length) {
+                list.innerHTML = '<li class="text-gray-500">Henüz işlem yok.</li>';
+            } else {
+                list.innerHTML = data.recent_ops.map(o => `<li class="p-2 bg-gray-800/50 rounded-lg">- ${o.tool} / ${o.subtool}</li>`).join('');
+            }
+
+            const unread = (data.unread_replies || 0);
+            const badge = document.getElementById('unreadBadge');
+            if (unread > 0) badge.classList.remove('hidden'); else badge.classList.add('hidden');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadTickets() {
+        const box = document.getElementById('ticketsList');
+        try {
+            const res = await fetch('/api/user/tickets');
+            const items = await res.json();
+            if (!items.length) {
+                box.innerHTML = '<div class="text-gray-500">Henüz destek talebiniz yok.</div>';
+                return;
+            }
+            box.innerHTML = items.map(t => `
+                <div class="p-3 bg-gray-800/50 rounded-lg border border-white/5 flex items-center justify-between">
+                    <div>
+                        <div class="text-white font-bold text-sm">${t.subject}</div>
+                        <div class="text-[10px] text-gray-500">${t.status} • ${t.unread} okunmamış</div>
+                    </div>
+                    <button onclick="openTicket(${t.id})" class="text-xs font-bold text-blue-300 underline">Görüntüle</button>
+                </div>
+            `).join('');
+        } catch (e) {
+            box.innerHTML = '<div class="text-red-400">Ticket listesi yüklenemedi.</div>';
+        }
+    }
+
+    async function createTicket() {
+        const subject = document.getElementById('ticketSubject').value;
+        const message = document.getElementById('ticketMessage').value;
+        if (!subject || !message) return alert('Konu ve mesaj girin.');
+        const res = await fetch('/api/user/tickets', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({subject, message})
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+            document.getElementById('ticketSubject').value = '';
+            document.getElementById('ticketMessage').value = '';
+            await loadTickets();
+            alert('Talep oluşturuldu.');
+        } else {
+            alert(data.message || 'Hata');
+        }
+    }
+
+    async function openTicket(id) {
+        const res = await fetch(`/api/user/tickets/${id}/messages`);
+        const msgs = await res.json();
+        const text = msgs.map(m => `[${m.sender}] ${m.message}`).join('\n\n');
+        alert(text || 'Mesaj yok');
+        await loadDashboardData();
+        await loadTickets();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDashboardData();
+        loadTickets();
+    });
+</script>
 {% endblock content %}
