@@ -208,10 +208,18 @@
                 document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
                 document.getElementById('processing-overlay').classList.add('hidden');
                 document.getElementById('result-screen').classList.remove('hidden');
+                // Limit kutusunu anlık güncelle (sayfa yenilemeden)
+                if (data.status) {
+                    vectorAllowed = !!data.status.allowed;
+                    renderLimitBox(data.status);
+                } else {
+                    await fetchVectorStatus();
+                }
             } else {
                 if (data.reason === "limit") {
                     vectorAllowed = false;
-                    renderLimitBox({ allowed: false, left: 0 });
+                    if (data.status) renderLimitBox(data.status);
+                    else renderLimitBox({ allowed: false, left: 0 });
                     alert("Limitiniz doldu. Paket yükseltmeyi deneyin.");
                 } else {
                     alert("Hata: " + (data.message || "İşlem başarısız"));
