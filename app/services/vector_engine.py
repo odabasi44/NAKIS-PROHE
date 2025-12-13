@@ -44,6 +44,35 @@ class AdvancedVectorEngine:
 
         self.h, self.w = self.img.shape[:2]
 
+    # --- YARDIMCI: thinning (opencv-contrib yoksa fallback) ---
+    def _thinning(self, binary_img):
+        """
+        binary_img: 0/255 tek kanallı görüntü.
+        Önce cv2.ximgproc.thinning denenir; yoksa morfolojik skeleton fallback kullanılır.
+        """
+        try:
+            if hasattr(cv2, "ximgproc") and hasattr(cv2.ximgproc, "thinning"):
+                return cv2.ximgproc.thinning(binary_img)
+        except Exception:
+            pass
+
+        # Fallback: Morphological skeletonization
+        img = (binary_img > 0).astype(np.uint8) * 255
+        skel = np.zeros_like(img)
+        element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+        done = False
+        max_iter = 200  # güvenlik
+        it = 0
+        while not done and it < max_iter:
+            eroded = cv2.erode(img, element)
+            temp = cv2.dilate(eroded, element)
+            temp = cv2.subtract(img, temp)
+            skel = cv2.bitwise_or(skel, temp)
+            img = eroded.copy()
+            done = cv2.countNonZero(img) == 0
+            it += 1
+        return skel
+
     # --- YARDIMCI: Yüz Maskesi ---
     def get_face_mask(self, img):
         if not HAS_MEDIAPIPE: return None
@@ -87,7 +116,7 @@ class AdvancedVectorEngine:
 
         # Sadece çok belirgin çizgileri al
         _, hair_lines = cv2.threshold(max_filter, 200, 255, cv2.THRESH_BINARY)
-        hair_lines = cv2.ximgproc.thinning(hair_lines)
+        hair_lines = self._thinning(hair_lines)
         
         # SİYAH çizgi (0), BEYAZ zemin (255) formatına çevir
         hair_lines_inv = cv2.bitwise_not(hair_lines)
@@ -109,7 +138,7 @@ class AdvancedVectorEngine:
         
         # Daha yüksek eşik (sadece derin kırışıklıklar)
         _, wr = cv2.threshold(diff, 150, 255, cv2.THRESH_BINARY)
-        wr = cv2.ximgproc.thinning(wr)
+        wr = self._thinning(wr)
         
         # SİYAH çizgi, BEYAZ zemin
         wr_inv = cv2.bitwise_not(wr)
@@ -146,7 +175,7 @@ class AdvancedVectorEngine:
         _, fdog = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
         
         # İncelterek ve Siyah-Beyaz
-        fdog = cv2.ximgproc.thinning(fdog)
+        fdog = self._thinning(fdog)
         return cv2.bitwise_not(fdog) # Siyah çizgi, Beyaz zemin
 
     # --- QUANTIZATION ---
