@@ -330,6 +330,10 @@
             const access = data.tool_access || {};
             
             const container = document.getElementById('tool-toggles-container');
+            if (!container) {
+                console.error("tool-toggles-container not found");
+                return;
+            }
             container.innerHTML = '';
 
             toolKeys.forEach(tool => {
@@ -356,6 +360,10 @@
                     </label>
                 </div>`;
             });
+
+            if (!container.innerHTML.trim()) {
+                container.innerHTML = '<div class="text-gray-500 text-sm">Araç listesi oluşturulamadı.</div>';
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -595,6 +603,13 @@
         if (!box) return;
         box.innerHTML = '<div class="text-gray-500">Yükleniyor...</div>';
         try {
+            const esc = (s) => String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
             const res = await fetch('/api/admin/tickets');
             const items = await res.json();
             if (!items.length) {
@@ -602,7 +617,9 @@
                 return;
             }
             box.innerHTML = items.map(t => `
-                <button onclick="openAdminTicket(${t.id})" class="w-full text-left p-3 rounded-lg border border-white/5 bg-[#02040a] hover:bg-white/5 transition">
+                <button data-ticket-id="${t.id}" data-user-email="${esc(t.user_email)}" data-subject="${esc(t.subject)}"
+                        onclick="openAdminTicketFromEl(this)"
+                        class="w-full text-left p-3 rounded-lg border border-white/5 bg-[#02040a] hover:bg-white/5 transition">
                     <div class="text-white font-bold text-xs">${t.subject}</div>
                     <div class="text-[10px] text-gray-500">${t.user_email} • ${t.status}</div>
                 </button>
@@ -613,7 +630,14 @@
         }
     }
 
-    async function openAdminTicket(id) {
+    function openAdminTicketFromEl(el) {
+        const id = parseInt(el.dataset.ticketId || '0', 10);
+        const email = el.dataset.userEmail || '';
+        const subject = el.dataset.subject || '';
+        openAdminTicket(id, email, subject);
+    }
+
+    async function openAdminTicket(id, userEmail, subject) {
         selectedTicketId = id;
         const panel = document.getElementById('admin-ticket-detail');
         panel.innerHTML = 'Yükleniyor...';
@@ -621,12 +645,18 @@
         const msgs = await res.json();
         const history = msgs.map(m => `
             <div class="p-2 rounded-lg ${m.sender==='admin'?'bg-blue-500/10 border border-blue-500/20':'bg-white/5 border border-white/10'}">
-                <div class="text-[10px] text-gray-500 mb-1">${m.sender}</div>
+                <div class="text-[10px] text-gray-500 mb-1">${m.sender==='admin'?'Admin':(userEmail || 'Kullanıcı')}</div>
                 <div class="text-sm text-gray-200 whitespace-pre-wrap">${m.message}</div>
             </div>
         `).join('');
 
         panel.innerHTML = `
+            <div class="mb-4 p-3 rounded-lg bg-[#02040a] border border-white/10">
+                <div class="text-[10px] text-gray-500">Kullanıcı</div>
+                <div class="text-sm text-white font-bold">${userEmail || '-'}</div>
+                <div class="text-[10px] text-gray-500 mt-2">Konu</div>
+                <div class="text-sm text-gray-200">${subject || '-'}</div>
+            </div>
             <div class="space-y-2 mb-4 max-h-[360px] overflow-auto pr-2">${history || '<div class="text-gray-500">Mesaj yok</div>'}</div>
             <textarea id="adminReplyMsg" class="w-full bg-[#02040a] border border-white/10 rounded-lg px-4 py-3 text-white text-sm h-24" placeholder="Cevap yaz..."></textarea>
             <div class="flex justify-end mt-2">
