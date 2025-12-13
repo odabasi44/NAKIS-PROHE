@@ -10,6 +10,9 @@ from app.utils.helpers import check_user_status, increase_usage
 from app.services.vector_engine import AdvancedVectorEngine
 from app.services.embroidery_engine import EmbroideryGenerator
 from app.services.ai_loader import AILoader
+from app.models import Ticket, TicketMessage, UsageEvent
+from app.extensions import db
+from datetime import datetime
 
 bp = Blueprint('api', __name__)
 
@@ -333,3 +336,99 @@ def api_logo_generator():
 @bp.route("/check_tool_status/<tool>/<subtool>")
 def status_api(tool, subtool):
     return jsonify(check_user_status(session.get("user_email","guest"), tool, subtool))
+
+
+# ---------------- USER DASHBOARD / TICKETS ----------------
+
+@bp.route("/user/tickets", methods=["GET"])
+def user_tickets_list():
+    email = session.get("user_email")
+    if not email:
+        return jsonify([]), 401
+
+    tickets = Ticket.query.filter_by(user_email=email).order_by(Ticket.updated_at.desc()).limit(100).all()
+    out = []
+    for t in tickets:
+        unread = TicketMessage.query.filter_by(ticket_id=t.id, sender="admin", is_read_by_user=False).count()
+        out.append({
+            "id": t.id,
+            "subject": t.subject,
+            "status": t.status,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            "unread": unread
+        })
+    return jsonify(out)
+
+
+@bp.route("/user/tickets", methods=["POST"])
+def user_tickets_create():
+    email = session.get("user_email")
+    if not email:
+        return jsonify({"status": "error", "message": "login gerekli"}), 401
+
+    data = request.get_json(silent=True) or {}
+    subject = (data.get("subject") or "").strip()
+    message = (data.get("message") or "").strip()
+    if not subject or not message:
+        return jsonify({"status": "error", "message": "subject ve message gerekli"}), 400
+
+    try:
+        t = Ticket(user_email=email, subject=subject, status="open")
+        db.session.add(t)
+        db.session.commit()
+        db.session.add(TicketMessage(ticket_id=t.id, sender="user", message=message, is_read_by_admin=False, is_read_by_user=True))
+        db.session.commit()
+        return jsonify({"status": "ok", "id": t.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/user/tickets/<int:ticket_id>/messages", methods=["GET"])
+def user_ticket_messages(ticket_id):
+    email = session.get("user_email")
+    if not email:
+        return jsonify([]), 401
+
+    t = Ticket.query.get(ticket_id)
+    if not t or t.user_email != email:
+        return jsonify([]), 404
+
+    msgs = TicketMessage.query.filter_by(ticket_id=ticket_id).order_by(TicketMessage.created_at.asc()).all()
+    # kullanıcı okudu -> admin mesajlarını read yap
+    try:
+        for m in msgs:
+            if m.sender == "admin":
+                m.is_read_by_user = True
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return jsonify([{
+        "id": m.id,
+        "sender": m.sender,
+        "message": m.message,
+        "created_at": m.created_at.isoformat() if m.created_at else None
+    } for m in msgs])
+
+
+@bp.route("/user/dashboard", methods=["GET"])
+def user_dashboard_data():
+    email = session.get("user_email")
+    if not email:
+        return jsonify({}), 401
+
+    ops = UsageEvent.query.filter_by(user_email=email).order_by(UsageEvent.created_at.desc()).limit(5).all()
+    open_ticket_count = Ticket.query.filter_by(user_email=email, status="open").count()
+    unread_replies = TicketMessage.query.join(Ticket, Ticket.id == TicketMessage.ticket_id)\
+        .filter(Ticket.user_email == email, TicketMessage.sender == "admin", TicketMessage.is_read_by_user == False).count()  # noqa: E712
+
+    return jsonify({
+        "recent_ops": [{
+            "tool": o.tool,
+            "subtool": o.subtool,
+            "created_at": o.created_at.isoformat() if o.created_at else None
+        } for o in ops],
+        "open_tickets": open_ticket_count,
+        "unread_replies": unread_replies
+    })
