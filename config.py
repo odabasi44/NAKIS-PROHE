@@ -16,9 +16,13 @@ class Config:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     MODEL_DIR = os.path.join(BASE_DIR, 'models')
 
-    # YENİ: Veritabanı Ayarı
-    # app.db adında bir dosya oluşacak
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(os.getcwd(), 'app.db')
+    # --- VERİTABANI AYARI (DÜZELTİLDİ) ---
+    # Coolify 'postgres://' verirse bunu 'postgresql://' olarak değiştiriyoruz.
+    uri = os.environ.get('DATABASE_URL')
+    if uri and uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = uri or 'sqlite:///' + os.path.join(os.getcwd(), 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     @staticmethod
