@@ -1,30 +1,30 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Admin Girişi{% endblock title %}
 
 {% block content %}
-<div class="flex items-center justify-center min-h-screen -mt-20">
-    <div class="modal-content p-8 w-full max-w-md relative animate-fade-in shadow-2xl border-blue-500/20">
+<main class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md glass rounded-3xl p-8 shadow-soft border border-white/10">
         <div class="text-center mb-8">
-            <div class="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white mx-auto mb-3">B</div>
+            <div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white mx-auto mb-3">B</div>
             <h2 class="text-2xl font-bold text-white">Yönetici Girişi</h2>
             <p class="text-gray-400 text-sm mt-1">Sistem ayarlarına erişim için giriş yapın.</p>
         </div>
-        
+
         <form id="adminLoginForm">
             <label class="block text-sm text-gray-400 mb-1">E-posta</label>
             <input type="email" id="adminEmail" placeholder="admin@botlab.com" class="input-dark w-full text-sm mb-4" required>
 
             <label class="block text-sm text-gray-400 mb-1">Şifre</label>
             <input type="password" id="adminPassword" placeholder="şifreniz" class="input-dark w-full text-sm mb-6" required>
-            
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg shadow-blue-900/30">Giriş Yap</button>
-            <p id="error-message" class="text-sm text-red-400 mt-3 hidden">Giriş başarısız. Lütfen bilgilerinizi kontrol edin.</p>
+
+            <button type="submit" class="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 text-sm transition">Giriş Yap</button>
+            <p id="error-message" class="text-sm text-red-300 mt-3 hidden">Giriş başarısız. Lütfen bilgilerinizi kontrol edin.</p>
         </form>
 
         <p class="text-center text-xs text-gray-500 mt-6">Bu alan sadece Botlab yöneticilerine açıktır.</p>
     </div>
-</div>
+</main>
 
 <script>
     document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
