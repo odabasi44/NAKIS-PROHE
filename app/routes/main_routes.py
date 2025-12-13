@@ -27,11 +27,12 @@ def home():
     tools_view = {}
     for key, st in tool_status.items():
         active = bool(st.get("active", True)) if isinstance(st, dict) else bool(st)
+        maintenance = bool(st.get("maintenance", False)) if isinstance(st, dict) else False
         min_tier = (tool_access.get(key, {}) or {}).get("min_tier", "free")
         allowed = tier_rank.get(user_tier, 0) >= tier_rank.get(min_tier, 0)
         tools_view[key] = {
-            "active": active,
-            "maintenance": bool(st.get("maintenance", False)) if isinstance(st, dict) else False,
+            "active": active and (not maintenance),
+            "maintenance": maintenance,
             "min_tier": min_tier,
             "allowed": allowed
         }
