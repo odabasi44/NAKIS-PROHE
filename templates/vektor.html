@@ -8,14 +8,14 @@
     .mode-card { transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden; }
     .mode-card:hover { transform: translateY(-5px); border-color: #8b5cf6; }
     .mode-card.selected { background: linear-gradient(145deg, rgba(139,92,246,0.15), rgba(17,24,39,0.9)); border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,0.5); }
-    
+
     /* RADYO & CHECKBOX */
     input[type="radio"]:checked + div { border-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.1); }
     input[type="radio"]:checked + div span { color: white; }
-    
+
     /* KALİTE BUTONLARI */
     .quality-btn.active { background: rgba(139,92,246,0.2); border-color: #8b5cf6; color: white; }
-    
+
     /* LOADING ANIMASYONU */
     .scan-line { position: absolute; width: 100%; height: 2px; background: #8b5cf6; box-shadow: 0 0 15px #8b5cf6; animation: scan 2s linear infinite; }
     @keyframes scan { 0% {top: 0%} 50% {top: 100%} 100% {top: 0%} }
@@ -73,6 +73,7 @@
                             <button onclick="setQuality('high')" id="q-high" class="quality-btn active py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Dengeli</button>
                             <button onclick="setQuality('ultra')" id="q-ultra" class="quality-btn py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Yüksek</button>
                         </div>
+                        <p class="text-[11px] text-gray-500 mt-3">Not: Yeni EPS/BOT sisteminde renk sayısı 3–5 aralığına otomatik sınırlandırılır.</p>
                     </div>
                     <button onclick="startProcessing()" class="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold shadow-lg shadow-violet-900/30 hover:opacity-90 transition">Vektörleştirmeyi Başlat</button>
                 </div>
@@ -88,7 +89,7 @@
                     <img id="final-result-img" class="max-w-full max-h-[600px] object-contain">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mt-4">
-                    <button onclick="downloadVector()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">EPS İndir</button>
+                    <button onclick="downloadEPS()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">EPS İndir</button>
                     <button onclick="downloadPNG()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">PNG İndir</button>
                 </div>
             </div>
@@ -97,7 +98,7 @@
                 <div class="glass-panel rounded-2xl p-5 border border-violet-500/30 bg-gradient-to-b from-violet-900/10 to-[#0c1120] h-full flex flex-col">
                     <div class="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                         <div class="w-10 h-10 rounded-lg bg-violet-600 flex items-center justify-center text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg></div>
-                        <div><h4 class="text-sm font-bold text-white">Nakış Dönüştürücü</h4><span class="text-[10px] text-violet-300">Auto-Digitize v4</span></div>
+                        <div><h4 class="text-sm font-bold text-white">Nakış Dönüştürücü</h4><span class="text-[10px] text-violet-300">BOT → Machine</span></div>
                     </div>
 
                     <div class="flex bg-black/40 p-1 rounded-lg mb-4">
@@ -107,13 +108,13 @@
 
                     <div id="content-drawing" class="space-y-3 flex-grow">
                         <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
-                            <input type="radio" name="emb_format" value="emb" checked class="hidden">
-                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.EMB</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Wilcom</span></div>
+                            <input type="radio" name="emb_format" value="bot" checked class="hidden">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-bold text-gray-300">.BOT</span>
+                                <span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Editable</span>
+                            </div>
                         </label>
-                        <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
-                            <input type="radio" name="emb_format" value="dst" class="hidden">
-                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.SVG</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Vektör</span></div>
-                        </label>
+                        <p class="text-[11px] text-gray-500">BOT dosyası Wilcom’da direkt açılmaz. Botlab içinde düzenlemek içindir.</p>
                     </div>
 
                     <div id="content-machine" class="hidden space-y-4 flex-grow">
@@ -121,8 +122,11 @@
                             <option value="dst">DST - Tajima</option>
                             <option value="pes">PES - Brother</option>
                             <option value="jef">JEF - Janome</option>
+                            <option value="exp">EXP - Melco</option>
+                            <option value="xxx">XXX - Singer</option>
+                            <option value="vp3">VP3 - Husqvarna</option>
                         </select>
-                        <p class="text-[10px] text-yellow-200 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">⚠️ Makine dosyalarında renk bilgisi kaybolabilir.</p>
+                        <p class="text-[10px] text-yellow-200 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">⚠️ Makine dosyalarında renk bilgisi sınırlı olabilir.</p>
                     </div>
 
                     <button onclick="convertEmbroidery()" class="w-full py-3 mt-auto bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition">Dönüştür ve İndir</button>
@@ -137,7 +141,7 @@
             <div class="scan-line"></div>
         </div>
         <h3 class="text-xl font-bold text-white animate-pulse">İşleniyor...</h3>
-        <p class="text-sm text-gray-400 mt-2">ERC v4 motoru çalışıyor</p>
+        <p class="text-sm text-gray-400 mt-2">İşlem devam ediyor</p>
     </div>
 
 </div>
@@ -189,29 +193,40 @@
 
         const formData = new FormData();
         formData.append('image', selectedFile);
+
+        // logo/photo seçimine göre (Flask tarafında proxy varsa FastAPI bunu dikkate almıyor, ama local fallback'te kullanılabilir)
         formData.append('method', currentMode === 'logo' ? 'outline' : 'cartoon');
-        
-        let thickness = 2, count = 16;
-        if (currentQuality === 'medium') { thickness = 3; count = 8; }
-        else if (currentQuality === 'ultra') { thickness = 1; count = 32; }
-        
+
+        // FastAPI v1: 3–5 renk
+        let count = 4;
+        if (currentQuality === 'medium') count = 3;
+        else if (currentQuality === 'ultra') count = 5;
+
+        // Kontur kalınlığı (local fallback'te işe yarar)
+        let thickness = 2;
+        if (currentQuality === 'medium') thickness = 3;
+        else if (currentQuality === 'ultra') thickness = 1;
+
         formData.append('edge_thickness', thickness);
         formData.append('color_count', count);
-        formData.append('style', 'cartoon');
+
+        // FastAPI tarafında stil yok; local fallback için
+        formData.append('style', 'flat');
 
         try {
             const res = await fetch('/api/vectorize', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.success) {
                 engineId = data.id || null;
-                vectorData = data.file || null;     // (proxy modda boş olabilir)
-                epsData = data.eps || null;         // YENİ
-                botData = data.bot || null;         // YENİ
+                vectorData = data.file || null;     // legacy
+                epsData = data.eps || null;
+                botData = data.bot || null;
                 pngData = data.preview_img || null;
+
                 document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
                 document.getElementById('processing-overlay').classList.add('hidden');
                 document.getElementById('result-screen').classList.remove('hidden');
-                // Limit kutusunu anlık güncelle (sayfa yenilemeden)
+
                 if (data.status) {
                     vectorAllowed = !!data.status.allowed;
                     renderLimitBox(data.status);
@@ -283,45 +298,69 @@
         }
     }
 
-    // NAKIŞ DÖNÜŞTÜRME (CANLI)
     async function convertEmbroidery() {
         if (!selectedFile) return alert("Lütfen önce bir dosya yükleyin!");
-        
-        // Format Seçimi
+
         const isMachine = document.getElementById('content-drawing').classList.contains('hidden');
         let format = '';
+
         if (isMachine) {
-            format = document.getElementById('machine-format-select').value; // dst, pes
+            format = document.getElementById('machine-format-select').value;
         } else {
             const radio = document.querySelector('input[name="emb_format"]:checked');
-            format = radio ? radio.value : 'emb';
+            format = radio ? radio.value : 'bot';
         }
 
-        // EMB formatı pyembroidery ile yazılamaz, uyarı verelim
-        if (format === 'emb' || format === 'art') {
-            alert("⚠️ .EMB ve .ART formatları tescilli olduğu için yazılamaz. Size en yakın format olan .DST verilecektir.");
-            format = 'dst';
+        // BOT indir
+        if (format === 'bot') {
+            if (!botData) return alert("BOT henüz hazır değil. Önce vektörleştirin.");
+            const link = document.createElement('a');
+            link.href = "data:application/json;base64," + botData;
+            link.download = "design.bot";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
         }
 
-        // Butonu Kilitle
+        // Makine formatları: botData varsa BOT->format dönüştür
         const btn = document.querySelector("button[onclick='convertEmbroidery()']");
         const oldText = btn.innerHTML;
         btn.innerHTML = "⏳ Dönüştürülüyor...";
         btn.disabled = true;
 
-        const formData = new FormData();
-        formData.append('image', selectedFile); // Orijinal resmi gönderip tekrar işliyoruz
-        formData.append('format', format);
-
         try {
-            const res = await fetch('/api/convert_embroidery', {
-                method: 'POST',
-                body: formData
-            });
+            if (botData) {
+                const formData = new FormData();
+                formData.append('bot', botData);
+                formData.append('format', format);
+
+                const res = await fetch('/api/bot_to_embroidery', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.success) {
+                    const link = document.createElement('a');
+                    link.href = "data:application/octet-stream;base64," + data.file;
+                    link.download = data.filename || ("design." + format);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    alert("✅ Başarılı! Nakış dosyanız indirildi.");
+                } else {
+                    alert("Hata: " + (data.message || "Dönüşüm başarısız"));
+                }
+                return;
+            }
+
+            // Fallback: eski sistem (image -> dst/pes/jef)
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            formData.append('format', format);
+
+            const res = await fetch('/api/convert_embroidery', { method: 'POST', body: formData });
             const data = await res.json();
 
             if (data.success) {
-                // İndirme İşlemi
                 const link = document.createElement('a');
                 link.href = "data:application/octet-stream;base64," + data.file;
                 link.download = "nakis_tasarim." + format;
@@ -341,7 +380,20 @@
         }
     }
 
-    function downloadVector() { if(vectorData) { const a = document.createElement('a'); a.href = "data:image/svg+xml;base64," + vectorData; a.download = "vektor.svg"; a.click(); } }
-    function downloadPNG() { if(pngData) { const a = document.createElement('a'); a.href = "data:image/png;base64," + pngData; a.download = "preview.png"; a.click(); } }
+    function downloadEPS() {
+        if (!epsData) return alert("EPS henüz hazır değil. Önce vektörleştirin.");
+        const a = document.createElement('a');
+        a.href = "data:application/postscript;base64," + epsData;
+        a.download = "vektor.eps";
+        a.click();
+    }
+
+    function downloadPNG() {
+        if (!pngData) return alert("PNG henüz hazır değil.");
+        const a = document.createElement('a');
+        a.href = "data:image/png;base64," + pngData;
+        a.download = "preview.png";
+        a.click();
+    }
 </script>
 {% endblock content %}
