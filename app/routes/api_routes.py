@@ -2,10 +2,13 @@ import os
 import requests
 import io
 import base64
+import json
 import zipfile
+import os
 import cv2
 import numpy as np
 import qrcode
+import requests
 from PIL import Image, ImageDraw, ImageFont
 from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from flask import Blueprint, request, jsonify, session
@@ -13,6 +16,7 @@ from app.utils.helpers import check_user_status, increase_usage
 from app.services.vector_engine import AdvancedVectorEngine
 from app.services.embroidery_engine import EmbroideryGenerator
 from app.services.ai_loader import AILoader
+from app.services.bot_stitch_engine import bot_json_to_pattern, export_pattern
 from app.models import Ticket, TicketMessage, UsageEvent
 from app.extensions import db
 from datetime import datetime
@@ -32,22 +36,222 @@ def api_vectorize():
         return jsonify({"success": False, "message": "Görsel yüklenmedi"}), 400
 
     file = request.files["image"]
-    method = request.form.get("method", "cartoon")
-    style = request.form.get("style", "cartoon")
+    method = (request.form.get("method", "cartoon") or "cartoon").strip().lower()
+    style = (request.form.get("style", "cartoon") or "cartoon").strip().lower()
+
+    # kalite parametreleri (UI'dan gelebilir)
     edge_thickness = int(request.form.get("edge_thickness", 2))
     color_count = int(request.form.get("color_count", 16))
+    simplify_factor = float(request.form.get("simplify_factor", 0.003))
+    min_area = int(request.form.get("min_area", 20))
+    cleanup_kernel = int(request.form.get("cleanup_kernel", 3))
+    border_sensitivity = int(request.form.get("border_sensitivity", 12))
+
+    # yeni sistem: şeffaf arkaplan varsayılan açık
+    remove_bg = request.form.get("remove_bg")
+    remove_bg = (str(remove_bg).strip().lower() in ("1", "true", "yes", "on")) if remove_bg is not None else True
+    bg_threshold = float(request.form.get("bg_threshold", 0.5))
 
     try:
-        engine = AdvancedVectorEngine(file)
-        options = {"edge_thickness": edge_thickness, "color_count": color_count}
+        raw_bytes = file.read()
+        if not raw_bytes:
+            return jsonify({"success": False, "message": "Boş dosya"}), 400
+
+        # --- FastAPI Engine Proxy (Flask ile aynı domain'den çalışsın diye) ---
+        engine_url = (os.getenv("BOTLAB_ENGINE_URL") or "").strip().rstrip("/")
+        if engine_url:
+            # 1) upload
+            up = requests.post(
+                f"{engine_url}/api/upload",
+                files={"image": (getattr(file, "filename", "image"), raw_bytes, getattr(file, "mimetype", "application/octet-stream"))},
+                timeout=120,
+            )
+            if up.status_code >= 400:
+                return jsonify({"success": False, "message": f"Engine upload hata: {up.text}"}), 502
+            upj = up.json()
+            job_id = upj.get("id")
+            if not job_id:
+                return jsonify({"success": False, "message": "Engine upload id dönmedi"}), 502
+
+            # 2) vector process (EPS + PNG)
+            try:
+                tw = int(request.form.get("target_width") or 0)
+            except Exception:
+                tw = 0
+            try:
+                th = int(request.form.get("target_height") or 0)
+            except Exception:
+                th = 0
+            num_colors = int(color_count)
+            num_colors = max(3, min(num_colors, 5))
+
+            vp = requests.post(
+                f"{engine_url}/api/process/vector",
+                json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                timeout=300,
+            )
+            if vp.status_code >= 400:
+                return jsonify({"success": False, "message": f"Engine vector hata: {vp.text}"}), 502
+            vpj = vp.json()
+            eps_url = vpj.get("eps_url")
+            png_url = vpj.get("png_url")
+            colors = vpj.get("colors") or []
+            if not eps_url or not png_url:
+                return jsonify({"success": False, "message": "Engine vector eps/png url dönmedi"}), 502
+
+            eps_r = requests.get(f"{engine_url}{eps_url}", timeout=120)
+            png_r = requests.get(f"{engine_url}{png_url}", timeout=120)
+            if eps_r.status_code >= 400 or png_r.status_code >= 400:
+                return jsonify({"success": False, "message": "Engine static fetch hata"}), 502
+
+            eps_b64 = base64.b64encode(eps_r.content).decode()
+            png_b64 = base64.b64encode(png_r.content).decode()
+
+            # 3) embroidery process -> BOT (editable)
+            ep = requests.post(
+                f"{engine_url}/api/process/embroidery",
+                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                timeout=300,
+            )
+            if ep.status_code >= 400:
+                return jsonify({"success": False, "message": f"Engine embroidery hata: {ep.text}"}), 502
+            epj = ep.json()
+            bot_url = epj.get("bot_url") or epj.get("file_url")
+            if not bot_url:
+                return jsonify({"success": False, "message": "Engine bot url dönmedi"}), 502
+
+            bot_r = requests.get(f"{engine_url}{bot_url}", timeout=120)
+            if bot_r.status_code >= 400:
+                return jsonify({"success": False, "message": "Engine bot fetch hata"}), 502
+
+            bot_b64 = base64.b64encode(bot_r.content).decode()
+
+            increase_usage(email, "vector", "default")
+            st_after = check_user_status(email, "vector", "default")
+
+            return jsonify({
+                "success": True,
+                "id": job_id,
+                "eps": eps_b64,
+                "bot": bot_b64,
+                "preview_img": png_b64,
+                "colors": colors,
+                "status": st_after
+            })
+
+        # 1) hedef boyut (engine'e de geçecek)
+        target_width = request.form.get("target_width")
+        target_height = request.form.get("target_height")
+        lock_aspect = request.form.get("lock_aspect")
+        lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
+
+        # 2) pre-process: bg removal + enhance (EPS/embroidery için daha temiz giriş)
+        original_rgb = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+
+        # resize burada (performans + daha deterministik)
+        try:
+            tw = int(target_width) if target_width is not None else 0
+        except Exception:
+            tw = 0
+        try:
+            th = int(target_height) if target_height is not None else 0
+        except Exception:
+            th = 0
+        if tw > 0 or th > 0:
+            ow, oh = original_rgb.size
+            if lock_aspect:
+                if tw > 0 and th <= 0 and oh > 0:
+                    th = int(round((tw * oh) / ow)) if ow > 0 else tw
+                elif th > 0 and tw <= 0 and ow > 0:
+                    tw = int(round((th * ow) / oh)) if oh > 0 else th
+                if tw > 0 and th > 0 and ow > 0 and oh > 0:
+                    s = min(tw / ow, th / oh)
+                    tw = int(round(ow * s))
+                    th = int(round(oh * s))
+            tw = max(1, min(tw, 3000)) if tw > 0 else ow
+            th = max(1, min(th, 3000)) if th > 0 else oh
+            if (tw, th) != (ow, oh):
+                original_rgb = original_rgb.resize((tw, th), Image.LANCZOS)
+
+        np_bgr = cv2.cvtColor(np.array(original_rgb), cv2.COLOR_RGB2BGR)
+
+        # enhance: denoise + unsharp + clahe
+        den = cv2.fastNlMeansDenoisingColored(np_bgr, None, 6, 6, 7, 21)
+        blur = cv2.GaussianBlur(den, (0, 0), 1.0)
+        sharp = cv2.addWeighted(den, 1.4, blur, -0.4, 0)
+        lab = cv2.cvtColor(sharp, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        l = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(l)
+        enhanced = cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR)
+
+        # bg removal: u2net varsa alpha çıkar; yoksa border renk heuristiği
+        alpha = np.full((enhanced.shape[0], enhanced.shape[1]), 255, dtype=np.uint8)
+        if remove_bg:
+            if AILoader.u2net_session:
+                pil_enh = Image.fromarray(cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB))
+                small = pil_enh.resize((320, 320))
+                inp = np.transpose(np.array(small).astype(np.float32) / 255.0, (2, 0, 1))
+                inp = np.expand_dims(inp, 0)
+                out = AILoader.u2net_session.run(None, {AILoader.u2net_input_name: inp})[0].squeeze()
+                mask = cv2.resize(out, (pil_enh.size[0], pil_enh.size[1]))
+                mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
+                alpha = ((mask >= float(bg_threshold)) * 255).astype(np.uint8)
+            else:
+                # basit: kenar rengi = background, uzaklık threshold
+                h0, w0 = enhanced.shape[:2]
+                border = np.concatenate([enhanced[0, :, :], enhanced[-1, :, :], enhanced[:, 0, :], enhanced[:, -1, :]], axis=0)
+                bg = np.median(border.reshape(-1, 3), axis=0).astype(np.uint8)
+                diff = np.linalg.norm(enhanced.astype(np.int16) - bg.astype(np.int16), axis=2)
+                alpha = (diff > 18).astype(np.uint8) * 255
+
+        rgba = cv2.cvtColor(enhanced, cv2.COLOR_BGR2BGRA)
+        rgba[:, :, 3] = alpha
+        buf = io.BytesIO()
+        Image.fromarray(cv2.cvtColor(rgba, cv2.COLOR_BGRA2RGBA)).save(buf, "PNG")
+        img_stream = io.BytesIO(buf.getvalue())
+
+        engine = AdvancedVectorEngine(
+            img_stream,
+            target_width=target_width,
+            target_height=target_height,
+            lock_aspect=lock_aspect,
+            max_dim=1000,
+        )
+        options = {"edge_thickness": edge_thickness, "color_count": color_count, "border_sensitivity": border_sensitivity}
         
         if method == "outline":
-            engine.img = engine.process_sketch_style()
+            # "outline" UI adı kalsa da; logo/grafik için temiz posterize taban üret
+            engine.img = engine.process_logo_style(color_count=color_count)
         else:
             engine.img = engine.process_artistic_style(style=style, options=options)
         
-        svg = engine.generate_artistic_svg(num_colors=color_count, simplify_factor=0.003)
+        svg = engine.generate_artistic_svg(
+            num_colors=color_count,
+            simplify_factor=simplify_factor,
+            min_area=min_area,
+            cleanup_kernel=cleanup_kernel,
+            ignore_background=True,
+        )
         svg_b64 = base64.b64encode(svg.encode()).decode()
+
+        # EPS + BOT (basit v1)
+        eps = engine.generate_eps(
+            num_colors=color_count,
+            simplify_factor=simplify_factor,
+            min_area=min_area,
+            cleanup_kernel=cleanup_kernel,
+            ignore_background=True,
+        )
+        eps_b64 = base64.b64encode(eps).decode()
+
+        bot_json = engine.generate_bot_json(
+            num_colors=color_count,
+            simplify_factor=simplify_factor,
+            min_area=min_area,
+            cleanup_kernel=cleanup_kernel,
+            ignore_background=True,
+        )
+        bot_b64 = base64.b64encode(bot_json.encode("utf-8")).decode()
         
         _, buf = cv2.imencode(".png", engine.img)
         preview_b64 = base64.b64encode(buf).decode()
@@ -58,6 +262,8 @@ def api_vectorize():
         return jsonify({
             "success": True,
             "file": svg_b64,
+            "eps": eps_b64,
+            "bot": bot_b64,
             "preview_img": preview_b64,
             "info": {"style": style},
             "status": st_after
@@ -82,6 +288,92 @@ def api_convert_embroidery():
         return jsonify({
             "success": True, 
             "file": emb_b64, 
+            "filename": f"design.{fmt}",
+            "format": fmt
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@bp.route("/export_bot_project", methods=["POST"])
+def api_export_bot_project():
+    """
+    BOTLAB Proje dosyası (.bot):
+    - Programların (Wilcom/Accurate/Wings) proprietary formatları yerine, bizim editlenebilir proje paketimiz.
+    - İçerik: project.json + vector.svg + preview.png + opsiyonel source image
+    """
+    if "svg" not in request.form:
+        return jsonify({"success": False, "message": "SVG verisi eksik"}), 400
+
+    svg_b64 = request.form.get("svg", "")
+    preview_b64 = request.form.get("preview_png", "")
+    meta_json = request.form.get("meta", "{}")
+
+    try:
+        svg_bytes = base64.b64decode(svg_b64.encode())
+    except Exception:
+        return jsonify({"success": False, "message": "SVG decode edilemedi"}), 400
+
+    preview_bytes = b""
+    if preview_b64:
+        try:
+            preview_bytes = base64.b64decode(preview_b64.encode())
+        except Exception:
+            preview_bytes = b""
+
+    # meta json doğrulama
+    try:
+        import json
+        meta = json.loads(meta_json) if meta_json else {}
+    except Exception:
+        meta = {}
+
+    # opsiyonel source image
+    source_bytes = b""
+    if "image" in request.files:
+        try:
+            source_bytes = request.files["image"].read() or b""
+        except Exception:
+            source_bytes = b""
+
+    try:
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("vector.svg", svg_bytes)
+            if preview_bytes:
+                zf.writestr("preview.png", preview_bytes)
+            if source_bytes:
+                zf.writestr("source_image", source_bytes)
+            zf.writestr("project.json", json.dumps(meta, ensure_ascii=False, indent=2).encode("utf-8"))
+
+        return jsonify({
+            "success": True,
+            "file": base64.b64encode(out.getvalue()).decode(),
+            "filename": "design.bot",
+            "mime": "application/octet-stream"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@bp.route("/bot_to_embroidery", methods=["POST"])
+def api_bot_to_embroidery():
+    if "bot" not in request.form:
+        return jsonify({"success": False, "message": "BOT verisi yok"}), 400
+    fmt = (request.form.get("format") or "dst").lower()
+    bot_b64 = request.form.get("bot", "")
+    try:
+        bot_text = base64.b64decode(bot_b64.encode()).decode("utf-8", errors="replace")
+        bot_json = json.loads(bot_text)
+    except Exception:
+        return jsonify({"success": False, "message": "BOT decode edilemedi"}), 400
+
+    try:
+        pattern = bot_json_to_pattern(bot_json)
+        out_bytes = export_pattern(pattern, fmt)
+        return jsonify({
+            "success": True,
+            "file": base64.b64encode(out_bytes).decode(),
             "filename": f"design.{fmt}",
             "format": fmt
         })
@@ -556,3 +848,4 @@ def user_dashboard_data():
         "open_tickets": open_ticket_count,
         "unread_replies": unread_replies
     })
+
