@@ -88,7 +88,7 @@
                     <img id="final-result-img" class="max-w-full max-h-[600px] object-contain">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mt-4">
-                    <button onclick="downloadVector()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">SVG İndir</button>
+                    <button onclick="downloadVector()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">EPS İndir</button>
                     <button onclick="downloadPNG()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">PNG İndir</button>
                 </div>
             </div>
@@ -143,7 +143,7 @@
 </div>
 
 <script>
-    let currentMode = null, currentQuality = 'high', selectedFile = null, vectorData = null, pngData = null;
+    let currentMode = null, currentQuality = 'high', selectedFile = null, vectorData = null, epsData = null, botData = null, pngData = null, engineId = null;
     let vectorAllowed = true;
 
     function selectMode(mode) {
@@ -203,8 +203,11 @@
             const res = await fetch('/api/vectorize', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.success) {
-                vectorData = data.file;
-                pngData = data.preview_img;
+                engineId = data.id || null;
+                vectorData = data.file || null;     // (proxy modda boş olabilir)
+                epsData = data.eps || null;         // YENİ
+                botData = data.bot || null;         // YENİ
+                pngData = data.preview_img || null;
                 document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
                 document.getElementById('processing-overlay').classList.add('hidden');
                 document.getElementById('result-screen').classList.remove('hidden');
