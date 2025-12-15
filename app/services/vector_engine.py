@@ -233,6 +233,13 @@ class AdvancedVectorEngine:
 
     # ---------------- ANA MOTOR (ERC V4) ----------------
     def process_hybrid_cartoon(self, edge_thickness=2, color_count=18):
+        # Güvenlik: çok düşük color_count değerleri (3-5 gibi) bazı iç hesaplarda negatif/0 k üretip OpenCV hatalarına yol açabiliyor.
+        # Bu motor için minimum 4 renk gerekir; daha düşük isteniyorsa FastAPI EPS/BOT motoru kullanılmalı.
+        try:
+            color_count = int(color_count)
+        except Exception:
+            color_count = 18
+        color_count = max(4, min(color_count, 32))
         
         # 1. MASKELEME
         face_mask = self.get_face_mask(self.img)
@@ -255,8 +262,10 @@ class AdvancedVectorEngine:
         body_part = cv2.bilateralFilter(self.img, 9, 100, 100)
 
         # Quantization (Ayrı Ayrı)
-        face_quant = self.quantize(face_part, max(16, color_count))
-        body_quant = self.quantize(body_part, min(12, color_count - 4))
+        face_k = max(8, min(32, max(16, color_count)))
+        body_k = max(2, min(12, color_count - 4))
+        face_quant = self.quantize(face_part, face_k)
+        body_quant = self.quantize(body_part, body_k)
 
         # Birleştirme (Blending)
         final_color = (face_quant * face_mask_f[..., None] + body_quant * inv_mask_f[..., None]).astype(np.uint8)
