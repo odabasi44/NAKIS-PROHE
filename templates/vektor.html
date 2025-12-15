@@ -150,15 +150,28 @@
     function getQualityPreset(mode, quality) {
         // Not: mode'a göre preset değişir. Logo'da renk sayısı belirleyici; fotoğrafta hem renk hem kontur.
         if (mode === 'logo') {
-            if (quality === 'medium') return { name: 'Basit', color_count: 2, edge_thickness: 2, border_sensitivity: 14, style: 'flat', desc: 'En az renk • En temiz, tek parça alanlar.' };
-            if (quality === 'ultra')  return { name: 'Yüksek', color_count: 5, edge_thickness: 2, border_sensitivity: 12, style: 'flat', desc: 'Daha çok renk • Daha fazla detay/katman.' };
-            return { name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 13, style: 'flat', desc: 'Orta seviye renk • Logo için ideal denge.' };
+            // Logo/Grafik: node azaltma için daha agresif simplify + küçük parçaları atma (min_area) işe yarar.
+            if (quality === 'medium') return {
+                name: 'Basit', color_count: 2, edge_thickness: 2, border_sensitivity: 14, style: 'flat',
+                simplify_factor: 0.010, min_area: 40, cleanup_kernel: 5,
+                desc: 'En az renk • En temiz, tek parça alanlar • Daha az node.'
+            };
+            if (quality === 'ultra')  return {
+                name: 'Yüksek', color_count: 5, edge_thickness: 2, border_sensitivity: 12, style: 'flat',
+                simplify_factor: 0.004, min_area: 15, cleanup_kernel: 3,
+                desc: 'Daha çok renk • Daha fazla detay/katman • Daha çok node.'
+            };
+            return {
+                name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 13, style: 'flat',
+                simplify_factor: 0.006, min_area: 25, cleanup_kernel: 3,
+                desc: 'Orta seviye renk • Logo için ideal denge • Dengeli node.'
+            };
         }
 
         // photo
-        if (quality === 'medium') return { name: 'Basit', color_count: 2, edge_thickness: 3, border_sensitivity: 16, style: 'flat', desc: '2 renk • Daha kalın kontur • Daha sade.' };
-        if (quality === 'ultra')  return { name: 'Yüksek', color_count: 4, edge_thickness: 1, border_sensitivity: 10, style: 'flat', desc: '4 renk • İnce kontur • Daha fazla yüz/giysi detayı.' };
-        return { name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 12, style: 'flat', desc: '3 renk • Dengeli kontur • Genel kullanım.' };
+        if (quality === 'medium') return { name: 'Basit', color_count: 2, edge_thickness: 3, border_sensitivity: 16, style: 'flat', simplify_factor: 0.006, min_area: 35, cleanup_kernel: 5, desc: '2 renk • Daha kalın kontur • Daha sade.' };
+        if (quality === 'ultra')  return { name: 'Yüksek', color_count: 4, edge_thickness: 1, border_sensitivity: 10, style: 'flat', simplify_factor: 0.004, min_area: 18, cleanup_kernel: 3, desc: '4 renk • İnce kontur • Daha fazla yüz/giysi detayı.' };
+        return { name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 12, style: 'flat', simplify_factor: 0.005, min_area: 25, cleanup_kernel: 3, desc: '3 renk • Dengeli kontur • Genel kullanım.' };
     }
 
     function updateQualityInfo() {
@@ -224,6 +237,9 @@
         formData.append('edge_thickness', preset.edge_thickness);
         formData.append('color_count', preset.color_count);
         formData.append('border_sensitivity', preset.border_sensitivity);
+        formData.append('simplify_factor', preset.simplify_factor);
+        formData.append('min_area', preset.min_area);
+        formData.append('cleanup_kernel', preset.cleanup_kernel);
         // Fotoğrafta flat stil; logo'da method=outline zaten kendi akışını kullanır.
         formData.append('style', preset.style);
 
