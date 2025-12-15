@@ -104,7 +104,8 @@ class ImagePipeline:
         blended = (rgb * alpha + white * (1.0 - alpha)).astype(np.uint8)
         bgr = cv2.cvtColor(blended, cv2.COLOR_RGB2BGR)
 
-        k = int(max(3, min(num_colors, 5)))
+        # 2-5 renk (outline siyahı ayrıca eklenebilir)
+        k = int(max(2, min(num_colors, 5)))
         data = np.float32(bgr).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
         _, labels, centers = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
@@ -123,10 +124,76 @@ class ImagePipeline:
             colors.append(f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}")
         return Image.fromarray(out_rgba, mode="RGBA"), colors
 
-    def run(self, image: Image.Image, *, num_colors: int, width: int | None, height: int | None, keep_ratio: bool) -> ImagePipelineResult:
+    def cartoonize(self, rgba: Image.Image, *, outline: bool = True) -> Image.Image:
+        """
+        Fotoğrafı daha 'illustration/cartoon' hale getirir:
+        - güçlü smoothing (mean shift + bilateral)
+        - opsiyonel siyah outline (adaptive threshold)
+        Not: çıktının rengi ayrıca reduce_colors ile 2-3'e indirilecek.
+        """
+        rgba = rgba.convert("RGBA")
+        np_rgba = np.array(rgba)
+        alpha = np_rgba[:, :, 3]
+
+        # Smoothing için alpha'yı beyazla blend edelim
+        rgb = np_rgba[:, :, :3].astype(np.float32)
+        a = (alpha.astype(np.float32) / 255.0)[..., None]
+        white = np.ones_like(rgb) * 255.0
+        blended = (rgb * a + white * (1.0 - a)).astype(np.uint8)
+        bgr = cv2.cvtColor(blended, cv2.COLOR_RGB2BGR)
+
+        # mean-shift (düz renk bölgeleri)
+        try:
+            sm = cv2.pyrMeanShiftFiltering(bgr, 12, 40)
+        except Exception:
+            sm = bgr
+        # ekstra edge-preserving
+        sm = cv2.bilateralFilter(sm, 9, 75, 75)
+
+        if outline:
+            g = cv2.cvtColor(sm, cv2.COLOR_BGR2GRAY)
+            g = cv2.medianBlur(g, 5)
+            edges = cv2.adaptiveThreshold(
+                g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 2
+            )
+            # edges: 0 = siyah çizgi, 255 = beyaz zemin
+            # sadece foreground'a uygulayalım
+            fg = (alpha > 10).astype(np.uint8)
+            edges_fg = cv2.bitwise_and(edges, edges, mask=fg)
+
+            # çizgileri biraz incelt / temizle
+            k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+            edges_fg = cv2.morphologyEx(edges_fg, cv2.MORPH_OPEN, k, iterations=1)
+
+            # siyah çizgiyi sm'nin üstüne basalım
+            sm_rgb = cv2.cvtColor(sm, cv2.COLOR_BGR2RGB)
+            sm_rgb[edges_fg == 0] = (0, 0, 0)
+        else:
+            sm_rgb = cv2.cvtColor(sm, cv2.COLOR_BGR2RGB)
+
+        out = np.zeros_like(np_rgba)
+        out[:, :, :3] = sm_rgb
+        out[:, :, 3] = alpha
+        return Image.fromarray(out, mode="RGBA")
+
+    def run(
+        self,
+        image: Image.Image,
+        *,
+        num_colors: int,
+        width: int | None,
+        height: int | None,
+        keep_ratio: bool,
+        mode: str = "photo",
+        outline: bool = True,
+    ) -> ImagePipelineResult:
         rgb = self.resize(image.convert("RGB"), width, height, keep_ratio)
         enh = self.enhance(rgb)
         rgba = self.remove_background(enh)
+        # logo modunda outline/cartoonize daha az agresif
+        mode_l = (mode or "photo").strip().lower()
+        if mode_l == "photo":
+            rgba = self.cartoonize(rgba, outline=outline)
         rgba2, _ = self.reduce_colors(rgba, num_colors=num_colors)
         return ImagePipelineResult(rgba=rgba2)
 
