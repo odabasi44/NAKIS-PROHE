@@ -53,7 +53,15 @@ async def process_vector(req: VectorProcessRequest):
         raise HTTPException(status_code=404, detail="id not found")
 
     with Image.open(raw_path) as im:
-        res = _pipeline.run(im, num_colors=req.num_colors, width=req.width, height=req.height, keep_ratio=req.keep_ratio)
+        res = _pipeline.run(
+            im,
+            num_colors=req.num_colors,
+            width=req.width,
+            height=req.height,
+            keep_ratio=req.keep_ratio,
+            mode=req.mode,
+            outline=req.outline,
+        )
 
     eps_res = rgba_to_eps(res.rgba, simplify_factor=0.003, min_area=20.0)
     eps_path = _path_for(req.id, "eps")
@@ -82,7 +90,15 @@ async def process_embroidery(req: EmbroideryProcessRequest):
         raise HTTPException(status_code=400, detail="unsupported format")
 
     with Image.open(raw_path) as im:
-        res = _pipeline.run(im, num_colors=req.num_colors, width=req.width, height=req.height, keep_ratio=req.keep_ratio)
+        res = _pipeline.run(
+            im,
+            num_colors=req.num_colors,
+            width=req.width,
+            height=req.height,
+            keep_ratio=req.keep_ratio,
+            mode=req.mode,
+            outline=req.outline,
+        )
 
     rgba_np = __import__("numpy").array(res.rgba.convert("RGBA"))
     bot = eps_layers_to_bot(rgba_np, unit="px")
