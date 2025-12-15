@@ -104,8 +104,8 @@ class ImagePipeline:
         blended = (rgb * alpha + white * (1.0 - alpha)).astype(np.uint8)
         bgr = cv2.cvtColor(blended, cv2.COLOR_RGB2BGR)
 
-        # 2-5 renk (outline siyahı ayrıca eklenebilir)
-        k = int(max(2, min(num_colors, 5)))
+        # Fotoğraf modunda daha doğal tonlar için 8 gibi değerler istenebilir.
+        k = int(max(2, min(int(num_colors), 12)))
         data = np.float32(bgr).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
         _, labels, centers = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
