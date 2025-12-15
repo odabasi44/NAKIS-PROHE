@@ -2,31 +2,35 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from PIL import Image
 
-from botlab_app.api.schemas import (
+from api.schemas import (
     UploadResponse,
     VectorProcessRequest,
     VectorProcessResponse,
     EmbroideryProcessRequest,
     EmbroideryProcessResponse,
 )
-from botlab_app.core.config import settings
-from botlab_app.core.utils import ensure_dir, new_id
-from botlab_app.services.image_pipeline import ImagePipeline
-from botlab_app.services.vector_pipeline import rgba_to_eps
-from botlab_app.services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
+from core.config import settings
+from core.utils import ensure_dir, new_id
+from services.image_pipeline import ImagePipeline
+from services.vector_pipeline import rgba_to_eps
+from services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
+
 
 router = APIRouter()
 
 ensure_dir(settings.output_dir)
 _pipeline = ImagePipeline(settings.u2net_path)
 
+
 def _path_for(id_: str, ext: str) -> str:
     return str(Path(settings.output_dir) / f"{id_}.{ext}")
+
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload(image: UploadFile = File(...)):
@@ -40,6 +44,7 @@ async def upload(image: UploadFile = File(...)):
     with open(raw_path, "wb") as f:
         f.write(data)
     return UploadResponse(id=id_)
+
 
 @router.post("/process/vector", response_model=VectorProcessResponse)
 async def process_vector(req: VectorProcessRequest):
@@ -64,6 +69,7 @@ async def process_vector(req: VectorProcessRequest):
         png_url=f"/api/static/{req.id}.png",
         colors=eps_res.palette,
     )
+
 
 @router.post("/process/embroidery", response_model=EmbroideryProcessResponse)
 async def process_embroidery(req: EmbroideryProcessRequest):
@@ -96,6 +102,7 @@ async def process_embroidery(req: EmbroideryProcessRequest):
 
     return EmbroideryProcessResponse(id=req.id, bot_url=f"/api/static/{req.id}.bot", file_url=f"/api/static/{req.id}.{fmt}")
 
+
 @router.get("/static/{filename}")
 async def get_static(filename: str):
     safe = filename.replace("/", "").replace("\\", "")
@@ -103,3 +110,5 @@ async def get_static(filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path)
+
+
