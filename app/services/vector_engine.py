@@ -61,6 +61,15 @@ class AdvancedVectorEngine:
         max_allowed = 3000
         max_dim = int(max_dim) if max_dim else 1000
 
+        def _resize_masks(new_w: int, new_h: int):
+            # alpha/fg_mask varsa görselle aynı boyuta getir (OpenCV binary_op size mismatch fix)
+            if self.alpha is not None and (self.alpha.shape[1] != new_w or self.alpha.shape[0] != new_h):
+                self.alpha = cv2.resize(self.alpha, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+            if self.fg_mask is not None and (self.fg_mask.shape[1] != new_w or self.fg_mask.shape[0] != new_h):
+                self.fg_mask = cv2.resize(self.fg_mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+                # normalize back to 0/255
+                self.fg_mask = ((self.fg_mask.astype(np.uint16)) > 10).astype(np.uint8) * 255
+
         if tw > 0 or th > 0:
             if lock:
                 # tek değer verildiyse diğerini hesapla
@@ -81,11 +90,14 @@ class AdvancedVectorEngine:
             if tw > 0 and th > 0 and (tw != w or th != h):
                 interp = cv2.INTER_AREA if (tw < w or th < h) else cv2.INTER_CUBIC
                 self.img = cv2.resize(self.img, (tw, th), interpolation=interp)
+                _resize_masks(tw, th)
         else:
             # default optimize
             if max(h, w) > max_dim:
                 scale = max_dim / max(h, w)
                 self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+                nh, nw = self.img.shape[:2]
+                _resize_masks(nw, nh)
 
         self.h, self.w = self.img.shape[:2]
 
