@@ -2,23 +2,40 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
 
+
 @dataclass
 class ImagePipelineResult:
     rgba: Image.Image  # RGBA
 
+
 class ImagePipeline:
+    """
+    Pure-python-ish pipeline:
+    - enhance (denoise + unsharp + CLAHE)
+    - background remove (U2Net ONNX varsa), yoksa border heuristics
+    - color reduction (OpenCV kmeans)
+    - resize (keep_ratio)
+    """
+
     def __init__(self, u2net_path: str):
         self.u2net_session = None
         self.u2net_input_name = "input"
         if u2net_path and os.path.exists(u2net_path):
-            self.u2net_session = ort.InferenceSession(u2net_path, providers=["CPUExecutionProvider"])
-            self.u2net_input_name = self.u2net_session.get_inputs()[0].name
+            try:
+                self.u2net_session = ort.InferenceSession(u2net_path, providers=["CPUExecutionProvider"])
+                self.u2net_input_name = self.u2net_session.get_inputs()[0].name
+                print(f"[botlab_app] ✅ U2Net loaded: {u2net_path}")
+            except Exception as e:
+                # Model bozuk/eksikse servis ayağa kalksın; fallback background remove devreye girer.
+                self.u2net_session = None
+                print(f"[botlab_app] ⚠️ U2Net load failed ({u2net_path}): {e}")
 
     def enhance(self, rgb: Image.Image) -> Image.Image:
         bgr = cv2.cvtColor(np.array(rgb.convert("RGB")), cv2.COLOR_RGB2BGR)
@@ -78,6 +95,7 @@ class ImagePipeline:
         return Image.fromarray(rgba, mode="RGBA")
 
     def reduce_colors(self, rgba: Image.Image, num_colors: int = 4) -> tuple[Image.Image, list[str]]:
+        # alpha varsa beyaz ile blend (kmeans stabil) ama alpha'yı koruruz
         rgba = rgba.convert("RGBA")
         np_rgba = np.array(rgba)
         alpha = np_rgba[:, :, 3:4].astype(np.float32) / 255.0
@@ -98,8 +116,11 @@ class ImagePipeline:
         out_rgba[:, :, :3] = quant_rgb
         out_rgba[:, :, 3] = np_rgba[:, :, 3]
 
+        # palette (hex)
         uniq = np.unique(centers, axis=0)
-        colors = [f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}" for c in uniq]
+        colors = []
+        for c in uniq:
+            colors.append(f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}")
         return Image.fromarray(out_rgba, mode="RGBA"), colors
 
     def run(self, image: Image.Image, *, num_colors: int, width: int | None, height: int | None, keep_ratio: bool) -> ImagePipelineResult:
@@ -108,3 +129,5 @@ class ImagePipeline:
         rgba = self.remove_background(enh)
         rgba2, _ = self.reduce_colors(rgba, num_colors=num_colors)
         return ImagePipelineResult(rgba=rgba2)
+
+
