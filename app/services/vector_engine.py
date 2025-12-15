@@ -323,6 +323,57 @@ class AdvancedVectorEngine:
         k = int(max(2, min(color_count, 24)))
         quant = self.quantize(base, k)
 
+        # 1.1) Renk adacığı temizliği (özellikle yüzdeki beyaz highlight ve kravat kenarı saçma renkleri azaltır)
+        try:
+            hq, wq = quant.shape[:2]
+            # tek tük pikselleri yumuşat
+            quant = cv2.medianBlur(quant, 3)
+
+            # küçük bölgeleri komşu baskın renge birleştir
+            kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            min_pix = max(60, int(0.00005 * hq * wq))
+            bright_min_pix = max(min_pix * 10, int(0.003 * hq * wq))
+
+            q = quant.copy()
+            colors = np.unique(q.reshape(-1, 3), axis=0)
+            for color in colors:
+                # BGR
+                b, g, r = int(color[0]), int(color[1]), int(color[2])
+                is_bright = (b > 235 and g > 235 and r > 235)
+
+                mask = cv2.inRange(q, color, color)
+                num, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+                if num <= 1:
+                    continue
+
+                for i in range(1, num):
+                    area = int(stats[i, cv2.CC_STAT_AREA])
+                    thr = bright_min_pix if is_bright else min_pix
+                    if area >= thr:
+                        continue
+
+                    comp = (labels == i).astype(np.uint8) * 255
+                    # komşu renkleri bulmak için küçük bir halka (ring)
+                    ring = cv2.dilate(comp, kernel3, iterations=2)
+                    ring = cv2.bitwise_and(ring, cv2.bitwise_not(comp))
+                    ry, rx = np.where(ring > 0)
+                    if ry.size == 0:
+                        continue
+                    neigh = q[ry, rx].reshape(-1, 3)
+                    # en sık görülen komşu rengi seç
+                    vals, counts = np.unique(neigh, axis=0, return_counts=True)
+                    if vals is None or len(vals) == 0:
+                        continue
+                    newc = vals[int(np.argmax(counts))]
+                    ys, xs = np.where(labels == i)
+                    if ys.size == 0:
+                        continue
+                    q[ys, xs] = newc
+
+            quant = q
+        except Exception:
+            pass
+
         # 2) sınır/contour: komşu piksellerin renk farkından edge mask
         gray = cv2.cvtColor(quant, cv2.COLOR_BGR2GRAY)
         # Laplacian sınırları yakalar; threshold ile ikili maske
