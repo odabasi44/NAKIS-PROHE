@@ -126,3 +126,5 @@ def export_pattern(pattern: "pyembroidery.EmbPattern", fmt: str) -> bytes:
     else:
         pyembroidery.write_dst(pattern, out)
     return out.getvalue()
+
+
