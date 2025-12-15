@@ -1,5 +1,3 @@
-import os
-import requests
 import io
 import base64
 import json
@@ -16,7 +14,12 @@ from app.utils.helpers import check_user_status, increase_usage
 from app.services.vector_engine import AdvancedVectorEngine
 from app.services.embroidery_engine import EmbroideryGenerator
 from app.services.ai_loader import AILoader
-from app.services.bot_stitch_engine import bot_json_to_pattern, export_pattern
+# Optional: BOT -> embroidery converter (repo deploy senaryolarında dosya eksikse app boot etsin)
+try:
+    from app.services.bot_stitch_engine import bot_json_to_pattern, export_pattern  # type: ignore
+except Exception:
+    bot_json_to_pattern = None  # type: ignore
+    export_pattern = None  # type: ignore
 from app.models import Ticket, TicketMessage, UsageEvent
 from app.extensions import db
 from datetime import datetime
@@ -83,11 +86,12 @@ def api_vectorize():
             except Exception:
                 th = 0
             num_colors = int(color_count)
-            num_colors = max(3, min(num_colors, 5))
+            num_colors = max(2, min(num_colors, 5))
+            mode = "logo" if method == "outline" else "photo"
 
             vp = requests.post(
                 f"{engine_url}/api/process/vector",
-                json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True},
                 timeout=300,
             )
             if vp.status_code >= 400:
@@ -110,7 +114,7 @@ def api_vectorize():
             # 3) embroidery process -> BOT (editable)
             ep = requests.post(
                 f"{engine_url}/api/process/embroidery",
-                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True},
                 timeout=300,
             )
             if ep.status_code >= 400:
@@ -358,6 +362,8 @@ def api_export_bot_project():
 
 @bp.route("/bot_to_embroidery", methods=["POST"])
 def api_bot_to_embroidery():
+    if bot_json_to_pattern is None or export_pattern is None:
+        return jsonify({"success": False, "message": "BOT stitch engine sunucuda yüklü değil (deploy eksik)."}), 503
     if "bot" not in request.form:
         return jsonify({"success": False, "message": "BOT verisi yok"}), 400
     fmt = (request.form.get("format") or "dst").lower()
@@ -848,4 +854,3 @@ def user_dashboard_data():
         "open_tickets": open_ticket_count,
         "unread_replies": unread_replies
     })
-
