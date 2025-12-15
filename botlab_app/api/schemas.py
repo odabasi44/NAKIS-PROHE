@@ -7,7 +7,8 @@ class UploadResponse(BaseModel):
 
 class VectorProcessRequest(BaseModel):
     id: str = Field(..., description="Upload ID")
-    num_colors: int = Field(3, ge=2, le=5)
+    # Fotoğraf modunda daha doğal tonlar için 8 gibi değerler istenebilir.
+    num_colors: int = Field(3, ge=2, le=12)
     width: int | None = Field(None, ge=64, le=3000)
     height: int | None = Field(None, ge=64, le=3000)
     keep_ratio: bool = True
@@ -25,7 +26,7 @@ class VectorProcessResponse(BaseModel):
 class EmbroideryProcessRequest(BaseModel):
     id: str
     format: str = Field("dst", description="bot|dst|pes|exp|jef|xxx|vp3")
-    num_colors: int = Field(3, ge=2, le=5)
+    num_colors: int = Field(3, ge=2, le=12)
     width: int | None = Field(None, ge=64, le=3000)
     height: int | None = Field(None, ge=64, le=3000)
     keep_ratio: bool = True
