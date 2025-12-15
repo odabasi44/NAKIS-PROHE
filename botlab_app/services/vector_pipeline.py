@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from botlab_app.vector_engine.vector_trace import mask_to_paths
-from botlab_app.vector_engine.eps_generator import paths_to_eps
+from vector_engine.vector_trace import mask_to_paths
+from vector_engine.eps_generator import paths_to_eps
 
 
 @dataclass
