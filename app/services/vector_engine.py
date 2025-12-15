@@ -318,7 +318,9 @@ class AdvancedVectorEngine:
         """
         # 1) yumuşatma + renk azaltma
         base = cv2.bilateralFilter(self.img, 9, 90, 90)
-        k = int(max(4, min(color_count, 24)))
+        # Flat modunda 2–3 renk gibi düşük değerler istenebilir (nakış için).
+        # K-means 2 ile de stabil çalışır; bu yüzden min 2'ye izin veriyoruz.
+        k = int(max(2, min(color_count, 24)))
         quant = self.quantize(base, k)
 
         # 2) sınır/contour: komşu piksellerin renk farkından edge mask
@@ -332,6 +334,23 @@ class AdvancedVectorEngine:
             ksz = int(edge_thickness)
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksz, ksz))
             edges = cv2.dilate(edges, kernel, iterations=1)
+
+        # 2.1) Edge temizliği: küçük benekleri azalt (fotoğraflarda çok fark eder)
+        try:
+            h, w = edges.shape[:2]
+            kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            edges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel3, iterations=1)
+
+            # Küçük connected-component'ları at
+            num, labels, stats, _ = cv2.connectedComponentsWithStats(edges, connectivity=8)
+            min_pixels = max(30, int(0.00003 * h * w))
+            cleaned = np.zeros_like(edges)
+            for i in range(1, num):
+                if int(stats[i, cv2.CC_STAT_AREA]) >= min_pixels:
+                    cleaned[labels == i] = 255
+            edges = cleaned
+        except Exception:
+            pass
 
         # 3) black lines on top of quantized color
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
@@ -431,7 +450,8 @@ class AdvancedVectorEngine:
 
         data = np.float32(img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        k = max(4, min(num_colors, 32))
+        # 2–3 renkli çıktı (özellikle flat/logo) için min 2'ye izin ver.
+        k = max(2, min(int(num_colors), 32))
         _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
 
@@ -514,7 +534,8 @@ class AdvancedVectorEngine:
 
         data = np.float32(img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        k = max(3, min(int(num_colors), 32))
+        # EPS katmanları için 2 renge kadar izin ver (flat/logo kullanımında).
+        k = max(2, min(int(num_colors), 32))
         _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
 
@@ -648,7 +669,8 @@ class AdvancedVectorEngine:
 
         data = np.float32(img).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        k = max(3, min(int(num_colors), 16))
+        # BOT katmanları için 2 renge kadar izin ver (flat/logo kullanımında).
+        k = max(2, min(int(num_colors), 16))
         _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
 
