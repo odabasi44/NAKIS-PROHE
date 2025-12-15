@@ -86,7 +86,9 @@ def api_vectorize():
             except Exception:
                 th = 0
             num_colors = int(color_count)
-            num_colors = max(2, min(num_colors, 5))
+            # UI'da fotoğraf için 8 renk gibi değerler kullanılabiliyor (daha doğal tonlar).
+            # Engine tarafında da destekliyorsak burada 2–12 aralığında tutalım.
+            num_colors = max(2, min(num_colors, 12))
             mode = "logo" if method == "outline" else "photo"
 
             vp = requests.post(
