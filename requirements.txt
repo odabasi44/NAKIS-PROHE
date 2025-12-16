@@ -12,7 +12,7 @@ PyPDF2
 qrcode[pil]
 reportlab
 python-docx
-mediapipe
+mediapipe==0.10.14
 pyembroidery
 requests
 
