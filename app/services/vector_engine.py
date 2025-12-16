@@ -254,11 +254,28 @@ class AdvancedVectorEngine:
 
     # --- QUANTIZATION ---
     def quantize(self, img, k):
+        """
+        Geriye sadece quantize edilmiş BGR döner (eski davranış).
+        """
+        q, _, _ = self._quantize_kmeans(img, k, return_labels=False)
+        return q
+
+    def _quantize_kmeans(self, img, k, return_labels: bool = False):
+        """
+        K-means quantization.
+        - return_labels=False: (quant, None, centers)
+        - return_labels=True: (quant, labels(H,W) uint8, centers)
+        """
+        k = int(max(2, min(int(k), 64)))
         data = np.float32(img).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0) 
-        _, lab, cen = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+        _, lab, cen = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         cen = np.uint8(cen)
-        return cen[lab.flatten()].reshape(img.shape)
+        quant = cen[lab.flatten()].reshape(img.shape)
+        if not return_labels:
+            return quant, None, cen
+        labels = lab.reshape((img.shape[0], img.shape[1])).astype(np.uint8)
+        return quant, labels, cen
 
     # ---------------- ANA MOTOR (ERC V4) ----------------
     def process_hybrid_cartoon(self, edge_thickness=2, color_count=18):
@@ -328,66 +345,67 @@ class AdvancedVectorEngine:
 
     def process_flat_cartoon(self, edge_thickness=2, color_count=10, border_sensitivity=12):
         """
-        Nakış/Wilcom için daha uygun 'flat' görünüm:
+        Nakış/Wilcom için optimize edilmiş 'flat' görünüm:
         - Az renk (posterize)
         - Bölge sınırlarından temiz kontur (renk geçişi sınırı)
         - Saç/kırışıklık gibi mikro çizgiler yok (daha az node, daha temiz SVG)
+        - Nakış için en temiz, en vektörel, en düzgün çıktı
         """
-        # 1) yumuşatma + renk azaltma
-        base = cv2.bilateralFilter(self.img, 9, 90, 90)
-        # Flat modunda 2–3 renk gibi düşük değerler istenebilir (nakış için).
-        # K-means 2 ile de stabil çalışır; bu yüzden min 2'ye izin veriyoruz.
-        k = int(max(2, min(color_count, 24)))
-        quant = self.quantize(base, k)
+        # 1) yumuşatma + renk azaltma (BÖLGE TABANLI) - Nakış için daha agresif yumuşatma
+        base = cv2.bilateralFilter(self.img, 11, 120, 120)  # daha yumuşak, daha az doku
+        k = int(max(2, min(int(color_count), 24)))
+        quant, labels, centers = self._quantize_kmeans(base, k, return_labels=True)
 
-        # 1.1) Renk adacığı temizliği (özellikle yüzdeki beyaz highlight ve kravat kenarı saçma renkleri azaltır)
+        # 1.0) Label smoothing (nakış için daha agresif speckle azaltma)
+        if labels is not None:
+            labels = cv2.medianBlur(labels, 5)  # 5x5 daha temiz alanlar
+
+        # 1.1) Bölge/adacık temizliği: küçük label bileşenlerini komşu baskın label'a birleştir
         try:
-            hq, wq = quant.shape[:2]
-            # tek tük pikselleri yumuşat
-            quant = cv2.medianBlur(quant, 3)
+            if labels is not None:
+                hq, wq = labels.shape[:2]
+                img_area = float(hq * wq)
+                min_pix = max(80, int(0.0001 * img_area))  # Nakış için daha agresif temizlik
+                bright_min_pix = max(min_pix * 15, int(0.005 * img_area))  # Parlak adacıklar için daha agresif
+                kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 
-            # küçük bölgeleri komşu baskın renge birleştir
-            kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-            min_pix = max(60, int(0.00005 * hq * wq))
-            bright_min_pix = max(min_pix * 10, int(0.003 * hq * wq))
+                # Quantized BGR üzerinden "parlak" label'ları tespit et (beyaz highlight için daha agresif)
+                label_brightness = np.zeros((k,), dtype=np.float32)
+                for li in range(k):
+                    c = centers[li]
+                    label_brightness[li] = (float(c[0]) + float(c[1]) + float(c[2])) / 3.0
 
-            q = quant.copy()
-            colors = np.unique(q.reshape(-1, 3), axis=0)
-            for color in colors:
-                # BGR
-                b, g, r = int(color[0]), int(color[1]), int(color[2])
-                is_bright = (b > 235 and g > 235 and r > 235)
-
-                mask = cv2.inRange(q, color, color)
-                num, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-                if num <= 1:
-                    continue
-
-                for i in range(1, num):
-                    area = int(stats[i, cv2.CC_STAT_AREA])
+                lab2 = labels.copy()
+                for li in range(k):
+                    mask = (lab2 == li).astype(np.uint8) * 255
+                    if cv2.countNonZero(mask) == 0:
+                        continue
+                    num, cc, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+                    if num <= 1:
+                        continue
+                    is_bright = (label_brightness[li] > 235.0)
                     thr = bright_min_pix if is_bright else min_pix
-                    if area >= thr:
-                        continue
-
-                    comp = (labels == i).astype(np.uint8) * 255
-                    # komşu renkleri bulmak için küçük bir halka (ring)
-                    ring = cv2.dilate(comp, kernel3, iterations=2)
-                    ring = cv2.bitwise_and(ring, cv2.bitwise_not(comp))
-                    ry, rx = np.where(ring > 0)
-                    if ry.size == 0:
-                        continue
-                    neigh = q[ry, rx].reshape(-1, 3)
-                    # en sık görülen komşu rengi seç
-                    vals, counts = np.unique(neigh, axis=0, return_counts=True)
-                    if vals is None or len(vals) == 0:
-                        continue
-                    newc = vals[int(np.argmax(counts))]
-                    ys, xs = np.where(labels == i)
-                    if ys.size == 0:
-                        continue
-                    q[ys, xs] = newc
-
-            quant = q
+                    for i in range(1, num):
+                        area = int(stats[i, cv2.CC_STAT_AREA])
+                        if area >= thr:
+                            continue
+                        comp = (cc == i).astype(np.uint8) * 255
+                        ring = cv2.dilate(comp, kernel3, iterations=2)
+                        ring = cv2.bitwise_and(ring, cv2.bitwise_not(comp))
+                        ry, rx = np.where(ring > 0)
+                        if ry.size == 0:
+                            continue
+                        neigh_labels = lab2[ry, rx].reshape(-1)
+                        # kendi label'ını çıkar
+                        neigh_labels = neigh_labels[neigh_labels != li]
+                        if neigh_labels.size == 0:
+                            continue
+                        vals, counts = np.unique(neigh_labels, return_counts=True)
+                        newl = int(vals[int(np.argmax(counts))])
+                        yy, xx = np.where(cc == i)
+                        lab2[yy, xx] = newl
+                labels = lab2
+                quant = centers[labels.reshape(-1)].reshape(hq, wq, 3)
         except Exception:
             pass
 
@@ -514,27 +532,36 @@ class AdvancedVectorEngine:
         except Exception:
             pass
 
-        # 2) sınır/contour: komşu piksellerin renk farkından edge mask
-        gray = cv2.cvtColor(quant, cv2.COLOR_BGR2GRAY)
-        # Laplacian sınırları yakalar; threshold ile ikili maske
-        lap = cv2.Laplacian(gray, cv2.CV_16S, ksize=3)
-        lap = cv2.convertScaleAbs(lap)
-        _, edges = cv2.threshold(lap, int(max(1, border_sensitivity)), 255, cv2.THRESH_BINARY)
+        # 2) Kontur: SADECE bölge sınırlarından üret (doku/ışık çizgisi üretmez)
+        edges = None
+        if labels is not None:
+            lab = labels.astype(np.int16)
+            # komşu label farkı => boundary
+            e = np.zeros_like(lab, dtype=np.uint8)
+            e[:, 1:] |= (lab[:, 1:] != lab[:, :-1]).astype(np.uint8) * 255
+            e[1:, :] |= (lab[1:, :] != lab[:-1, :]).astype(np.uint8) * 255
+            edges = e
+        else:
+            # fallback (eski): Laplacian
+            gray = cv2.cvtColor(quant, cv2.COLOR_BGR2GRAY)
+            lap = cv2.Laplacian(gray, cv2.CV_16S, ksize=3)
+            lap = cv2.convertScaleAbs(lap)
+            _, edges = cv2.threshold(lap, int(max(1, border_sensitivity)), 255, cv2.THRESH_BINARY)
 
         if edge_thickness > 1:
             ksz = int(edge_thickness)
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksz, ksz))
             edges = cv2.dilate(edges, kernel, iterations=1)
 
-        # 2.1) Edge temizliği: küçük benekleri azalt (fotoğraflarda çok fark eder)
+        # 2.1) Edge temizliği: küçük benekleri azalt (nakış için daha agresif)
         try:
             h, w = edges.shape[:2]
             kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-            edges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel3, iterations=1)
+            edges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel3, iterations=2)  # 2 iterasyon daha temiz
 
-            # Küçük connected-component'ları at
+            # Küçük connected-component'ları at (nakış için daha büyük threshold)
             num, labels, stats, _ = cv2.connectedComponentsWithStats(edges, connectivity=8)
-            min_pixels = max(30, int(0.00003 * h * w))
+            min_pixels = max(50, int(0.00005 * h * w))  # Daha agresif temizlik
             cleaned = np.zeros_like(edges)
             for i in range(1, num):
                 if int(stats[i, cv2.CC_STAT_AREA]) >= min_pixels:
@@ -639,17 +666,25 @@ class AdvancedVectorEngine:
         # Sertleştirme (Blur Temizliği)
         img = cv2.pyrMeanShiftFiltering(img, 10, 40)
 
-        data = np.float32(img).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        # 2–3 renkli çıktı (özellikle flat/logo) için min 2'ye izin ver.
         k = max(2, min(int(num_colors), 32))
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
-
         h, w = img.shape[:2]
         svg_output = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}">']
 
-        unique_colors = np.unique(np.uint8(center), axis=0)
+        # Eğer img zaten quantize edilmişse (az sayıda renk), tekrar kmeans yapma.
+        try:
+            uniq = np.unique(img.reshape(-1, 3), axis=0)
+        except Exception:
+            uniq = None
+
+        if uniq is not None and len(uniq) <= k:
+            quantized = img
+            unique_colors = uniq
+        else:
+            data = np.float32(img).reshape((-1, 3))
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+            _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+            quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+            unique_colors = np.unique(np.uint8(center), axis=0)
 
         # Arka plan rengi (alpha yoksa) -> en sık görülen border rengi
         bg_color = None
@@ -723,12 +758,22 @@ class AdvancedVectorEngine:
         img = self.vector_base if self.vector_base is not None else self.img
         img = cv2.pyrMeanShiftFiltering(img, 10, 40)
 
-        data = np.float32(img).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         # EPS katmanları için 2 renge kadar izin ver (flat/logo kullanımında).
         k = max(2, min(int(num_colors), 32))
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+        try:
+            uniq = np.unique(img.reshape(-1, 3), axis=0)
+        except Exception:
+            uniq = None
+
+        if uniq is not None and len(uniq) <= k:
+            quantized = img
+            center = uniq
+        else:
+            data = np.float32(img).reshape((-1, 3))
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+            _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+            quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+            center = np.uint8(center)
 
         h, w = img.shape[:2]
 
@@ -858,12 +903,22 @@ class AdvancedVectorEngine:
         img = self.vector_base if self.vector_base is not None else self.img
         img = cv2.pyrMeanShiftFiltering(img, 10, 40)
 
-        data = np.float32(img).reshape((-1, 3))
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         # BOT katmanları için 2 renge kadar izin ver (flat/logo kullanımında).
         k = max(2, min(int(num_colors), 16))
-        _, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+        try:
+            uniq = np.unique(img.reshape(-1, 3), axis=0)
+        except Exception:
+            uniq = None
+
+        if uniq is not None and len(uniq) <= k:
+            quantized = img
+            center = uniq
+        else:
+            data = np.float32(img).reshape((-1, 3))
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+            _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+            quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+            center = np.uint8(center)
 
         h, w = img.shape[:2]
 
