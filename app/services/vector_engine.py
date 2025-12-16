@@ -374,6 +374,129 @@ class AdvancedVectorEngine:
         except Exception:
             pass
 
+        # 1.2) Yüz/ten bölgesi düzeltmesi:
+        # - Alındaki beyaz highlight gibi "parlak adacıkları" ten rengine yaklaştır
+        # - Dengeli/Yüksek preset'lerinde yüz paletini SABİT tut (ör: 3 renk)
+        # - Ten rengini bir tık aç (LAB L kanalını artır)
+        try:
+            h0, w0 = self.img.shape[:2]
+            # Skin mask (YCrCb) - kaba ama hızlı
+            ycrcb = cv2.cvtColor(self.img, cv2.COLOR_BGR2YCrCb)
+            y, cr, cb = cv2.split(ycrcb)
+            skin = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+            # çok karanlık alanları çıkar
+            skin[y < 55] = 0
+            # maske temizliği
+            k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            skin = cv2.morphologyEx(skin, cv2.MORPH_OPEN, k5, iterations=1)
+            skin = cv2.morphologyEx(skin, cv2.MORPH_CLOSE, k5, iterations=2)
+
+            # Yüz seçimi (geliştirilmiş):
+            # - Sadece "en büyük" komponent değil; üst bölgede, makul boyutta ve merkeze yakın olan komponent(ler) seçilir.
+            # - Grup fotoğraflarında 1-3 yüz komponenti birleştirilebilir.
+            num, labels, stats, _ = cv2.connectedComponentsWithStats(skin, connectivity=8)
+            face_mask = np.zeros_like(skin)
+
+            if num > 1:
+                img_cx, img_cy = (w0 * 0.5), (h0 * 0.38)  # yüzler genelde üst-orta bölgede
+                img_area = float(w0 * h0)
+                candidates = []
+
+                for i in range(1, num):
+                    x = int(stats[i, cv2.CC_STAT_LEFT])
+                    yb = int(stats[i, cv2.CC_STAT_TOP])
+                    ww = int(stats[i, cv2.CC_STAT_WIDTH])
+                    hh = int(stats[i, cv2.CC_STAT_HEIGHT])
+                    area = int(stats[i, cv2.CC_STAT_AREA])
+
+                    if ww <= 0 or hh <= 0:
+                        continue
+
+                    # Boyut filtreleri:
+                    # - çok küçük benekleri at
+                    # - çok büyük (vücut/kol) bölgelerini at
+                    if area < max(500, int(0.002 * img_area)):
+                        continue
+                    if area > int(0.25 * img_area):
+                        continue
+
+                    # Konum: üst bölgede olması daha olası
+                    cy = yb + hh * 0.5
+                    if cy > (h0 * 0.80):
+                        continue
+
+                    # En-boy oranı: yüz çoğunlukla 0.6–1.8
+                    ar = float(ww) / float(hh)
+                    if ar < 0.55 or ar > 1.9:
+                        continue
+
+                    cx = x + ww * 0.5
+                    # Merkeze yakınlık skoru
+                    dx = (cx - img_cx) / max(1.0, w0)
+                    dy = (cy - img_cy) / max(1.0, h0)
+                    dist = (dx * dx + dy * dy)
+
+                    # Üstte olma bonusu
+                    top_bonus = 1.0 - min(1.0, max(0.0, cy / (h0 * 0.85)))
+
+                    # Alanı normalize edip çok büyükleri cezalandır
+                    area_n = float(area) / img_area
+                    size_score = min(1.0, area_n / 0.08)  # ~%8'e kadar iyi
+
+                    score = (2.2 * size_score) + (1.2 * top_bonus) - (2.0 * dist)
+                    candidates.append((score, i))
+
+                candidates.sort(key=lambda t: t[0], reverse=True)
+                max_faces = 3
+                picked = [idx for (sc, idx) in candidates[:max_faces] if sc > 0.15]
+                if not picked and candidates:
+                    picked = [candidates[0][1]]
+
+                for idx in picked:
+                    face_mask[labels == idx] = 255
+            else:
+                face_mask = skin
+
+            # Maske genişletme: alın/yanak gibi sınırları biraz kapsasın
+            if cv2.countNonZero(face_mask) > 0:
+                face_mask = cv2.dilate(face_mask, k5, iterations=1)
+
+            face_area = int(cv2.countNonZero(face_mask))
+            if face_area > max(400, int(0.01 * h0 * w0)):
+                # yüz piksellerinden sabit palet çıkar (3 renk)
+                k_face = 3
+                ys, xs = np.where(face_mask > 0)
+                face_pixels = quant[ys, xs].reshape(-1, 3)
+                if face_pixels.shape[0] > 200:
+                    data = np.float32(face_pixels)
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+                    # unique renk < k_face ise k'yi düşür
+                    uniq = np.unique(face_pixels, axis=0)
+                    k_use = int(max(2, min(k_face, len(uniq))))
+                    _, f_labels, centers = cv2.kmeans(data, k_use, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+                    centers = np.uint8(centers)
+
+                    # aşırı beyaz merkezleri ten rengine yaklaştır (diğer merkezlerin medyanı)
+                    meanv = centers.mean(axis=1)
+                    ok_idx = np.where(meanv < 230)[0]
+                    if ok_idx.size == 0:
+                        ok_idx = np.arange(len(centers))
+                    fallback = np.median(centers[ok_idx], axis=0).astype(np.uint8)
+                    for i in range(len(centers)):
+                        if float(meanv[i]) > 235:
+                            centers[i] = fallback
+
+                    # ten rengini bir tık aç (LAB L +8)
+                    lab = cv2.cvtColor(centers.reshape(1, -1, 3), cv2.COLOR_BGR2LAB).reshape(-1, 3)
+                    lab[:, 0] = np.clip(lab[:, 0].astype(np.int16) + 8, 0, 255).astype(np.uint8)
+                    centers = cv2.cvtColor(lab.reshape(1, -1, 3), cv2.COLOR_LAB2BGR).reshape(-1, 3)
+
+                    # yüz bölgesini bu sabit palete map'le
+                    mapped = centers[f_labels.flatten()].reshape(-1, 3)
+                    quant[ys, xs] = mapped
+        except Exception:
+            pass
+
         # 2) sınır/contour: komşu piksellerin renk farkından edge mask
         gray = cv2.cvtColor(quant, cv2.COLOR_BGR2GRAY)
         # Laplacian sınırları yakalar; threshold ile ikili maske
