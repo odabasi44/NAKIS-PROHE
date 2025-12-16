@@ -3,13 +3,28 @@ import numpy as np
 import base64
 import json
 
-# MediaPipe kontrolü
+# MediaPipe (ZORUNLU)
+# Not: Coolify logundaki "AttributeError: module 'mediapipe' has no attribute 'solutions'"
+# genelde yanlış/uyumsuz mediapipe paketinden kaynaklanır. Burada fail-fast yapıyoruz.
 try:
     import mediapipe as mp
+    if not hasattr(mp, "solutions") or not hasattr(mp.solutions, "face_mesh"):
+        raise RuntimeError(
+            "MediaPipe yüklü görünüyor ama 'mp.solutions.face_mesh' bulunamadı. "
+            "Bu genelde uyumsuz/bozuk mediapipe kurulumu demektir. "
+            "Docker imajında Python 3.10 + mediapipe==0.10.14 kullanın."
+        )
     mp_face_mesh = mp.solutions.face_mesh
     HAS_MEDIAPIPE = True
-except ImportError:
-    HAS_MEDIAPIPE = False
+except ImportError as e:
+    raise RuntimeError(
+        "MediaPipe zorunludur ama bulunamadı. requirements.txt içinde mediapipe kurulu olmalı."
+    ) from e
+except Exception as e:
+    raise RuntimeError(
+        f"MediaPipe başlatılamadı: {e}. "
+        "Docker imajında Python 3.10 + mediapipe==0.10.14 kullanın."
+    ) from e
 
 class AdvancedVectorEngine:
     """
@@ -132,7 +147,9 @@ class AdvancedVectorEngine:
 
     # --- YARDIMCI: Yüz Maskesi ---
     def get_face_mask(self, img):
-        if not HAS_MEDIAPIPE: return None
+        # MediaPipe zorunlu olduğu için burada None dönmek yerine net hata verelim.
+        if (not HAS_MEDIAPIPE) or (mp_face_mesh is None):
+            raise RuntimeError("MediaPipe face_mesh hazır değil. Kurulum/uyumluluk kontrol edin.")
         h, w = img.shape[:2]
         mask = np.zeros((h, w), dtype=np.uint8)
         
