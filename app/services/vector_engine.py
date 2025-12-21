@@ -202,17 +202,17 @@ class AdvancedVectorEngine:
         return hair_lines_inv
 
     def _cleanup_small_regions(self, img, min_ratio=0.0005):
-    """
-    Portrait mode için küçük izole renk bölgelerini temizler.
-    """
-    h, w = img.shape[:2]
-    min_area = max(50, int(min_ratio * h * w))
+        """
+        Portrait mode için küçük izole renk bölgelerini temizler.
+        """
+        h, w = img.shape[:2]
+        min_area = max(50, int(min_ratio * h * w))
 
-    out = img.copy()
-    gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
-    _, bw = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+        out = img.copy()
+        gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+        _, bw = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
 
-    num, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
+        num, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
 
     for i in range(1, num):
         if stats[i, cv2.CC_STAT_AREA] < min_area:
