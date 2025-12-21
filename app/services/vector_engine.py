@@ -335,11 +335,11 @@ class AdvancedVectorEngine:
         def process_hybrid_cartoon(self, edge_thickness=2, color_count=18, portrait_mode=False):
         # Güvenlik: çok düşük color_count değerleri (3-5 gibi) bazı iç hesaplarda negatif/0 k üretip OpenCV hatalarına yol açabiliyor.
         # Bu motor için minimum 4 renk gerekir; daha düşük isteniyorsa FastAPI EPS/BOT motoru kullanılmalı.
-        try:
+            try:
             color_count = int(color_count)
-        except Exception:
+            except Exception:
             color_count = 18
-        color_count = max(4, min(color_count, 32))
+            color_count = max(4, min(color_count, 32))
         
         # 1. MASKELEME
         face_mask = self.get_face_mask(self.img)
