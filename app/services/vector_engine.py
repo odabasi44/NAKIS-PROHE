@@ -201,6 +201,33 @@ class AdvancedVectorEngine:
 
         return hair_lines_inv
 
+    # --- HAIR FLOW FOR PORTRAIT MODE ---
+    def get_hair_flow_portrait(self, img, face_mask):
+        """Saç şeklini basitleştirir, ince telleri baskılar."""
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Strong Gaussian blur to suppress fine hair strands
+        blurred = cv2.GaussianBlur(gray, (15, 15), 3.0)
+        
+        # Simple edge detection for major hair shapes only
+        edges = cv2.Canny(blurred, 30, 60)
+        
+        # Morphological closing to merge nearby edges
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
+        
+        # Thinning for clean lines
+        edges = self._thinning(edges)
+        
+        # Invert: black lines on white background
+        hair_lines_inv = cv2.bitwise_not(edges)
+        
+        # Remove hair from face region
+        if face_mask is not None:
+            hair_lines_inv = cv2.bitwise_or(hair_lines_inv, face_mask)
+            
+        return hair_lines_inv
+
     # --- 2. CLOTH WRINKLES (Optimize & Maskeli) ---
     def get_cloth_wrinkles(self, img, face_mask):
         """Kırışıklıkları bulur ama YÜZE BULAŞMASINI ENGELLER."""
@@ -278,7 +305,7 @@ class AdvancedVectorEngine:
         return quant, labels, cen
 
     # ---------------- ANA MOTOR (ERC V4) ----------------
-    def process_hybrid_cartoon(self, edge_thickness=2, color_count=18):
+        def process_hybrid_cartoon(self, edge_thickness=2, color_count=18, portrait_mode=False):
         # Güvenlik: çok düşük color_count değerleri (3-5 gibi) bazı iç hesaplarda negatif/0 k üretip OpenCV hatalarına yol açabiliyor.
         # Bu motor için minimum 4 renk gerekir; daha düşük isteniyorsa FastAPI EPS/BOT motoru kullanılmalı.
         try:
@@ -291,38 +318,106 @@ class AdvancedVectorEngine:
         face_mask = self.get_face_mask(self.img)
         if face_mask is None:
             face_mask = np.zeros((self.h, self.w), dtype=np.uint8)
-
+        # Portrait mode: sharper mask with skin-tone expansion
+        if portrait_mode:
+            # Remove Gaussian blur for sharper edges
+            _, face_mask = cv2.threshold(face_mask, 127, 255, cv2.THRESH_BINARY)
+            
+            # Skin-tone expansion using YCrCb
+            ycrcb = cv2.cvtColor(self.img, cv2.COLOR_BGR2YCrCb)
+            y, cr, cb = cv2.split(ycrcb)
+            skin = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+            skin[y < 55] = 0  # Remove dark areas
+            
+            # Combine MediaPipe mask with skin-tone mask
+            face_mask = cv2.bitwise_or(face_mask, skin)
+            
+            # Morphological operations for clean edges
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            face_mask = cv2.morphologyEx(face_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+            face_mask = cv2.morphologyEx(face_mask, cv2.MORPH_OPEN, kernel, iterations=1)
         face_mask_f = face_mask.astype(float) / 255.0
         # Genişletilmiş mask (inv)
         inv_mask_f = 1.0 - face_mask_f
 
         # 2. RENK İŞLEME (Color Flattening)
-        # YÜZ: Oil Painting (Yumuşak geçiş)
-        try:
-            face_part = cv2.xphoto.oilPainting(self.img, 5, 1) # Boyutu küçülttüm
-        except:
-            # Fallback: opencv-contrib yoksa
-            face_part = cv2.bilateralFilter(self.img, 7, 75, 75)
-        
-        # VÜCUT: Bilateral (Doku yok etme)
-        body_part = cv2.bilateralFilter(self.img, 9, 100, 100)
+        if portrait_mode:
+            # Portrait mode: Strong bilateral filter for skin smoothing
+            face_part = cv2.bilateralFilter(self.img, 15, 120, 120)
+            body_part = cv2.bilateralFilter(self.img, 9, 100, 100)
+            
+            # Face quantization: 3-4 flat colors using LAB space
+            face_k = 3 if color_count <= 8 else 4
+            
+            # Extract face region
+            if cv2.countNonZero(face_mask) > 0:
+                ys, xs = np.where(face_mask > 0)
+                face_pixels = face_part[ys, xs]
+                
+                if face_pixels.shape[0] > 200:
+                    # Convert to LAB for better skin tone clustering
+                    face_lab = cv2.cvtColor(face_part, cv2.COLOR_BGR2LAB)
+                    face_lab_pixels = face_lab[ys, xs]
+                    
+                    # K-means in LAB space
+                    data = np.float32(face_lab_pixels).reshape((-1, 3))
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+                    _, labels, centers = cv2.kmeans(data, face_k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+                    centers = np.uint8(centers)
+                    
+                    # Convert centers back to BGR
+                    centers_bgr = cv2.cvtColor(centers.reshape(1, -1, 3), cv2.COLOR_LAB2BGR).reshape(-1, 3)
+                    
+                    # Apply flat colors to face region
+                    mapped = centers_bgr[labels.flatten()].reshape(-1, 3)
+                    face_quant = face_part.copy()
+                    face_quant[ys, xs] = mapped
+                    
+                    # Smooth edges between color regions
+                    face_quant = cv2.bilateralFilter(face_quant, 5, 80, 80)
+                else:
+                    face_quant = self.quantize(face_part, face_k)
+            else:
+                face_quant = self.quantize(face_part, face_k)
+                
+            body_k = max(2, min(8, color_count - face_k))
+            body_quant = self.quantize(body_part, body_k)
+        else:
+            # Original behavior
+            # YÜZ: Oil Painting (Yumuşak geçiş)
+            try:
+                face_part = cv2.xphoto.oilPainting(self.img, 5, 1) # Boyutu küçülttüm
+            except:
+                # Fallback: opencv-contrib yoksa
+                face_part = cv2.bilateralFilter(self.img, 7, 75, 75)
+            
+            # VÜCUT: Bilateral (Doku yok etme)
+            body_part = cv2.bilateralFilter(self.img, 9, 100, 100)
 
-        # Quantization (Ayrı Ayrı)
-        face_k = max(8, min(32, max(16, color_count)))
-        body_k = max(2, min(12, color_count - 4))
-        face_quant = self.quantize(face_part, face_k)
-        body_quant = self.quantize(body_part, body_k)
-
+            # Quantization (Ayrı Ayrı)
+            face_k = max(8, min(32, max(16, color_count)))
+            body_k = max(2, min(12, color_count - 4))
+            face_quant = self.quantize(face_part, face_k)
+            body_quant = self.quantize(body_part, body_k)
         # Birleştirme (Blending)
         final_color = (face_quant * face_mask_f[..., None] + body_quant * inv_mask_f[..., None]).astype(np.uint8)
 
-        # 3. ÇİZGİ MOTORU (Fusion)
-        xdog = self.get_xdog(self.img) # Ana hatlar
-        fdog = self.get_fdog(self.img) # Anime detayları
-        
-        # Hair ve Wrinkle, YÜZ MASKESİ KULLANILARAK oluşturulur
-        hair = self.get_hair_flow(self.img, face_mask) 
-        wrinkle = self.get_cloth_wrinkles(self.img, face_mask)
+        if portrait_mode:
+            # Portrait mode: Simplified XDoG for major contours only
+            xdog = self.get_xdog(self.img, gamma=0.98, phi=150, epsilon=0.02)  # Higher thresholds, fewer lines
+            fdog = np.ones_like(xdog) * 255  # Disable FDoG (white background)
+            
+            # Simplified hair flow for portrait mode
+            hair = self.get_hair_flow_portrait(self.img, face_mask) 
+            wrinkle = np.ones_like(xdog) * 255  # Disable wrinkles (white background)
+        else:
+            # Original behavior
+            xdog = self.get_xdog(self.img) # Ana hatlar
+            fdog = self.get_fdog(self.img) # Anime detayları
+            
+            # Hair ve Wrinkle, YÜZ MASKESİ KULLANILARAK oluşturulur
+            hair = self.get_hair_flow(self.img, face_mask) 
+            wrinkle = self.get_cloth_wrinkles(self.img, face_mask)
 
         # Siyah Çizgileri Birleştir (MIN operatörü: En koyu olan kazanır)
         combined = cv2.min(xdog, fdog)
@@ -339,6 +434,9 @@ class AdvancedVectorEngine:
         mask_bgr = cv2.GaussianBlur(mask_bgr, (3,3), 0) # Anti-alias
 
         result = cv2.bitwise_and(final_color, mask_bgr)
+        # Portrait mode: Remove small isolated regions for cleaner output
+        if portrait_mode:
+            result = self._cleanup_small_regions(result)
         self.vector_base = result.copy()
 
         return result
