@@ -201,6 +201,33 @@ class AdvancedVectorEngine:
 
         return hair_lines_inv
 
+    def _cleanup_small_regions(self, img, min_ratio=0.0005):
+    """
+    Portrait mode için küçük izole renk bölgelerini temizler.
+    """
+    h, w = img.shape[:2]
+    min_area = max(50, int(min_ratio * h * w))
+
+    out = img.copy()
+    gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+    _, bw = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+
+    num, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
+
+    for i in range(1, num):
+        if stats[i, cv2.CC_STAT_AREA] < min_area:
+            mask = (labels == i).astype(np.uint8) * 255
+            dil = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=2)
+            ring = cv2.bitwise_and(dil, cv2.bitwise_not(mask))
+            ys, xs = np.where(ring > 0)
+            if ys.size == 0:
+                continue
+            color = np.median(out[ys, xs], axis=0).astype(np.uint8)
+            out[labels == i] = color
+
+    return out
+   
+
     # --- HAIR FLOW FOR PORTRAIT MODE ---
     def get_hair_flow_portrait(self, img, face_mask):
         """Saç şeklini basitleştirir, ince telleri baskılar."""
