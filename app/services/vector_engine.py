@@ -214,18 +214,19 @@ class AdvancedVectorEngine:
 
         num, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
 
-    for i in range(1, num):
-        if stats[i, cv2.CC_STAT_AREA] < min_area:
-            mask = (labels == i).astype(np.uint8) * 255
-            dil = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=2)
-            ring = cv2.bitwise_and(dil, cv2.bitwise_not(mask))
-            ys, xs = np.where(ring > 0)
-            if ys.size == 0:
-                continue
-            color = np.median(out[ys, xs], axis=0).astype(np.uint8)
-            out[labels == i] = color
+        for i in range(1, num):
+            if stats[i, cv2.CC_STAT_AREA] < min_area:
+                mask = (labels == i).astype(np.uint8) * 255
+                dil = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=2)
+                ring = cv2.bitwise_and(dil, cv2.bitwise_not(mask))
+                ys, xs = np.where(ring > 0)
+                if ys.size == 0:
+                    continue
+                color = np.median(out[ys, xs], axis=0).astype(np.uint8)
+                out[labels == i] = color
 
-    return out
+        return out
+
    
 
     # --- HAIR FLOW FOR PORTRAIT MODE ---
