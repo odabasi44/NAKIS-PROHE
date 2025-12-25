@@ -185,10 +185,15 @@
                     const pkg = packages[tier.id];
                     if (!pkg) return;
 
-                   // Handle features: split by newline and create bullet points
+                   // Handle features: support both array and string formats
                     let featuresList = '';
                     if (pkg.features) {
-                        const features = pkg.features.split('\n').filter(f => f.trim());
+                        let features = [];
+                        if (Array.isArray(pkg.features)) {
+                            features = pkg.features;
+                        } else if (typeof pkg.features === 'string') {
+                            features = pkg.features.split('\n').filter(f => f.trim());
+                        }
                         featuresList = features.map(f => `<li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-${tier.color}-500 mt-0.5 shrink-0">✓</span><span>${f.trim()}</span></li>`).join('');
                     };
 
