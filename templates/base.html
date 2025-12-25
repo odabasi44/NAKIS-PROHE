@@ -185,7 +185,7 @@
                     const pkg = packages[tier.id];
                     if (!pkg) return;
 
-                   // Handle features: support both array and string formats
+                    // Handle features: support both array and string formats
                     let featuresList = '';
                     if (pkg.features) {
                         let features = [];
@@ -196,7 +196,6 @@
                         }
                         featuresList = features.map(f => `<li class="flex items-start gap-2 text-sm text-gray-300 w-full"><span class="text-${tier.color}-500 mt-0.5 shrink-0">✓</span><span class="flex-1">${f.trim()}</span></li>`).join('');
                     }
-                    };
 
                     html += `
                     <div class="relative bg-[#02040a] border border-${tier.color}-500/20 rounded-xl p-6 hover:border-${tier.color}-500/50 transition-all group flex flex-col h-full">
@@ -208,7 +207,7 @@
                             <h3 class="text-xl font-bold text-white mb-2">${pkg.name}</h3>
                             <p class="text-gray-400 text-xs h-10 mb-4 overflow-hidden">${pkg.description || ''}</p>
                             <div class="mb-6">
-                                <span class="text-3xl font-bold text-white">₺${pkg.price}</span>
+                                <span class="text-3xl font-bold text-white">₺${pkg.price || '199'}</span>
                                 <span class="text-gray-500 text-sm">/aylık</span>
                             </div>
                             <ul class="space-y-3 mb-8 flex-grow list-none p-0 m-0">${featuresList}</ul>
