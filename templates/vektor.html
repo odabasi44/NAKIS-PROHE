@@ -35,6 +35,37 @@
 
     <div id="step-1" class="animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">1. Ne Dönüştüreceksiniz?</h3>
+        <!-- Desteklenen Görsel Tipleri Bildirimi -->
+        <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-sm">
+                    <p class="text-gray-300 font-medium mb-1">En İyi Sonuç Alabileceğiniz Görsel Tipleri:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-400">
+                        <div>
+                            <span class="text-blue-400 font-semibold">Logo & Grafik için:</span>
+                            <ul class="ml-4 mt-1 space-y-1">
+                                <li>• Net hatlı logolar ve amblemler</li>
+                                <li>• Az renkli (2-5 renk) tasarımlar</li>
+                                <li>• Vektör formatları (SVG, AI, EPS)</li>
+                                <li>• Yüksek çözünürlüklü PNG'ler</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <span class="text-purple-400 font-semibold">Fotoğraf & Resim için:</span>
+                            <ul class="ml-4 mt-1 space-y-1">
+                                <li>• Portre fotoğrafları (yüz net)</li>
+                                <li>• Karikatür ve çizimler</li>
+                                <li>• Basit arka planlı resimler</li>
+                                <li>• 300+ DPI çözünürlük</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onclick="selectMode('logo')" id="card-logo" class="mode-card bg-[#0c1120] border border-white/10 rounded-2xl p-6 flex items-start gap-5">
                 <div class="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
@@ -124,6 +155,9 @@
                             <option value="vp3">VP3 - Husqvarna</option>
                         </select>
                         <p class="text-[10px] text-yellow-200 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">⚠️ Makine dosyalarında renk bilgisi kaybolabilir.</p>
+                        <p class="text-[10px] text-orange-200 bg-orange-500/10 p-2 rounded border border-orange-500/20 mt-2">
+                            🧪 Bu özellik test aşamasındadır. Stabil nakış formatlarında (DST, PES, JEF vb.) çıktı vermeyebilir. Lütfen sonuçları kontrol edin.
+                        </p>
                     </div>
 
                     <button onclick="convertEmbroidery()" class="w-full py-3 mt-auto bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition">Dönüştür ve İndir</button>
