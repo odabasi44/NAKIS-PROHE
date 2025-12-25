@@ -194,7 +194,8 @@
                         } else if (typeof pkg.features === 'string') {
                             features = pkg.features.split('\n').filter(f => f.trim());
                         }
-                        featuresList = features.map(f => `<li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-${tier.color}-500 mt-0.5 shrink-0">✓</span><span>${f.trim()}</span></li>`).join('');
+                        featuresList = features.map(f => `<li class="flex items-start gap-2 text-sm text-gray-300 w-full"><span class="text-${tier.color}-500 mt-0.5 shrink-0">✓</span><span class="flex-1">${f.trim()}</span></li>`).join('');
+                    }
                     };
 
                     html += `
@@ -210,7 +211,7 @@
                                 <span class="text-3xl font-bold text-white">₺${pkg.price}</span>
                                 <span class="text-gray-500 text-sm">/aylık</span>
                             </div>
-                            <ul class="space-y-2 mb-8 flex-grow">${featuresList}</ul>
+                            <ul class="space-y-3 mb-8 flex-grow list-none p-0 m-0">${featuresList}</ul>
                         </div>
                         <a href="https://wa.me/905335620807?text=Merhaba,%20${pkg.name}%20paketi%20satın%20almak%20istiyorum." target="_blank" class="relative z-10 block w-full py-3 rounded-lg font-bold text-center transition bg-${tier.color}-600 hover:bg-${tier.color}-500 text-white shadow-lg shadow-${tier.color}-900/20">Paketi Seç</a>
                     </div>`;
