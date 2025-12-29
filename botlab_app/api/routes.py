@@ -128,3 +128,5 @@ async def get_static(filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path)
+
+
