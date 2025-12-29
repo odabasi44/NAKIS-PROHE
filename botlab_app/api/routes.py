@@ -61,6 +61,7 @@ async def process_vector(req: VectorProcessRequest):
             keep_ratio=req.keep_ratio,
             mode=req.mode,
             outline=req.outline,
+            outline_thickness=req.outline_thickness,
         )
 
     eps_res = rgba_to_eps(res.rgba, simplify_factor=0.003, min_area=20.0)
@@ -98,6 +99,7 @@ async def process_embroidery(req: EmbroideryProcessRequest):
             keep_ratio=req.keep_ratio,
             mode=req.mode,
             outline=req.outline,
+            outline_thickness=req.outline_thickness,
         )
 
     rgba_np = __import__("numpy").array(res.rgba.convert("RGBA"))
@@ -126,5 +128,3 @@ async def get_static(filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path)
-
-
