@@ -41,6 +41,7 @@ class AdvancedVectorEngine:
         self.vector_base = None
         self.alpha = None  # varsa 0-255
         self.fg_mask = None  # varsa 0/255 tek kanal (foreground)
+        self.color_ref = None
 
         if self.original_img is None:
             raise ValueError("Görüntü okunamadı.")
@@ -116,6 +117,22 @@ class AdvancedVectorEngine:
 
         self.h, self.w = self.img.shape[:2]
 
+        self._face_landmarks = None
+
+    def _ensure_face_landmarks(self):
+        if self._face_landmarks is not None:
+            return self._face_landmarks
+        if (not HAS_MEDIAPIPE) or (mp_face_mesh is None):
+            raise RuntimeError("MediaPipe face_mesh hazır değil. Kurulum/uyumluluk kontrol edin.")
+        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True) as face_mesh:
+            rgb = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
+            results = face_mesh.process(rgb)
+            if results.multi_face_landmarks:
+                self._face_landmarks = results.multi_face_landmarks[0].landmark
+            else:
+                self._face_landmarks = []
+        return self._face_landmarks
+
     # --- YARDIMCI: thinning (opencv-contrib yoksa fallback) ---
     def _thinning(self, binary_img):
         """
@@ -152,26 +169,54 @@ class AdvancedVectorEngine:
             raise RuntimeError("MediaPipe face_mesh hazır değil. Kurulum/uyumluluk kontrol edin.")
         h, w = img.shape[:2]
         mask = np.zeros((h, w), dtype=np.uint8)
-        
-        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True) as face_mesh:
-            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            results = face_mesh.process(rgb)
-            
-            if results.multi_face_landmarks:
-                lm = results.multi_face_landmarks[0].landmark
-                contour = mp_face_mesh.FACEMESH_FACE_OVAL
-                pts = []
-                for source_idx, target_idx in contour:
-                    pt = lm[source_idx]
-                    pts.append([int(pt.x * w), int(pt.y * h)])
-                
-                if pts:
-                    pts = np.array(pts)
-                    hull = cv2.convexHull(pts)
-                    cv2.fillPoly(mask, [hull], 255)
-                    # Maskeyi yumuşat
-                    mask = cv2.GaussianBlur(mask, (21, 21), 0)
+
+        lm = self._ensure_face_landmarks()
+        if lm:
+            contour = mp_face_mesh.FACEMESH_FACE_OVAL
+            pts = []
+            for source_idx, target_idx in contour:
+                pt = lm[source_idx]
+                pts.append([int(pt.x * w), int(pt.y * h)])
+
+            if pts:
+                pts = np.array(pts)
+                hull = cv2.convexHull(pts)
+                cv2.fillPoly(mask, [hull], 255)
+                mask = cv2.GaussianBlur(mask, (21, 21), 0)
         return mask
+
+    def _feature_poly_mask(self, contour, *, blur_ksize: int = 7):
+        h, w = self.img.shape[:2]
+        mask = np.zeros((h, w), dtype=np.uint8)
+        lm = self._ensure_face_landmarks()
+        if not lm:
+            return mask
+        pts = []
+        for source_idx, target_idx in contour:
+            pt = lm[source_idx]
+            pts.append([int(pt.x * w), int(pt.y * h)])
+        if pts:
+            pts = np.array(pts)
+            hull = cv2.convexHull(pts)
+            cv2.fillPoly(mask, [hull], 255)
+            k = int(max(0, blur_ksize))
+            if k >= 3:
+                if k % 2 == 0:
+                    k += 1
+                mask = cv2.GaussianBlur(mask, (k, k), 0)
+        return mask
+
+    def get_lips_mask(self):
+        if not hasattr(mp_face_mesh, "FACEMESH_LIPS"):
+            return np.zeros((self.h, self.w), dtype=np.uint8)
+        return self._feature_poly_mask(mp_face_mesh.FACEMESH_LIPS, blur_ksize=5)
+
+    def get_eyes_mask(self):
+        if not hasattr(mp_face_mesh, "FACEMESH_LEFT_EYE") or not hasattr(mp_face_mesh, "FACEMESH_RIGHT_EYE"):
+            return np.zeros((self.h, self.w), dtype=np.uint8)
+        ml = self._feature_poly_mask(mp_face_mesh.FACEMESH_LEFT_EYE, blur_ksize=3)
+        mr = self._feature_poly_mask(mp_face_mesh.FACEMESH_RIGHT_EYE, blur_ksize=3)
+        return cv2.bitwise_or(ml, mr)
 
     # --- 1. HAIR FLOW (Optimize) ---
     def get_hair_flow(self, img, face_mask):
@@ -430,6 +475,81 @@ class AdvancedVectorEngine:
             body_quant = self.quantize(body_part, body_k)
         # Birleştirme (Blending)
         final_color = (face_quant * face_mask_f[..., None] + body_quant * inv_mask_f[..., None]).astype(np.uint8)
+
+        if portrait_mode:
+            ref = self.color_ref if (self.color_ref is not None and hasattr(self.color_ref, "shape")) else self.img
+            try:
+                hsv = cv2.cvtColor(final_color, cv2.COLOR_BGR2HSV)
+                hch, sch, vch = cv2.split(hsv)
+                sch = np.clip((sch.astype(np.float32) * 1.25), 0, 255).astype(np.uint8)
+                final_color = cv2.cvtColor(cv2.merge([hch, sch, vch]), cv2.COLOR_HSV2BGR)
+            except Exception:
+                pass
+
+            def _median_bgr(src, m):
+                try:
+                    if m is None:
+                        return None
+                    mm = (m.astype(np.uint8) > 10)
+                    if mm.ndim != 2:
+                        return None
+                    pix = src[mm]
+                    if pix.size == 0:
+                        return None
+                    return np.median(pix.reshape(-1, 3), axis=0).astype(np.uint8)
+                except Exception:
+                    return None
+
+            try:
+                ycrcb = cv2.cvtColor(ref, cv2.COLOR_BGR2YCrCb)
+                y, cr, cb = cv2.split(ycrcb)
+                skin = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+                skin[y < 55] = 0
+                skin = cv2.bitwise_and(skin, face_mask)
+                skin_c = _median_bgr(ref, skin)
+                if skin_c is not None:
+                    final_color[skin > 10] = skin_c
+            except Exception:
+                pass
+
+            try:
+                lips = self.get_lips_mask()
+                lips = cv2.bitwise_and(lips, face_mask)
+                lips_c = _median_bgr(ref, lips)
+                if lips_c is not None:
+                    lab = cv2.cvtColor(lips_c.reshape(1, 1, 3), cv2.COLOR_BGR2LAB).reshape(3)
+                    lab[1] = np.clip(int(lab[1]) + 14, 0, 255)
+                    lab[0] = np.clip(int(lab[0]) + 6, 0, 255)
+                    lips_c2 = cv2.cvtColor(lab.reshape(1, 1, 3).astype(np.uint8), cv2.COLOR_LAB2BGR).reshape(3)
+                    final_color[lips > 10] = lips_c2
+            except Exception:
+                pass
+
+            try:
+                eyes = self.get_eyes_mask()
+                eyes = cv2.bitwise_and(eyes, face_mask)
+                hsv_o = cv2.cvtColor(ref, cv2.COLOR_BGR2HSV)
+                hh, ss, vv = cv2.split(hsv_o)
+                sclera = ((vv > 170) & (ss < 70)).astype(np.uint8) * 255
+                sclera = cv2.bitwise_and(sclera, eyes)
+                if cv2.countNonZero(sclera) > 10:
+                    final_color[sclera > 10] = np.array([245, 245, 245], dtype=np.uint8)
+            except Exception:
+                pass
+
+            try:
+                hsv_o = cv2.cvtColor(ref, cv2.COLOR_BGR2HSV)
+                hh, ss, vv = cv2.split(hsv_o)
+                dark = (vv < 75).astype(np.uint8) * 255
+                ring = cv2.dilate(face_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31)), iterations=1)
+                ring = cv2.bitwise_and(ring, cv2.bitwise_not(face_mask))
+                hair = cv2.bitwise_and(dark, ring)
+                hair_c = _median_bgr(ref, hair)
+                if hair_c is None:
+                    hair_c = np.array([15, 15, 15], dtype=np.uint8)
+                final_color[hair > 10] = hair_c
+            except Exception:
+                pass
 
         if portrait_mode:
             # Portrait mode: Simplified XDoG for major contours only
@@ -711,6 +831,24 @@ class AdvancedVectorEngine:
         xdog = self.get_xdog(self.img, phi=250)
         res = cv2.cvtColor(xdog, cv2.COLOR_GRAY2BGR)
         self.vector_base = res
+        return res
+
+    def process_lineart(self, edge_thickness=2):
+        face_mask = self.get_face_mask(self.img)
+        if face_mask is None:
+            face_mask = np.zeros((self.h, self.w), dtype=np.uint8)
+
+        xdog = self.get_xdog(self.img, gamma=0.98, phi=160, epsilon=0.02)
+        hair = self.get_hair_flow_portrait(self.img, face_mask)
+
+        combined = cv2.min(xdog, hair)
+
+        if edge_thickness > 1:
+            kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
+            combined = cv2.erode(combined, kernel, iterations=1)
+
+        res = cv2.cvtColor(combined, cv2.COLOR_GRAY2BGR)
+        self.vector_base = res.copy()
         return res
 
     def process_logo_style(self, color_count=8):
