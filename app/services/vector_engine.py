@@ -288,7 +288,8 @@ class AdvancedVectorEngine:
         edges = (edges + 1) / 2.0
         edges = (edges * 255).astype(np.uint8)
         _, bin_edges = cv2.threshold(edges, 200, 255, cv2.THRESH_BINARY)
-        return cv2.medianBlur(bin_edges, 3) # Siyah çizgi, Beyaz zemin
+        bin_edges = cv2.medianBlur(bin_edges, 3)
+        return cv2.bitwise_not(bin_edges) # Siyah çizgi, Beyaz zemin
 
     # --- 4. FDoG (Hafifletilmiş) ---
     def get_fdog(self, img):
