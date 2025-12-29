@@ -14,6 +14,7 @@ class VectorProcessRequest(BaseModel):
     keep_ratio: bool = True
     mode: str = Field("photo", description="photo|logo")
     outline: bool = True
+    outline_thickness: int = Field(1, ge=1, le=6)
 
 
 class VectorProcessResponse(BaseModel):
@@ -32,11 +33,11 @@ class EmbroideryProcessRequest(BaseModel):
     keep_ratio: bool = True
     mode: str = Field("photo", description="photo|logo")
     outline: bool = True
+    outline_thickness: int = Field(1, ge=1, le=6)
 
 
 class EmbroideryProcessResponse(BaseModel):
     id: str
     bot_url: str
     file_url: str
-
 
