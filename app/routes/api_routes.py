@@ -13,7 +13,6 @@ from flask import Blueprint, request, jsonify, session
 from app.utils.helpers import check_user_status, increase_usage
 from app.services.vector_engine import AdvancedVectorEngine
 from app.services.embroidery_engine import EmbroideryGenerator
-from app.services.embroidery_pipeline import EmbroideryPipeline
 from app.services.ai_loader import AILoader
 # Optional: BOT -> embroidery converter (repo deploy senaryolarında dosya eksikse app boot etsin)
 try:
@@ -42,6 +41,11 @@ def api_vectorize():
     file = request.files["image"]
     method = (request.form.get("method", "cartoon") or "cartoon").strip().lower()
     style = (request.form.get("style", "cartoon") or "cartoon").strip().lower()
+
+    target_width = request.form.get("target_width")
+    target_height = request.form.get("target_height")
+    lock_aspect = request.form.get("lock_aspect")
+    lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
 
     # kalite parametreleri (UI'dan gelebilir)
     edge_thickness = int(request.form.get("edge_thickness", 2))
@@ -94,7 +98,7 @@ def api_vectorize():
 
             vp = requests.post(
                 f"{engine_url}/api/process/vector",
-                json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True},
+                json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True, "outline_thickness": int(edge_thickness)},
                 timeout=300,
             )
             if vp.status_code >= 400:
@@ -117,7 +121,7 @@ def api_vectorize():
             # 3) embroidery process -> BOT (editable)
             ep = requests.post(
                 f"{engine_url}/api/process/embroidery",
-                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True},
+                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": mode, "outline": True, "outline_thickness": int(edge_thickness)},
                 timeout=300,
             )
             if ep.status_code >= 400:
@@ -145,12 +149,6 @@ def api_vectorize():
                 "colors": colors,
                 "status": st_after
             })
-
-        # 1) hedef boyut (engine'e de geçecek)
-        target_width = request.form.get("target_width")
-        target_height = request.form.get("target_height")
-        lock_aspect = request.form.get("lock_aspect")
-        lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
 
         # 2) pre-process: bg removal + enhance (EPS/embroidery için daha temiz giriş)
         original_rgb = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
@@ -191,6 +189,9 @@ def api_vectorize():
         l = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(l)
         enhanced = cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR)
 
+        if (method != "outline") and (AILoader.gan_session is not None):
+            enhanced = AILoader.whitebox_cartoonize(enhanced)
+
         # bg removal: u2net varsa alpha çıkar; yoksa border renk heuristiği
         alpha = np.full((enhanced.shape[0], enhanced.shape[1]), 255, dtype=np.uint8)
         if remove_bg:
@@ -230,7 +231,13 @@ def api_vectorize():
             # "outline" UI adı kalsa da; logo/grafik için temiz posterize taban üret
             engine.img = engine.process_logo_style(color_count=color_count)
         else:
-            engine.img = engine.process_artistic_style(style=style, options=options)
+            st = (style or "cartoon").strip().lower()
+            if st == "flat":
+                st = "cartoon"
+            if st == "cartoon":
+                engine.img = engine.process_hybrid_cartoon(edge_thickness=edge_thickness, color_count=color_count, portrait_mode=True)
+            else:
+                engine.img = engine.process_artistic_style(style=st, options=options)
         
         svg = engine.generate_artistic_svg(
             num_colors=color_count,
