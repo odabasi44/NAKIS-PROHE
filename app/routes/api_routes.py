@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, session
 from app.utils.helpers import check_user_status, increase_usage
 from app.services.vector_engine import AdvancedVectorEngine
 from app.services.embroidery_engine import EmbroideryGenerator
+from app.services.embroidery_pipeline import EmbroideryPipeline
 from app.services.ai_loader import AILoader
 # Optional: BOT -> embroidery converter (repo deploy senaryolarında dosya eksikse app boot etsin)
 try:
