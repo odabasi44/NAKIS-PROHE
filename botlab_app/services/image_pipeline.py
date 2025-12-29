@@ -94,8 +94,14 @@ class ImagePipeline:
         rgba[:, :, 3] = alpha
         return Image.fromarray(rgba, mode="RGBA")
 
+    def _label_boundary_edges(self, labels: "np.ndarray") -> "np.ndarray":
+        lab = labels.astype(np.int16)
+        e = np.zeros_like(lab, dtype=np.uint8)
+        e[:, 1:] |= (lab[:, 1:] != lab[:, :-1]).astype(np.uint8) * 255
+        e[1:, :] |= (lab[1:, :] != lab[:-1, :]).astype(np.uint8) * 255
+        return e
+
     def reduce_colors(self, rgba: Image.Image, num_colors: int = 4) -> tuple[Image.Image, list[str]]:
-        # alpha varsa beyaz ile blend (kmeans stabil) ama alpha'yı koruruz
         rgba = rgba.convert("RGBA")
         np_rgba = np.array(rgba)
         alpha = np_rgba[:, :, 3:4].astype(np.float32) / 255.0
@@ -106,11 +112,22 @@ class ImagePipeline:
 
         # Fotoğraf modunda daha doğal tonlar için 8 gibi değerler istenebilir.
         k = int(max(2, min(int(num_colors), 12)))
-        data = np.float32(bgr).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+
+        fg = (np_rgba[:, :, 3] > 10)
+        fg_pixels = bgr[fg]
+        if fg_pixels.size == 0:
+            uniq = np.unique(bgr.reshape(-1, 3), axis=0)
+            colors = [f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}" for c in uniq[: min(12, len(uniq))]]
+            return rgba, colors
+
+        data = np.float32(fg_pixels).reshape((-1, 3))
         _, labels, centers = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         centers = np.uint8(centers)
-        quant_bgr = centers[labels.flatten()].reshape(bgr.shape)
+
+        quant_bgr = bgr.copy()
+        mapped = centers[labels.flatten()].reshape((-1, 3))
+        quant_bgr[fg] = mapped
         quant_rgb = cv2.cvtColor(quant_bgr, cv2.COLOR_BGR2RGB)
 
         out_rgba = np.zeros_like(np_rgba)
@@ -123,6 +140,45 @@ class ImagePipeline:
         for c in uniq:
             colors.append(f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}")
         return Image.fromarray(out_rgba, mode="RGBA"), colors
+
+    def reduce_colors_with_labels(
+        self, rgba: Image.Image, num_colors: int = 4
+    ) -> tuple[Image.Image, "np.ndarray | None", list[str]]:
+        rgba = rgba.convert("RGBA")
+        np_rgba = np.array(rgba)
+        alpha = np_rgba[:, :, 3:4].astype(np.float32) / 255.0
+        rgb = np_rgba[:, :, :3].astype(np.float32)
+        white = np.ones_like(rgb) * 255.0
+        blended = (rgb * alpha + white * (1.0 - alpha)).astype(np.uint8)
+        bgr = cv2.cvtColor(blended, cv2.COLOR_RGB2BGR)
+
+        k = int(max(2, min(int(num_colors), 12)))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+        fg = (np_rgba[:, :, 3] > 10)
+        fg_pixels = bgr[fg]
+        if fg_pixels.size == 0:
+            rgba2, colors = self.reduce_colors(rgba, num_colors=num_colors)
+            return rgba2, None, colors
+
+        data = np.float32(fg_pixels).reshape((-1, 3))
+        _, labels, centers = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+        centers = np.uint8(centers)
+
+        quant_bgr = bgr.copy()
+        mapped = centers[labels.flatten()].reshape((-1, 3))
+        quant_bgr[fg] = mapped
+        quant_rgb = cv2.cvtColor(quant_bgr, cv2.COLOR_BGR2RGB)
+
+        out_rgba = np.zeros_like(np_rgba)
+        out_rgba[:, :, :3] = quant_rgb
+        out_rgba[:, :, 3] = np_rgba[:, :, 3]
+
+        uniq = np.unique(centers, axis=0)
+        colors = [f"#{int(c[2]):02x}{int(c[1]):02x}{int(c[0]):02x}" for c in uniq]
+
+        label_map = np.full((np_rgba.shape[0], np_rgba.shape[1]), 255, dtype=np.uint8)
+        label_map[fg] = labels.flatten().astype(np.uint8)
+        return Image.fromarray(out_rgba, mode="RGBA"), label_map, colors
 
     def cartoonize(self, rgba: Image.Image, *, outline: bool = True) -> Image.Image:
         """
@@ -150,26 +206,7 @@ class ImagePipeline:
         # ekstra edge-preserving
         sm = cv2.bilateralFilter(sm, 9, 75, 75)
 
-        if outline:
-            g = cv2.cvtColor(sm, cv2.COLOR_BGR2GRAY)
-            g = cv2.medianBlur(g, 5)
-            edges = cv2.adaptiveThreshold(
-                g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 2
-            )
-            # edges: 0 = siyah çizgi, 255 = beyaz zemin
-            # sadece foreground'a uygulayalım
-            fg = (alpha > 10).astype(np.uint8)
-            edges_fg = cv2.bitwise_and(edges, edges, mask=fg)
-
-            # çizgileri biraz incelt / temizle
-            k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-            edges_fg = cv2.morphologyEx(edges_fg, cv2.MORPH_OPEN, k, iterations=1)
-
-            # siyah çizgiyi sm'nin üstüne basalım
-            sm_rgb = cv2.cvtColor(sm, cv2.COLOR_BGR2RGB)
-            sm_rgb[edges_fg == 0] = (0, 0, 0)
-        else:
-            sm_rgb = cv2.cvtColor(sm, cv2.COLOR_BGR2RGB)
+        sm_rgb = cv2.cvtColor(sm, cv2.COLOR_BGR2RGB)
 
         out = np.zeros_like(np_rgba)
         out[:, :, :3] = sm_rgb
@@ -186,6 +223,7 @@ class ImagePipeline:
         keep_ratio: bool,
         mode: str = "photo",
         outline: bool = True,
+        outline_thickness: int = 1,
     ) -> ImagePipelineResult:
         rgb = self.resize(image.convert("RGB"), width, height, keep_ratio)
         enh = self.enhance(rgb)
@@ -193,8 +231,33 @@ class ImagePipeline:
         # logo modunda outline/cartoonize daha az agresif
         mode_l = (mode or "photo").strip().lower()
         if mode_l == "photo":
-            rgba = self.cartoonize(rgba, outline=outline)
-        rgba2, _ = self.reduce_colors(rgba, num_colors=num_colors)
+            rgba = self.cartoonize(rgba, outline=False)
+
+        rgba2, label_map, _ = self.reduce_colors_with_labels(rgba, num_colors=num_colors)
+
+        if mode_l == "photo" and outline and (label_map is not None):
+            np_rgba2 = np.array(rgba2.convert("RGBA"))
+            fg = (np_rgba2[:, :, 3] > 10).astype(np.uint8)
+
+            lab = label_map.copy()
+            lab[fg == 0] = 255
+            edges = self._label_boundary_edges(lab)
+            edges = cv2.bitwise_and(edges, edges, mask=fg)
+
+            k3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            edges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, k3, iterations=1)
+
+            try:
+                t = int(outline_thickness)
+            except Exception:
+                t = 1
+            t = max(1, min(t, 6))
+            if t > 1:
+                ksz = int(2 * t - 1)
+                kd = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksz, ksz))
+                edges = cv2.dilate(edges, kd, iterations=1)
+
+            np_rgba2[edges > 0, 0:3] = (0, 0, 0)
+            rgba2 = Image.fromarray(np_rgba2, mode="RGBA")
+
         return ImagePipelineResult(rgba=rgba2)
-
-
