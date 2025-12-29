@@ -40,4 +40,3 @@ class EmbroideryProcessResponse(BaseModel):
     id: str
     bot_url: str
     file_url: str
-
