@@ -178,6 +178,8 @@ def api_vectorize():
             if (tw, th) != (ow, oh):
                 original_rgb = original_rgb.resize((tw, th), Image.LANCZOS)
 
+        color_ref_bgr = cv2.cvtColor(np.array(original_rgb), cv2.COLOR_RGB2BGR)
+
         np_bgr = cv2.cvtColor(np.array(original_rgb), cv2.COLOR_RGB2BGR)
 
         # enhance: denoise + unsharp + clahe
@@ -225,11 +227,14 @@ def api_vectorize():
             lock_aspect=lock_aspect,
             max_dim=1000,
         )
+        engine.color_ref = color_ref_bgr
         options = {"edge_thickness": edge_thickness, "color_count": color_count, "border_sensitivity": border_sensitivity}
         
         if method == "outline":
             # "outline" UI adı kalsa da; logo/grafik için temiz posterize taban üret
             engine.img = engine.process_logo_style(color_count=color_count)
+        elif method == "lineart":
+            engine.img = engine.process_lineart(edge_thickness=edge_thickness)
         else:
             st = (style or "cartoon").strip().lower()
             if st == "flat":
@@ -864,4 +869,3 @@ def user_dashboard_data():
         "open_tickets": open_ticket_count,
         "unread_replies": unread_replies
     })
-
