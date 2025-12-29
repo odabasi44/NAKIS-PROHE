@@ -35,7 +35,6 @@
 
     <div id="step-1" class="animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">1. Ne Dönüştüreceksiniz?</h3>
-        
         <!-- Desteklenen Görsel Tipleri Bildirimi -->
         <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
             <div class="flex items-start gap-3">
@@ -67,7 +66,6 @@
                 </div>
             </div>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onclick="selectMode('logo')" id="card-logo" class="mode-card bg-[#0c1120] border border-white/10 rounded-2xl p-6 flex items-start gap-5">
                 <div class="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
@@ -111,77 +109,6 @@
                     <button onclick="startProcessing()" class="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold shadow-lg shadow-violet-900/30 hover:opacity-90 transition">Vektörleştirmeyi Başlat</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="step-configure" class="hidden animate-fade-in">
-        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">3. Ayarları Yapılandır</h3>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Renk Paleti -->
-            <div class="bg-white/5 p-5 rounded-xl border border-white/5">
-                <label class="text-xs font-bold text-gray-400 mb-3 block">Renk Paleti</label>
-                <div id="color-palette" class="grid grid-cols-5 gap-2 mb-3">
-                    <!-- Renkler JavaScript ile doldurulacak -->
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs text-gray-400">Renk Sayısı:</span>
-                    <div class="flex items-center gap-2">
-                        <button onclick="adjustColorCount(-1)" class="w-6 h-6 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">-</button>
-                        <span id="color-count-display" class="text-sm font-bold text-white w-8 text-center">3</span>
-                        <button onclick="adjustColorCount(1)" class="w-6 h-6 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">+</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gelişmiş Ayarlar -->
-            <div class="bg-white/5 p-5 rounded-xl border border-white/5">
-                <label class="text-xs font-bold text-gray-400 mb-3 block">Gelişmiş Ayarlar</label>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-xs text-gray-400">Kenar Kalınlığı</span>
-                            <span id="edge-value" class="text-xs text-white font-bold">2</span>
-                        </div>
-                        <input type="range" id="edge-slider" min="1" max="10" value="2" class="w-full" oninput="updateEdgeThickness(this.value)">
-                    </div>
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-xs text-gray-400">Detay Seviyesi</span>
-                            <span id="detail-value" class="text-xs text-white font-bold">50%</span>
-                        </div>
-                        <input type="range" id="detail-slider" min="0" max="100" value="50" class="w-full" oninput="updateDetailLevel(this.value)">
-                    </div>
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-xs text-gray-400">Renk Hassasiyeti</span>
-                            <span id="color-value" class="text-xs text-white font-bold">70%</span>
-                        </div>
-                        <input type="range" id="color-sensitivity-slider" min="0" max="100" value="70" class="w-full" oninput="updateColorSensitivity(this.value)">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Önizleme -->
-            <div class="bg-white/5 p-5 rounded-xl border border-white/5">
-                <label class="text-xs font-bold text-gray-400 mb-3 block">Önizleme</label>
-                <div class="relative">
-                    <canvas id="preview-canvas" class="w-full rounded-lg border border-white/10"></canvas>
-                    <div class="mt-2 flex items-center justify-center gap-2">
-                        <button onclick="toggleComparison()" class="text-xs text-blue-400 hover:text-blue-300">Karşılaştır</button>
-                        <span class="text-xs text-gray-500">|</span>
-                        <span id="preview-status" class="text-xs text-gray-400">Hazır</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 flex justify-between items-center">
-            <button onclick="backToUpload()" class="px-6 py-3 rounded-lg bg-white/5 text-white hover:bg-white/10 border border-white/10 transition">
-                ← Geri
-            </button>
-            <button onclick="startProcessing()" class="px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold shadow-lg shadow-violet-900/30 hover:opacity-90 transition">
-                Vektörleştirmeyi Başlat
-            </button>
         </div>
     </div>
 
