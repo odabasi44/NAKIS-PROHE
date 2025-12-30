@@ -2,35 +2,31 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from PIL import Image
 
-from api.schemas import (
+from botlab_app.api.schemas import (
     UploadResponse,
     VectorProcessRequest,
     VectorProcessResponse,
     EmbroideryProcessRequest,
     EmbroideryProcessResponse,
 )
-from core.config import settings
-from core.utils import ensure_dir, new_id
-from services.image_pipeline import ImagePipeline
-from services.vector_pipeline import rgba_to_eps
-from services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
-
+from botlab_app.core.config import settings
+from botlab_app.core.utils import ensure_dir, new_id
+from botlab_app.services.image_pipeline import ImagePipeline
+from botlab_app.services.vector_pipeline import rgba_to_eps
+from botlab_app.services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
 
 router = APIRouter()
 
 ensure_dir(settings.output_dir)
 _pipeline = ImagePipeline(settings.u2net_path)
 
-
 def _path_for(id_: str, ext: str) -> str:
     return str(Path(settings.output_dir) / f"{id_}.{ext}")
-
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload(image: UploadFile = File(...)):
@@ -45,7 +41,6 @@ async def upload(image: UploadFile = File(...)):
         f.write(data)
     return UploadResponse(id=id_)
 
-
 @router.post("/process/vector", response_model=VectorProcessResponse)
 async def process_vector(req: VectorProcessRequest):
     raw_path = _path_for(req.id, "source")
@@ -53,16 +48,7 @@ async def process_vector(req: VectorProcessRequest):
         raise HTTPException(status_code=404, detail="id not found")
 
     with Image.open(raw_path) as im:
-        res = _pipeline.run(
-            im,
-            num_colors=req.num_colors,
-            width=req.width,
-            height=req.height,
-            keep_ratio=req.keep_ratio,
-            mode=req.mode,
-            outline=req.outline,
-            outline_thickness=req.outline_thickness,
-        )
+        res = _pipeline.run(im, num_colors=req.num_colors, width=req.width, height=req.height, keep_ratio=req.keep_ratio)
 
     eps_res = rgba_to_eps(res.rgba, simplify_factor=0.003, min_area=20.0)
     eps_path = _path_for(req.id, "eps")
@@ -79,7 +65,6 @@ async def process_vector(req: VectorProcessRequest):
         colors=eps_res.palette,
     )
 
-
 @router.post("/process/embroidery", response_model=EmbroideryProcessResponse)
 async def process_embroidery(req: EmbroideryProcessRequest):
     raw_path = _path_for(req.id, "source")
@@ -91,16 +76,7 @@ async def process_embroidery(req: EmbroideryProcessRequest):
         raise HTTPException(status_code=400, detail="unsupported format")
 
     with Image.open(raw_path) as im:
-        res = _pipeline.run(
-            im,
-            num_colors=req.num_colors,
-            width=req.width,
-            height=req.height,
-            keep_ratio=req.keep_ratio,
-            mode=req.mode,
-            outline=req.outline,
-            outline_thickness=req.outline_thickness,
-        )
+        res = _pipeline.run(im, num_colors=req.num_colors, width=req.width, height=req.height, keep_ratio=req.keep_ratio)
 
     rgba_np = __import__("numpy").array(res.rgba.convert("RGBA"))
     bot = eps_layers_to_bot(rgba_np, unit="px")
@@ -120,7 +96,6 @@ async def process_embroidery(req: EmbroideryProcessRequest):
 
     return EmbroideryProcessResponse(id=req.id, bot_url=f"/api/static/{req.id}.bot", file_url=f"/api/static/{req.id}.{fmt}")
 
-
 @router.get("/static/{filename}")
 async def get_static(filename: str):
     safe = filename.replace("/", "").replace("\\", "")
@@ -128,5 +103,3 @@ async def get_static(filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path)
-
-
