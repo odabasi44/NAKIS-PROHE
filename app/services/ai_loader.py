@@ -9,6 +9,27 @@ class AILoader:
     u2net_session = None
     u2net_input_name = "input"
 
+    @classmethod
+    def model_status(cls):
+        def _sess_info(sess):
+            if sess is None:
+                return None
+            try:
+                inp0 = sess.get_inputs()[0] if sess.get_inputs() else None
+                return {
+                    "providers": list(getattr(sess, "get_providers", lambda: [])()),
+                    "input_name": getattr(inp0, "name", None),
+                    "input_shape": getattr(inp0, "shape", None),
+                }
+            except Exception:
+                return {"providers": None, "input_name": None, "input_shape": None}
+
+        return {
+            "onnxruntime_version": getattr(ort, "__version__", None),
+            "whitebox_cartoon": {"loaded": cls.gan_session is not None, "session": _sess_info(cls.gan_session)},
+            "u2net": {"loaded": cls.u2net_session is not None, "input_name": cls.u2net_input_name, "session": _sess_info(cls.u2net_session)},
+        }
+
     @staticmethod
     def whitebox_cartoonize(bgr_img: "np.ndarray") -> "np.ndarray":
         if AILoader.gan_session is None:
@@ -69,15 +90,31 @@ class AILoader:
     def load_models(cls):
         # Base dir'i config'den veya os'den alabiliriz
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+
+        try:
+            logger = current_app.logger
+        except Exception:
+            logger = None
+
+        def _log(level: str, msg: str):
+            if logger is not None:
+                try:
+                    getattr(logger, level)(msg)
+                    return
+                except Exception:
+                    pass
+            print(msg)
         
         # Whitebox Model
         wb_path = os.path.join(base_dir, "models", "whitebox_cartoon.onnx")
         if os.path.exists(wb_path):
             try:
                 cls.gan_session = ort.InferenceSession(wb_path, providers=["CPUExecutionProvider"])
-                print(f"🚀 Whitebox Model Yüklendi: {wb_path}")
+                _log("info", f"Whitebox Model Yüklendi: {wb_path} | providers={cls.gan_session.get_providers()} | ort={getattr(ort, '__version__', None)}")
             except Exception as e:
-                print(f"⚠️ Whitebox Model Hatası: {e}")
+                _log("warning", f"Whitebox Model Hatası: {e}")
+        else:
+            _log("warning", f"Whitebox Model Bulunamadı: {wb_path}")
 
         # U2Net Model
         u2_path = os.path.join(base_dir, "models", "u2net.onnx")
@@ -85,8 +122,10 @@ class AILoader:
             try:
                 cls.u2net_session = ort.InferenceSession(u2_path, providers=["CPUExecutionProvider"])
                 cls.u2net_input_name = cls.u2net_session.get_inputs()[0].name
-                print(f"✅ U2Net Model Yüklendi: {u2_path}")
+                _log("info", f"U2Net Model Yüklendi: {u2_path} | providers={cls.u2net_session.get_providers()} | input={cls.u2net_input_name} | ort={getattr(ort, '__version__', None)}")
             except Exception as e:
-                print(f"⚠️ U2Net Model Hatası: {e}")
+                _log("warning", f"U2Net Model Hatası: {e}")
+        else:
+            _log("warning", f"U2Net Model Bulunamadı: {u2_path}")
 
 # Uygulama başlarken modelleri yüklemek için init'te çağıracağız.
