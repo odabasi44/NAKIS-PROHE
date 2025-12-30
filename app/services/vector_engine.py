@@ -254,21 +254,47 @@ class AdvancedVectorEngine:
         min_area = max(50, int(min_ratio * h * w))
 
         out = img.copy()
-        gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
-        _, bw = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+        work_mask = self.fg_mask
+        if work_mask is None:
+            work_mask = np.ones((h, w), dtype=np.uint8) * 255
 
-        num, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
+        try:
+            ys, xs = np.where(work_mask > 10)
+            if ys.size == 0:
+                return out
+            colors = out[ys, xs]
+            uniq = np.unique(colors.reshape(-1, 3), axis=0)
+            if uniq.shape[0] > 64:
+                return out
 
-        for i in range(1, num):
-            if stats[i, cv2.CC_STAT_AREA] < min_area:
-                mask = (labels == i).astype(np.uint8) * 255
-                dil = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=2)
-                ring = cv2.bitwise_and(dil, cv2.bitwise_not(mask))
-                ys, xs = np.where(ring > 0)
-                if ys.size == 0:
+            k3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            for c in uniq:
+                m = (out[:, :, 0] == int(c[0])) & (out[:, :, 1] == int(c[1])) & (out[:, :, 2] == int(c[2]))
+                m = m & (work_mask > 10)
+                if not np.any(m):
                     continue
-                color = np.median(out[ys, xs], axis=0).astype(np.uint8)
-                out[labels == i] = color
+                bw = (m.astype(np.uint8) * 255)
+                num, cc, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
+                if num <= 1:
+                    continue
+                for i in range(1, num):
+                    area = int(stats[i, cv2.CC_STAT_AREA])
+                    if area >= min_area:
+                        continue
+                    comp = (cc == i).astype(np.uint8) * 255
+                    ring = cv2.dilate(comp, k3, iterations=2)
+                    ring = cv2.bitwise_and(ring, cv2.bitwise_not(comp))
+                    ring = cv2.bitwise_and(ring, work_mask)
+                    ry, rx = np.where(ring > 0)
+                    if ry.size == 0:
+                        continue
+                    neigh = out[ry, rx].reshape(-1, 3)
+                    vals, counts = np.unique(neigh, axis=0, return_counts=True)
+                    newc = vals[int(np.argmax(counts))].astype(np.uint8)
+                    yy, xx = np.where(cc == i)
+                    out[yy, xx] = newc
+        except Exception:
+            return out
 
         return out
 
@@ -540,16 +566,35 @@ class AdvancedVectorEngine:
             try:
                 hsv_o = cv2.cvtColor(ref, cv2.COLOR_BGR2HSV)
                 hh, ss, vv = cv2.split(hsv_o)
-                dark = (vv < 75).astype(np.uint8) * 255
                 ring = cv2.dilate(face_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31)), iterations=1)
                 ring = cv2.bitwise_and(ring, cv2.bitwise_not(face_mask))
+                if self.fg_mask is not None:
+                    ring = cv2.bitwise_and(ring, self.fg_mask)
+
+                rv = vv[ring > 10]
+                thr = 75
+                if rv.size > 200:
+                    try:
+                        thr = int(np.percentile(rv, 35))
+                        thr = int(max(45, min(85, thr)))
+                    except Exception:
+                        thr = 75
+
+                dark = (vv < thr).astype(np.uint8) * 255
                 hair = cv2.bitwise_and(dark, ring)
                 hair_c = _median_bgr(ref, hair)
                 if hair_c is None:
-                    hair_c = np.array([15, 15, 15], dtype=np.uint8)
-                final_color[hair > 10] = hair_c
+                    hair_c2 = np.array([15, 15, 15], dtype=np.uint8)
+                else:
+                    hc_hsv = cv2.cvtColor(hair_c.reshape(1, 1, 3), cv2.COLOR_BGR2HSV).reshape(3).astype(np.float32)
+                    hc_hsv[1] = np.clip(hc_hsv[1] * 0.55, 0, 255)
+                    hc_hsv[2] = np.clip(min(float(hc_hsv[2]), 85.0), 0, 255)
+                    hair_c2 = cv2.cvtColor(hc_hsv.reshape(1, 1, 3).astype(np.uint8), cv2.COLOR_HSV2BGR).reshape(3)
+                final_color[hair > 10] = hair_c2
             except Exception:
                 pass
+
+            final_color = self._cleanup_small_regions(final_color)
 
         if portrait_mode:
             # Portrait mode: Simplified XDoG for major contours only
@@ -573,6 +618,41 @@ class AdvancedVectorEngine:
         combined = cv2.min(combined, hair)
         combined = cv2.min(combined, wrinkle)
 
+        if portrait_mode:
+            try:
+                line = (combined < 128).astype(np.uint8) * 255
+                k3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+                line = cv2.morphologyEx(line, cv2.MORPH_OPEN, k3, iterations=1)
+
+                gray_fc = cv2.cvtColor(final_color, cv2.COLOR_BGR2GRAY)
+                region = cv2.Canny(gray_fc, 40, 120)
+                region = cv2.dilate(region, k3, iterations=1)
+
+                protect = face_mask if face_mask is not None else np.zeros((self.h, self.w), dtype=np.uint8)
+                protect = cv2.dilate(protect, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31)), iterations=1)
+
+                keep = cv2.bitwise_or(region, protect)
+                if self.fg_mask is not None:
+                    keep = cv2.bitwise_and(keep, self.fg_mask)
+
+                line = cv2.bitwise_and(line, keep)
+
+                num, cc, stats, _ = cv2.connectedComponentsWithStats(line, connectivity=8)
+                min_a = max(60, int(0.00015 * self.h * self.w))
+                for i in range(1, num):
+                    if int(stats[i, cv2.CC_STAT_AREA]) >= min_a:
+                        continue
+                    yy, xx = np.where(cc == i)
+                    if yy.size == 0:
+                        continue
+                    if cv2.countNonZero(protect[yy, xx]) > 0:
+                        continue
+                    line[yy, xx] = 0
+
+                combined = cv2.bitwise_not(line)
+            except Exception:
+                pass
+
         # Çizgi Kalınlaştırma (İsteğe bağlı)
         if edge_thickness > 1:
             kernel = np.ones((edge_thickness, edge_thickness), np.uint8)
@@ -583,9 +663,6 @@ class AdvancedVectorEngine:
         mask_bgr = cv2.GaussianBlur(mask_bgr, (3,3), 0) # Anti-alias
 
         result = cv2.bitwise_and(final_color, mask_bgr)
-        # Portrait mode: Remove small isolated regions for cleaner output
-        if portrait_mode:
-            result = self._cleanup_small_regions(result)
         self.vector_base = result.copy()
 
         return result
