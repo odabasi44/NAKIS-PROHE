@@ -7,18 +7,18 @@ from fastapi import APIRouter, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from PIL import Image
 
-from botlab_app.api.schemas import (
+from api.schemas import (
     UploadResponse,
     VectorProcessRequest,
     VectorProcessResponse,
     EmbroideryProcessRequest,
     EmbroideryProcessResponse,
 )
-from botlab_app.core.config import settings
-from botlab_app.core.utils import ensure_dir, new_id
-from botlab_app.services.image_pipeline import ImagePipeline
-from botlab_app.services.vector_pipeline import rgba_to_eps
-from botlab_app.services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
+from core.config import settings
+from core.utils import ensure_dir, new_id
+from services.image_pipeline import ImagePipeline
+from services.vector_pipeline import rgba_to_eps
+from services.embroidery_pipeline import eps_layers_to_bot, bot_to_pattern, export_pattern
 
 router = APIRouter()
 
