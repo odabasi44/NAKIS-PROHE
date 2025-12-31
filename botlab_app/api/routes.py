@@ -98,8 +98,19 @@ async def process_embroidery(req: EmbroideryProcessRequest):
 
 @router.get("/static/{filename}")
 async def get_static(filename: str):
+    if not filename:
+        raise HTTPException(status_code=400, detail="filename required")
+
     safe = filename.replace("/", "").replace("\\", "")
-    path = str(Path(settings.output_dir) / safe)
+    if safe in (".", "..") or ".." in safe:
+        raise HTTPException(status_code=400, detail="invalid filename")
+
+    base_dir = Path(settings.output_dir).resolve()
+    target = (base_dir / safe).resolve()
+    if base_dir not in target.parents and target != base_dir:
+        raise HTTPException(status_code=400, detail="invalid filename")
+
+    path = str(target)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path)
