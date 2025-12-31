@@ -25,6 +25,10 @@ router = APIRouter()
 ensure_dir(settings.output_dir)
 _pipeline = ImagePipeline(settings.u2net_path)
 
+@router.get("/health")
+async def health():
+    return {"ok": True}
+
 def _path_for(id_: str, ext: str) -> str:
     return str(Path(settings.output_dir) / f"{id_}.{ext}")
 
