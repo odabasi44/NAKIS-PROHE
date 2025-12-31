@@ -4,7 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router as api_router
 
 
-app = FastAPI(title="Botlab Web Embroidery Engine", version="1.0.0")
+app = FastAPI(
+    title="Botlab Web Embroidery Engine",
+    version="1.0.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
