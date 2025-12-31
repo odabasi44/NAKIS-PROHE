@@ -848,4 +848,3 @@ def user_dashboard_data():
         "open_tickets": open_ticket_count,
         "unread_replies": unread_replies
     })
-
