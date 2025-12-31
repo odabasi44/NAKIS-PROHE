@@ -35,37 +35,6 @@
 
     <div id="step-1" class="animate-fade-in">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 ml-1">1. Ne Dönüştüreceksiniz?</h3>
-        <!-- Desteklenen Görsel Tipleri Bildirimi -->
-        <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-            <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                </svg>
-                <div class="text-sm">
-                    <p class="text-gray-300 font-medium mb-1">En İyi Sonuç Alabileceğiniz Görsel Tipleri:</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-400">
-                        <div>
-                            <span class="text-blue-400 font-semibold">Logo & Grafik için:</span>
-                            <ul class="ml-4 mt-1 space-y-1">
-                                <li>• Net hatlı logolar ve amblemler</li>
-                                <li>• Az renkli (2-5 renk) tasarımlar</li>
-                                <li>• Vektör formatları (SVG, AI, EPS)</li>
-                                <li>• Yüksek çözünürlüklü PNG'ler</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <span class="text-purple-400 font-semibold">Fotoğraf & Resim için:</span>
-                            <ul class="ml-4 mt-1 space-y-1">
-                                <li>• Portre fotoğrafları (yüz net)</li>
-                                <li>• Karikatür ve çizimler</li>
-                                <li>• Basit arka planlı resimler</li>
-                                <li>• 300+ DPI çözünürlük</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onclick="selectMode('logo')" id="card-logo" class="mode-card bg-[#0c1120] border border-white/10 rounded-2xl p-6 flex items-start gap-5">
                 <div class="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
@@ -104,7 +73,6 @@
                             <button onclick="setQuality('high')" id="q-high" class="quality-btn active py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Dengeli</button>
                             <button onclick="setQuality('ultra')" id="q-ultra" class="quality-btn py-3 rounded-lg border border-white/10 text-xs hover:bg-white/5">Yüksek</button>
                         </div>
-                        <div id="quality-info" class="mt-3 text-[11px] text-gray-400 bg-black/20 border border-white/10 rounded-lg px-3 py-2"></div>
                     </div>
                     <button onclick="startProcessing()" class="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold shadow-lg shadow-violet-900/30 hover:opacity-90 transition">Vektörleştirmeyi Başlat</button>
                 </div>
@@ -120,7 +88,7 @@
                     <img id="final-result-img" class="max-w-full max-h-[600px] object-contain">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mt-4">
-                    <button onclick="downloadEPS()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">EPS İndir</button>
+                    <button onclick="downloadVector()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">EPS İndir</button>
                     <button onclick="downloadPNG()" class="py-3 bg-white/5 text-white rounded-lg hover:bg-white/10 border border-white/10">PNG İndir</button>
                 </div>
             </div>
@@ -139,10 +107,13 @@
 
                     <div id="content-drawing" class="space-y-3 flex-grow">
                         <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
-                            <input type="radio" name="emb_format" value="bot" checked class="hidden">
-                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.BOT</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Editable</span></div>
+                            <input type="radio" name="emb_format" value="emb" checked class="hidden">
+                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.EMB</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Wilcom</span></div>
                         </label>
-                        <p class="text-[10px] text-gray-400 bg-white/5 p-2 rounded border border-white/10">BOT dosyası Wilcom’da direkt açılmaz. Botlab içinde düzenlemek içindir.</p>
+                        <label class="block p-3 border border-white/10 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition">
+                            <input type="radio" name="emb_format" value="dst" class="hidden">
+                            <div class="flex justify-between items-center"><span class="text-sm font-bold text-gray-300">.SVG</span><span class="text-[9px] text-gray-500 bg-white/5 px-2 py-1 rounded">Vektör</span></div>
+                        </label>
                     </div>
 
                     <div id="content-machine" class="hidden space-y-4 flex-grow">
@@ -150,14 +121,8 @@
                             <option value="dst">DST - Tajima</option>
                             <option value="pes">PES - Brother</option>
                             <option value="jef">JEF - Janome</option>
-                            <option value="exp">EXP - Melco</option>
-                            <option value="xxx">XXX - Singer</option>
-                            <option value="vp3">VP3 - Husqvarna</option>
                         </select>
                         <p class="text-[10px] text-yellow-200 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">⚠️ Makine dosyalarında renk bilgisi kaybolabilir.</p>
-                        <p class="text-[10px] text-orange-200 bg-orange-500/10 p-2 rounded border border-orange-500/20 mt-2">
-                            🧪 Bu özellik test aşamasındadır. Stabil nakış formatlarında (DST, PES, JEF vb.) çıktı vermeyebilir. Lütfen sonuçları kontrol edin.
-                        </p>
                     </div>
 
                     <button onclick="convertEmbroidery()" class="w-full py-3 mt-auto bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition">Dönüştür ve İndir</button>
@@ -181,50 +146,11 @@
     let currentMode = null, currentQuality = 'high', selectedFile = null, vectorData = null, epsData = null, botData = null, pngData = null, engineId = null;
     let vectorAllowed = true;
 
-    function getQualityPreset(mode, quality) {
-        // Not: mode'a göre preset değişir. Logo'da renk sayısı belirleyici; fotoğrafta hem renk hem kontur.
-        if (mode === 'logo') {
-            // Logo/Grafik: node azaltma için daha agresif simplify + küçük parçaları atma (min_area) işe yarar.
-            if (quality === 'medium') return {
-                name: 'Basit', color_count: 2, edge_thickness: 2, border_sensitivity: 14, style: 'flat',
-                simplify_factor: 0.010, min_area: 40, cleanup_kernel: 5,
-                desc: 'En az renk • En temiz, tek parça alanlar • Daha az node.'
-            };
-            if (quality === 'ultra')  return {
-                name: 'Yüksek', color_count: 5, edge_thickness: 2, border_sensitivity: 12, style: 'flat',
-                simplify_factor: 0.004, min_area: 15, cleanup_kernel: 3,
-                desc: 'Daha çok renk • Daha fazla detay/katman • Daha çok node.'
-            };
-            return {
-                name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 13, style: 'flat',
-                simplify_factor: 0.006, min_area: 25, cleanup_kernel: 3,
-                desc: 'Orta seviye renk • Logo için ideal denge • Dengeli node.'
-            };
-        }
-
-        // photo
-        if (quality === 'medium') return { name: 'Basit', color_count: 2, edge_thickness: 3, border_sensitivity: 16, style: 'flat', simplify_factor: 0.006, min_area: 35, cleanup_kernel: 5, desc: '2 renk • Daha kalın kontur • Daha sade.' };
-        if (quality === 'ultra')  return { name: 'Yüksek', color_count: 8, edge_thickness: 1, border_sensitivity: 10, style: 'flat', simplify_factor: 0.004, min_area: 18, cleanup_kernel: 3, desc: '8 renk • İnce kontur • Daha fazla yüz/giysi detayı.' };
-        return { name: 'Dengeli', color_count: 3, edge_thickness: 2, border_sensitivity: 12, style: 'flat', simplify_factor: 0.005, min_area: 25, cleanup_kernel: 3, desc: '3 renk • Dengeli kontur • Genel kullanım.' };
-    }
-
-    function updateQualityInfo() {
-        const box = document.getElementById('quality-info');
-        if (!box) return;
-        if (!currentMode) {
-            box.textContent = 'Önce mod seçin (Logo & Grafik / Fotoğraf & Resim).';
-            return;
-        }
-        const p = getQualityPreset(currentMode, currentQuality);
-        box.innerHTML = `<span class="font-bold text-white">${p.name}</span> • <span class="font-bold text-violet-300">${p.color_count} renk</span> • ${p.desc}`;
-    }
-
     function selectMode(mode) {
         currentMode = mode;
         document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('selected'));
         document.getElementById('card-' + mode).classList.add('selected');
         document.getElementById('step-upload').classList.remove('hidden');
-        updateQualityInfo();
         setTimeout(() => document.getElementById('step-upload').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     }
 
@@ -232,7 +158,6 @@
         currentQuality = q;
         document.querySelectorAll('.quality-btn').forEach(el => el.classList.remove('active'));
         document.getElementById('q-' + q).classList.add('active');
-        updateQualityInfo();
     }
 
     function handleFile(file) {
@@ -256,7 +181,6 @@
 
     async function startProcessing() {
         if (!selectedFile) return alert("Dosya seçin!");
-        if (!currentMode) return alert("Lütfen önce mod seçin (Logo & Grafik / Fotoğraf & Resim).");
         if (!vectorAllowed) {
             alert("Bu araç için limitiniz doldu veya paketiniz yeterli değil. Paket yükseltmeyi deneyin.");
             return;
@@ -266,25 +190,23 @@
         const formData = new FormData();
         formData.append('image', selectedFile);
         formData.append('method', currentMode === 'logo' ? 'outline' : 'cartoon');
-
-        const preset = getQualityPreset(currentMode, currentQuality);
-        formData.append('edge_thickness', preset.edge_thickness);
-        formData.append('color_count', preset.color_count);
-        formData.append('border_sensitivity', preset.border_sensitivity);
-        formData.append('simplify_factor', preset.simplify_factor);
-        formData.append('min_area', preset.min_area);
-        formData.append('cleanup_kernel', preset.cleanup_kernel);
-        // Fotoğrafta flat stil; logo'da method=outline zaten kendi akışını kullanır.
-        formData.append('style', preset.style);
+        
+        let thickness = 2, count = 16;
+        if (currentQuality === 'medium') { thickness = 3; count = 8; }
+        else if (currentQuality === 'ultra') { thickness = 1; count = 32; }
+        
+        formData.append('edge_thickness', thickness);
+        formData.append('color_count', count);
+        formData.append('style', 'cartoon');
 
         try {
             const res = await fetch('/api/vectorize', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.success) {
                 engineId = data.id || null;
-                vectorData = data.file || null;
-                epsData = data.eps || null;
-                botData = data.bot || null;
+                vectorData = data.file || null;     // (proxy modda boş olabilir)
+                epsData = data.eps || null;         // YENİ
+                botData = data.bot || null;         // YENİ
                 pngData = data.preview_img || null;
                 document.getElementById('final-result-img').src = "data:image/png;base64," + pngData;
                 document.getElementById('processing-overlay').classList.add('hidden');
@@ -342,7 +264,6 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchVectorStatus();
-        updateQualityInfo();
     });
 
     function switchTab(tab) {
@@ -373,19 +294,13 @@
             format = document.getElementById('machine-format-select').value; // dst, pes
         } else {
             const radio = document.querySelector('input[name="emb_format"]:checked');
-            format = radio ? radio.value : 'bot';
+            format = radio ? radio.value : 'emb';
         }
 
-        // BOT indir
-        if (format === 'bot') {
-            if (!botData) return alert("BOT henüz hazır değil. Önce vektörleştirin.");
-            const link = document.createElement('a');
-            link.href = "data:application/json;base64," + botData;
-            link.download = "design.bot";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            return;
+        // EMB formatı pyembroidery ile yazılamaz, uyarı verelim
+        if (format === 'emb' || format === 'art') {
+            alert("⚠️ .EMB ve .ART formatları tescilli olduğu için yazılamaz. Size en yakın format olan .DST verilecektir.");
+            format = 'dst';
         }
 
         // Butonu Kilitle
@@ -395,19 +310,11 @@
         btn.disabled = true;
 
         const formData = new FormData();
-        // Yeni akış: BOT -> makine formatı
-        if (botData) {
-            formData.append('bot', botData);
-            formData.append('format', format);
-        } else {
-            // Fallback: eski sistem (image -> format)
-            formData.append('image', selectedFile);
-            formData.append('format', format);
-        }
+        formData.append('image', selectedFile); // Orijinal resmi gönderip tekrar işliyoruz
+        formData.append('format', format);
 
         try {
-            const url = botData ? '/api/bot_to_embroidery' : '/api/convert_embroidery';
-            const res = await fetch(url, {
+            const res = await fetch('/api/convert_embroidery', {
                 method: 'POST',
                 body: formData
             });
@@ -434,7 +341,6 @@
         }
     }
 
-    function downloadEPS() { if(epsData) { const a = document.createElement('a'); a.href = "data:application/postscript;base64," + epsData; a.download = "vektor.eps"; a.click(); } else { alert("EPS henüz hazır değil."); } }
     function downloadVector() { if(vectorData) { const a = document.createElement('a'); a.href = "data:image/svg+xml;base64," + vectorData; a.download = "vektor.svg"; a.click(); } }
     function downloadPNG() { if(pngData) { const a = document.createElement('a'); a.href = "data:image/png;base64," + pngData; a.download = "preview.png"; a.click(); } }
 </script>
