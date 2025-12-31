@@ -57,6 +57,10 @@ def api_vectorize():
         if not raw_bytes:
             return jsonify({"success": False, "message": "Boş dosya"}), 400
 
+        # aspect ratio kilidi (engine ve local path için ortak)
+        lock_aspect = request.form.get("lock_aspect")
+        lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
+
         # --- FastAPI Engine Proxy (Flask ile aynı domain'den çalışsın diye) ---
         engine_url = (os.getenv("BOTLAB_ENGINE_URL") or "").strip().rstrip("/")
         if engine_url:
@@ -149,8 +153,6 @@ def api_vectorize():
         # 1) hedef boyut (engine'e de geçecek)
         target_width = request.form.get("target_width")
         target_height = request.form.get("target_height")
-        lock_aspect = request.form.get("lock_aspect")
-        lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
 
         # 2) pre-process: bg removal + enhance (EPS/embroidery için daha temiz giriş)
         original_rgb = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
