@@ -61,6 +61,46 @@ def api_vectorize():
         lock_aspect = request.form.get("lock_aspect")
         lock_aspect = (str(lock_aspect).strip().lower() not in ("0", "false", "no", "off")) if lock_aspect is not None else True
 
+        try:
+            px_per_mm = float(os.getenv("BOTLAB_PX_PER_MM", "10"))
+        except Exception:
+            px_per_mm = 10.0
+        px_per_mm = max(0.1, px_per_mm)
+
+        def _cm_to_px(v: str | None) -> int:
+            if v is None:
+                return 0
+            s = str(v).strip().replace(",", ".")
+            if not s:
+                return 0
+            try:
+                cm = float(s)
+            except Exception:
+                return 0
+            if cm <= 0:
+                return 0
+            px = int(round(cm * 10.0 * px_per_mm))
+            return max(0, min(px, 3000))
+
+        width_cm = request.form.get("width_cm")
+        height_cm = request.form.get("height_cm")
+        tw_cm_px = _cm_to_px(width_cm)
+        th_cm_px = _cm_to_px(height_cm)
+
+        try:
+            tw_legacy = int(request.form.get("target_width") or 0)
+        except Exception:
+            tw_legacy = 0
+        try:
+            th_legacy = int(request.form.get("target_height") or 0)
+        except Exception:
+            th_legacy = 0
+
+        tw_px = tw_cm_px or tw_legacy
+        th_px = th_cm_px or th_legacy
+
+        mode = (request.form.get("mode") or "").strip().lower()
+
         # --- FastAPI Engine Proxy (Flask ile aynı domain'den çalışsın diye) ---
         engine_url = (os.getenv("BOTLAB_ENGINE_URL") or "").strip().rstrip("/")
         if engine_url:
@@ -83,14 +123,8 @@ def api_vectorize():
                 return jsonify({"success": False, "message": "Engine upload id dönmedi"}), 502
 
             # 2) vector process (EPS + PNG)
-            try:
-                tw = int(request.form.get("target_width") or 0)
-            except Exception:
-                tw = 0
-            try:
-                th = int(request.form.get("target_height") or 0)
-            except Exception:
-                th = 0
+            tw = int(tw_px or 0)
+            th = int(th_px or 0)
             num_colors = int(color_count)
             num_colors = max(3, min(num_colors, 5))
 
@@ -120,7 +154,7 @@ def api_vectorize():
             # 3) embroidery process -> BOT (editable)
             ep = requests.post(
                 f"{engine_url}/api/process/embroidery",
-                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect), "mode": (mode or None)},
                 verify=verify,
                 timeout=300,
             )
@@ -151,8 +185,8 @@ def api_vectorize():
             })
 
         # 1) hedef boyut (engine'e de geçecek)
-        target_width = request.form.get("target_width")
-        target_height = request.form.get("target_height")
+        target_width = tw_px or 0
+        target_height = th_px or 0
 
         # 2) pre-process: bg removal + enhance (EPS/embroidery için daha temiz giriş)
         original_rgb = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
