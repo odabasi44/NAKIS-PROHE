@@ -23,6 +23,7 @@ class EmbroideryProcessRequest(BaseModel):
     width: int | None = Field(None, ge=64, le=3000)
     height: int | None = Field(None, ge=64, le=3000)
     keep_ratio: bool = True
+    mode: str | None = None
 
 class EmbroideryProcessResponse(BaseModel):
     id: str
