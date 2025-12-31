@@ -60,10 +60,15 @@ def api_vectorize():
         # --- FastAPI Engine Proxy (Flask ile aynı domain'den çalışsın diye) ---
         engine_url = (os.getenv("BOTLAB_ENGINE_URL") or "").strip().rstrip("/")
         if engine_url:
+            vssl = (os.getenv("BOTLAB_ENGINE_VERIFY_SSL") or "").strip().lower()
+            ca_bundle = (os.getenv("BOTLAB_ENGINE_CA_BUNDLE") or "").strip()
+            verify = ca_bundle if ca_bundle else (vssl not in ("0", "false", "no", "off"))
+
             # 1) upload
             up = requests.post(
                 f"{engine_url}/api/upload",
                 files={"image": (getattr(file, "filename", "image"), raw_bytes, getattr(file, "mimetype", "application/octet-stream"))},
+                verify=verify,
                 timeout=120,
             )
             if up.status_code >= 400:
@@ -88,6 +93,7 @@ def api_vectorize():
             vp = requests.post(
                 f"{engine_url}/api/process/vector",
                 json={"id": job_id, "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                verify=verify,
                 timeout=300,
             )
             if vp.status_code >= 400:
@@ -99,8 +105,8 @@ def api_vectorize():
             if not eps_url or not png_url:
                 return jsonify({"success": False, "message": "Engine vector eps/png url dönmedi"}), 502
 
-            eps_r = requests.get(f"{engine_url}{eps_url}", timeout=120)
-            png_r = requests.get(f"{engine_url}{png_url}", timeout=120)
+            eps_r = requests.get(f"{engine_url}{eps_url}", verify=verify, timeout=120)
+            png_r = requests.get(f"{engine_url}{png_url}", verify=verify, timeout=120)
             if eps_r.status_code >= 400 or png_r.status_code >= 400:
                 return jsonify({"success": False, "message": "Engine static fetch hata"}), 502
 
@@ -111,6 +117,7 @@ def api_vectorize():
             ep = requests.post(
                 f"{engine_url}/api/process/embroidery",
                 json={"id": job_id, "format": "bot", "num_colors": num_colors, "width": (tw or None), "height": (th or None), "keep_ratio": bool(lock_aspect)},
+                verify=verify,
                 timeout=300,
             )
             if ep.status_code >= 400:
@@ -120,7 +127,7 @@ def api_vectorize():
             if not bot_url:
                 return jsonify({"success": False, "message": "Engine bot url dönmedi"}), 502
 
-            bot_r = requests.get(f"{engine_url}{bot_url}", timeout=120)
+            bot_r = requests.get(f"{engine_url}{bot_url}", verify=verify, timeout=120)
             if bot_r.status_code >= 400:
                 return jsonify({"success": False, "message": "Engine bot fetch hata"}), 502
 
