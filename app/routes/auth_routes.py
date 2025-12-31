@@ -1,4 +1,5 @@
 import json
+import os
 from flask import Blueprint, request, jsonify, render_template, session, redirect
 from app.utils.helpers import load_settings, save_settings, get_user_data_by_email
 from app.models import User
@@ -20,10 +21,13 @@ def admin_login():
     
     # Admin ayarlarını güvenli çek
     admin_conf = settings.get("admin", {})
+    env_admin_email = (os.environ.get("ADMIN_EMAIL") or "").strip().lower()
+    env_admin_password = os.environ.get("ADMIN_PASSWORD")
     
     req_email = (data.get("email") or "").strip().lower()
-    admin_email = (admin_conf.get("email") or "").strip().lower()
-    if req_email == admin_email and data.get("password") == admin_conf.get("password"):
+    admin_email = env_admin_email or (admin_conf.get("email") or "").strip().lower()
+    admin_password = env_admin_password if env_admin_password is not None else admin_conf.get("password")
+    if req_email == admin_email and data.get("password") == admin_password:
         session["admin_logged"] = True
         session["user_email"] = req_email
         session["user_tier"] = "unlimited"
