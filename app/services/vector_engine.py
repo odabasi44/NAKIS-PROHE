@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 import base64
+import io
+import json
+from PIL import Image
 
 # MediaPipe kontrolü
 try:
@@ -18,7 +21,13 @@ class AdvancedVectorEngine:
     - Wilcom Ready Cleanup
     """
 
-    def __init__(self, image_stream):
+    def __init__(self, image_stream, target_width=None, target_height=None, lock_aspect=True, max_dim=1000, **_kwargs):
+        try:
+            if hasattr(image_stream, "seek"):
+                image_stream.seek(0)
+        except Exception:
+            pass
+
         file_bytes = np.frombuffer(image_stream.read(), np.uint8)
         self.original_img = cv2.imdecode(file_bytes, cv2.IMREAD_UNCHANGED)
         
@@ -38,11 +47,34 @@ class AdvancedVectorEngine:
 
         # Wilcom Optimizasyonu: 1000px idealdir.
         h, w = self.img.shape[:2]
-        if max(h, w) > 1000:
-            scale = 1000 / max(h, w)
+        try:
+            md = int(max_dim) if max_dim is not None else 1000
+        except Exception:
+            md = 1000
+        md = max(64, min(md, 6000))
+
+        if max(h, w) > md:
+            scale = md / max(h, w)
             self.img = cv2.resize(self.img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
         self.h, self.w = self.img.shape[:2]
+
+        self.target_width = target_width
+        self.target_height = target_height
+        self.lock_aspect = bool(lock_aspect)
+
+    def process_logo_style(self, color_count=16):
+        try:
+            k = max(3, min(int(color_count), 32))
+        except Exception:
+            k = 16
+
+        data = np.float32(self.img).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+        _, label, center = cv2.kmeans(data, k, None, criteria, 3, cv2.KMEANS_RANDOM_CENTERS)
+        quantized = np.uint8(center)[label.flatten()].reshape(self.img.shape)
+        self.vector_base = quantized.copy()
+        return quantized
 
     # --- YARDIMCI: thinning (opencv-contrib yoksa fallback) ---
     def _thinning(self, binary_img):
@@ -288,7 +320,7 @@ class AdvancedVectorEngine:
         except: return cv2.bilateralFilter(self.img, 9, 75, 75)
 
     # -------------------- SVG OUTPUT (FIXED FOR ERC V4) --------------------
-    def generate_artistic_svg(self, num_colors=16, simplify_factor=0.003, stroke_width=1):
+    def generate_artistic_svg(self, num_colors=16, simplify_factor=0.003, stroke_width=1, **_kwargs):
         """ERC V4 için optimize edilmiş SVG motoru."""
         img = self.vector_base if self.vector_base is not None else self.img
         # Sertleştirme (Blur Temizliği)
@@ -342,3 +374,54 @@ class AdvancedVectorEngine:
     
     def get_dominant_color(self, img, k=1):
         return [0,0,0]
+
+    def generate_eps(self, num_colors=16, simplify_factor=0.003, min_area=20, cleanup_kernel=3, ignore_background=True, **_kwargs):
+        img = self.vector_base if self.vector_base is not None else self.img
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        pil = Image.fromarray(rgb)
+        out = io.BytesIO()
+        pil.save(out, format="EPS")
+        return out.getvalue()
+
+    def generate_bot_json(self, num_colors=16, simplify_factor=0.003, min_area=20, cleanup_kernel=3, ignore_background=True, **_kwargs):
+        img = self.vector_base if self.vector_base is not None else self.img
+        h, w = img.shape[:2]
+
+        try:
+            k = int(num_colors)
+        except Exception:
+            k = 8
+        k = max(3, min(k, 12))
+
+        data = np.float32(img).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 15, 1.0)
+        _, label, center = cv2.kmeans(data, k, None, criteria, 3, cv2.KMEANS_RANDOM_CENTERS)
+        quantized = np.uint8(center)[label.flatten()].reshape(img.shape)
+        unique_colors = np.unique(np.uint8(center), axis=0)
+
+        objects = []
+        i = 1
+        for color in unique_colors:
+            mask = cv2.inRange(quantized, color, color)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
+            for cnt in contours:
+                if cv2.contourArea(cnt) < 50:
+                    continue
+                ap = cv2.approxPolyDP(cnt, 0.003 * cv2.arcLength(cnt, True), True)
+                if ap is None or len(ap) < 3:
+                    continue
+                pts = [[int(p[0][0]), int(p[0][1])] for p in ap]
+                objects.append({
+                    "id": f"obj_{i:03d}",
+                    "type": "tatami",
+                    "points": pts,
+                    "angle": 45,
+                    "density": 4.0,
+                    "pull_comp": 0.3,
+                    "underlay": {"type": "zigzag", "density": 1.2},
+                    "thread": {"brand": "Generic", "code": None, "rgb": [int(color[2]), int(color[1]), int(color[0])]},
+                })
+                i += 1
+
+        bot = {"version": "1.0", "metadata": {"width": int(w), "height": int(h), "unit": "px"}, "objects": objects}
+        return json.dumps(bot, ensure_ascii=False, indent=2)
